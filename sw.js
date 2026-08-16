@@ -1,115 +1,102 @@
-const CACHE_NAME = 'coursehub-v1';
-const ASSETS_TO_CACHE = [
+// Service Worker for Enlighten
+const CACHE_NAME = 'enlighten-v1.0.0';
+const DYNAMIC_CACHE = 'enlighten-dynamic-v1.0.0';
+
+// Files to cache on install
+const STATIC_ASSETS = [
     '/',
     '/index.html',
     '/dashboard.html',
     '/admin.html',
     '/manifest.json',
-    'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js',
-    'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js',
-    'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js'
+    '/icon-192.png',
+    '/icon-512.png',
+    '/favicon.png'
 ];
 
-// Install Service Worker
+// Install event - cache static assets
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME)
-            .then((cache) => cache.addAll(ASSETS_TO_CACHE))
+            .then((cache) => {
+                console.log('Caching static assets');
+                return cache.addAll(STATIC_ASSETS);
+            })
             .then(() => self.skipWaiting())
     );
 });
 
-// Activate Service Worker
+// Activate event - clean old caches
 self.addEventListener('activate', (event) => {
     event.waitUntil(
-        caches.keys().then((cacheNames) => {
-            return Promise.all(
-                cacheNames.map((cacheName) => {
-                    if (cacheName !== CACHE_NAME) {
-                        return caches.delete(cacheName);
-                    }
-                })
-            );
-        }).then(() => self.clients.claim())
+        caches.keys()
+            .then((cacheNames) => {
+                return Promise.all(
+                    cacheNames.map((cacheName) => {
+                        if (cacheName !== CACHE_NAME && cacheName !== DYNAMIC_CACHE) {
+                            console.log('Deleting old cache:', cacheName);
+                            return caches.delete(cacheName);
+                        }
+                    })
+                );
+            })
+            .then(() => self.clients.claim())
     );
 });
 
-// Fetch Strategy: Network First, Fallback to Cache
+// Fetch event - serve from cache or network
 self.addEventListener('fetch', (event) => {
     // Skip Firebase API calls
-    if (event.request.url.includes('firestore.googleapis.com') ||
-        event.request.url.includes('firebasestorage.googleapis.com')) {
+    if (event.request.url.includes('firebase') || 
+        event.request.url.includes('googleapis') ||
+        event.request.url.includes('gstatic')) {
         return;
     }
     
-    event.respondWith(
-        fetch(event.request)
-            .then((response) => {
-                // Cache successful responses
-                if (event.request.method === 'GET') {
+    // For navigation requests (HTML pages)
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            fetch(event.request)
+                .then((response) => {
                     const responseClone = response.clone();
-                    caches.open(CACHE_NAME).then((cache) => {
-                        cache.put(event.request, responseClone);
-                    });
-                }
-                return response;
-            })
-            .catch(() => {
-                // Fallback to cache
-                return caches.match(event.request).then((cachedResponse) => {
-                    if (cachedResponse) {
-                        return cachedResponse;
-                    }
-                    
-                    // If HTML request, return index.html
-                    if (event.request.headers.get('accept').includes('text/html')) {
-                        return caches.match('/index.html');
-                    }
-                    
-                    return new Response('Offline - Content not available', {
-                        status: 503,
-                        headers: { 'Content-Type': 'text/plain' }
-                    });
-                });
-            })
-    );
-});
-
-// Push Notification Support
-self.addEventListener('push', (event) => {
-    const options = {
-        body: event.data ? event.data.text() : 'New announcement from CourseHub',
-        icon: 'https://via.placeholder.com/72x72/6C3BF4/FFFFFF?text=CH',
-        badge: 'https://via.placeholder.com/72x72/6C3BF4/FFFFFF?text=CH',
-        vibrate: [200, 100, 200],
-        data: {
-            dateOfArrival: Date.now(),
-            primaryKey: 1
-        },
-        actions: [
-            {
-                action: 'open',
-                title: 'Open Dashboard'
-            },
-            {
-                action: 'close',
-                title: 'Close'
-            }
-        ]
-    };
-    
-    event.waitUntil(
-        self.registration.showNotification('CourseHub', options)
-    );
-});
-
-// Notification Click Handler
-self.addEventListener('notificationclick', (event) => {
-    event.notification.close();
-    
-    if (event.action === 'open') {
-        event.waitUntil(
-            clients.openWindow('/dashboard.html')
+                    caches.open(DYNAMIC_CACHE)
+                        .then((cache) => cache.put(event.request, responseClone));
+                    return response;
+                })
+                .catch(() => {
+                    return caches.match(event.request)
+                        .then((cachedResponse) => {
+                            if (cachedResponse) return cachedResponse;
+                            return caches.match('/index.html');
+                        });
+                })
         );
+        return;
     }
+    
+    // For other requests (images, CSS, JS)
+    event.respondWith(
+        caches.match(event.request)
+            .then((cachedResponse) => {
+                if (cachedResponse) {
+                    return cachedResponse;
+                }
+                
+                return fetch(event.request)
+                    .then((response) => {
+                        if (response.ok) {
+                            const responseClone = response.clone();
+                            caches.open(DYNAMIC_CACHE)
+                                .then((cache) => cache.put(event.request, responseClone));
+                        }
+                        return response;
+                    })
+                    .catch(() => {
+                        if (event.request.url.includes('.png') || 
+                            event.request.url.includes('.jpg')) {
+                            return caches.match('/icon-192.png');
+                        }
+                    });
+            })
+    );
 });
