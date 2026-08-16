@@ -1,13 +1,13 @@
 {
-  "name": "VOID",
-  "short_name": "Void",
-  "description": "Most Affordable Learning Platform",
-  "id": "/",
-  "start_url": "/",
-  "scope": "/",
+  "name": "Enlighten Learning Platform",
+  "short_name": "Enlighten",
+  "description": "Premium learning platform for academic excellence",
+  "start_url": "/index.html",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "background_color": "#DFDDD3",
   "theme_color": "#DFDDD3",
+  "orientation": "portrait-primary",
+  "categories": ["education", "learning"],
   "icons": [
     {
       "src": "/icon-192.png",
@@ -20,12 +20,6 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
-    },
-    {
-      "src": "/icon-512-maskable.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
     }
   ]
 }
