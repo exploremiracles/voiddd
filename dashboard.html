@@ -1148,7 +1148,8 @@
     const id = extractYouTubeId(url);
     if (!id) return url;
     
-    return `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&iv_load_policy=3&controls=0&playsinline=1`;
+    // Use privacy-enhanced mode
+    return `https://www.youtube-nocookie.com/embed/${id}?rel=0&modestbranding=1&iv_load_policy=3&disablekb=1&fs=1&playsinline=1`;
 }
 
         function playVideo(url, title, desc) {
