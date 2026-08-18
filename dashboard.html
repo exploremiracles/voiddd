@@ -1145,9 +1145,12 @@
         }
 
         function getEmbedUrl(url) {
-            const id = extractYouTubeId(url);
-            return id ? `https://www.youtube.com/embed/${id}?rel=0` : url;
-        }
+    const id = extractYouTubeId(url);
+    if (!id) return url;
+    
+    // Hide share button, related videos, and YouTube branding
+    return `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&iv_load_policy=3&disablekb=1&fs=1&playsinline=1&color=white`;
+}
 
         function playVideo(url, title, desc) {
             document.getElementById('modalVideo').src = getEmbedUrl(url);
