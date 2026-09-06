@@ -29,11 +29,12 @@
     <!-- Navbar -->
     <nav class="navbar">
         <div class="logo">
-            <span class="logo-icon">
-                <span class="material-icons">lightbulb</span>
-            </span>
-            <span class="logo-text">Enlighten</span>
-        </div>
+    <img src="logo.png" alt="Enlighten Logo" class="logo-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+    <span class="logo-icon" style="display:none;">
+        <span class="material-icons">lightbulb</span>
+    </span>
+    <span class="logo-text">Enlighten</span>
+</div>
         <div class="nav-actions">
             <button class="theme-toggle" onclick="toggleLoginTheme()" title="Change Theme">
                 <span class="material-icons" id="loginThemeIcon">light_mode</span>
