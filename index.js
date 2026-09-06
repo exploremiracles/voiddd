@@ -3,6 +3,14 @@
 let verifiedEmail = null;
 let verifiedStudentData = null;
 
+// Rate Limiting Variables
+let lastCheckTime = 0;
+const CHECK_COOLDOWN = 3000; // 3 seconds between checks
+let checkAttempts = 0;
+const MAX_ATTEMPTS = 5; // Max attempts before temporary block
+let blockedUntil = 0;
+const BLOCK_DURATION = 30000; // 30 seconds block
+
 // Login Theme Toggle
 function toggleLoginTheme() {
     const currentTheme = document.documentElement.getAttribute('data-theme');
@@ -26,6 +34,40 @@ function loadLoginTheme() {
     if (themeIcon) {
         themeIcon.textContent = savedTheme === 'dark' ? 'dark_mode' : 'light_mode';
     }
+}
+
+// Rate Limiting Check
+function isRateLimited() {
+    const now = Date.now();
+    
+    // Check if currently blocked
+    if (now < blockedUntil) {
+        const secondsLeft = Math.ceil((blockedUntil - now) / 1000);
+        showError(`Too many attempts. Try again in ${secondsLeft} seconds.`);
+        return true;
+    }
+    
+    // Check cooldown
+    if (now - lastCheckTime < CHECK_COOLDOWN) {
+        showError('Please wait a few seconds before trying again.');
+        return true;
+    }
+    
+    // Check attempt count
+    if (checkAttempts >= MAX_ATTEMPTS) {
+        blockedUntil = now + BLOCK_DURATION;
+        checkAttempts = 0;
+        showError(`Too many attempts. Blocked for ${BLOCK_DURATION / 1000} seconds.`);
+        return true;
+    }
+    
+    return false;
+}
+
+// Reset rate limiting after successful attempt
+function resetRateLimit() {
+    checkAttempts = 0;
+    blockedUntil = 0;
 }
 
 // Copy UPI ID
@@ -65,8 +107,13 @@ function resetEmailStep() {
     document.getElementById('successMessage').classList.remove('show');
 }
 
-// Check Email
+// Check Email with Rate Limiting
 async function checkEmail() {
+    // Rate limiting check
+    if (isRateLimited()) {
+        return;
+    }
+    
     const emailInput = document.getElementById('emailInput');
     const email = emailInput.value.trim().toLowerCase();
     const checkBtn = document.getElementById('checkEmailBtn');
@@ -86,6 +133,10 @@ async function checkEmail() {
         showError('Please use a Gmail address (@gmail.com)');
         return;
     }
+    
+    // Update rate limiting
+    lastCheckTime = Date.now();
+    checkAttempts++;
     
     checkBtn.disabled = true;
     checkText.textContent = 'Checking...';
@@ -123,6 +174,9 @@ async function checkEmail() {
                 return;
             }
         }
+        
+        // Success - reset rate limit
+        resetRateLimit();
         
         verifiedEmail = email;
         verifiedStudentData = whitelistData;
@@ -207,7 +261,6 @@ async function signInWithGoogle() {
         btnText.textContent = 'Success!';
         spinner.style.display = 'none';
         
-        // Show transition
         showPageTransition(whitelistData.studentName || user.displayName || 'Student');
         
     } catch (error) {
