@@ -230,7 +230,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 90px;
+    height: 70px;
 }
 
 .logo {
@@ -240,8 +240,8 @@ body {
 }
 
 .logo-image {
-    width: 75px;
-    height: 75px;
+    width: 55px;
+    height: 55px;
     object-fit: contain;
     border-radius: 10px;
     transition: var(--transition);
