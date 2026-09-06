@@ -4,9 +4,9 @@
 const FONT_FAMILIES = {
     inter: { name: 'Inter', fontFamily: "'Inter', sans-serif", icon: 'text_fields' },
     playfair: { name: 'Playfair', fontFamily: "'Playfair Display', serif", icon: 'format_quote' },
-    poppins: { name: 'Poppins', fontFamily: "'Poppins', sans-serif", icon: 'sort_by_alpha' },
+    dancing: { name: 'Dancing Script', fontFamily: "'Dancing Script', cursive", icon: 'brush' },
     roboto: { name: 'Roboto', fontFamily: "'Roboto', sans-serif", icon: 'article' },
-    lora: { name: 'Lora', fontFamily: "'Lora', serif", icon: 'menu_book' }
+    caveat: { name: 'Caveat', fontFamily: "'Caveat', cursive", icon: 'edit' }
 };
 
 // Layout Options
