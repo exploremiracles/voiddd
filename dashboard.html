@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Campus Unfolded</title>
+    <title>Dashboard - Enlighten</title>
     <meta name="theme-color" content="#DFDDD3">
     
     <link rel="manifest" href="/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&family=Lora:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     
-    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="css/dashboard.css">
 </head>
 <body>
     <!-- Campus Loader -->
@@ -36,7 +36,7 @@
                 <span class="material-icons">block</span>
             </div>
             <h2>Access Revoked</h2>
-            <p>Your access has been revoked by the administrator. Please contact support for more information.</p>
+            <p>Your access has been revoked by the administrator.</p>
             <button class="btn btn-danger" onclick="window.location.href='index.html'">
                 Go to Login
             </button>
@@ -48,7 +48,7 @@
 
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <div class="sidebar-logo">Campus Unfolded</div>
+                <div class="sidebar-logo">Enlighten</div>
                 <button class="close-sidebar-btn" onclick="closeSidebar()" aria-label="Close menu">
                     <span class="material-icons">close</span>
                 </button>
@@ -74,7 +74,7 @@
                 <button class="mobile-menu-btn" onclick="openSidebar()" aria-label="Open menu">
                     <span class="material-icons">menu</span>
                 </button>
-                <span class="mobile-title">Campus Unfolded</span>
+                <span class="mobile-title">Enlighten</span>
             </div>
 
             <div class="welcome-header">
@@ -83,8 +83,11 @@
                     <p class="welcome-subtitle" id="welcomeSubtitle">Your learning journey continues</p>
                 </div>
                 <div class="header-actions">
-                    <button class="theme-btn" onclick="toggleThemeMenu()" aria-label="Change theme">
+                    <button class="theme-btn" onclick="toggleThemeMenu()" aria-label="Change theme" title="Change Theme">
                         <span class="material-icons" id="themeIcon">light_mode</span>
+                    </button>
+                    <button class="preferences-btn" onclick="togglePreferencesMenu()" aria-label="Preferences" title="Preferences">
+                        <span class="material-icons">settings</span>
                     </button>
                     <button class="refresh-btn" id="refreshBtn" onclick="refreshAllContent()">
                         <span class="material-icons">refresh</span>
@@ -104,7 +107,7 @@
                 <div class="subject-chips" id="subjectChips" style="display:none;"></div>
             </div>
 
-            <div id="contentArea"></div>
+            <div id="contentArea" class="grid-view"></div>
 
             <div class="batch-cards">
                 <div class="batch-card expiry">
@@ -127,10 +130,10 @@
     <div class="modal-overlay" id="videoModal">
         <div class="modal-content">
             <div class="video-player-wrapper" id="videoPlayerContainer">
-                <iframe id="modalVideo" src="" allowfullscreen webkitallowfullscreen mozallowfullscreen allow="autoplay; encrypted-media; fullscreen; picture-in-picture"></iframe>
-                <button class="fullscreen-btn" onclick="toggleFullscreen()" aria-label="Toggle fullscreen">
+                <iframe id="modalVideo" src="" allowfullscreen></iframe>
+                <button class="fullscreen-btn" onclick="toggleFullscreen()">
                     <span class="material-icons">fullscreen</span>
-                    <span>Fullscreen</span>
+                    Fullscreen
                 </button>
             </div>
             <h3 id="modalTitle"></h3>
@@ -169,16 +172,10 @@
                 <span class="material-icons">logout</span>
             </div>
             <h2>Ready to Leave?</h2>
-            <p>Are you sure you want to logout? You'll need to sign in again to access your courses.</p>
+            <p>Are you sure you want to logout?</p>
             <div class="logout-dialog-buttons">
-                <button class="logout-cancel-btn" onclick="closeLogoutDialog()">
-                    <span class="material-icons">close</span>
-                    Cancel
-                </button>
-                <button class="logout-confirm-btn" onclick="confirmLogout()">
-                    <span class="material-icons">logout</span>
-                    Logout
-                </button>
+                <button class="logout-cancel-btn" onclick="closeLogoutDialog()">Cancel</button>
+                <button class="logout-confirm-btn" onclick="confirmLogout()">Logout</button>
             </div>
         </div>
     </div>
@@ -196,6 +193,7 @@
     <!-- Custom Scripts -->
     <script src="firebase-config.js"></script>
     <script src="themes.js"></script>
+    <script src="preferences.js"></script>
     <script src="dashboard.js"></script>
 </body>
 </html>
