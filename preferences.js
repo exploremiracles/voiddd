@@ -30,49 +30,43 @@ function applyFontFamily(fontName) {
     
     document.body.style.fontFamily = FONT_FAMILIES[fontName].fontFamily;
     localStorage.setItem('enlighten_font_family', fontName);
-    
-    updatePreferenceButtons();
 }
 
 // Apply Layout
 function applyLayout(layoutName) {
     if (!LAYOUTS[layoutName]) return;
     
-    const contentArea = document.getElementById('contentArea');
-    if (!contentArea) return;
-    
-    if (layoutName === 'grid') {
-        contentArea.classList.remove('list-view');
-        contentArea.classList.add('grid-view');
-    } else {
-        contentArea.classList.remove('grid-view');
-        contentArea.classList.add('list-view');
-    }
-    
     localStorage.setItem('enlighten_layout', layoutName);
-    updatePreferenceButtons();
     
-    // Reload content if data exists
-    if (cachedData && cachedData.length > 0) {
-        displayedCount = 0;
-        contentArea.innerHTML = '';
-        appendContent();
+    const contentArea = document.getElementById('contentArea');
+    if (contentArea) {
+        contentArea.classList.remove('grid-view', 'list-view');
+        contentArea.classList.add(layoutName === 'grid' ? 'grid-view' : 'list-view');
+        
+        // Reload content if exists
+        if (typeof cachedData !== 'undefined' && cachedData && cachedData.length > 0) {
+            displayedCount = 0;
+            contentArea.innerHTML = '';
+            appendContent();
+        }
     }
 }
 
 // Toggle Preferences Menu
 function togglePreferencesMenu() {
+    console.log('Toggle preferences menu called');
+    
     let menu = document.getElementById('preferencesMenu');
     
     if (!menu) {
         menu = createPreferencesMenu();
     }
     
-    if (menu.classList.contains('show')) {
-        menu.classList.remove('show');
+    if (menu.style.display === 'block') {
+        menu.style.display = 'none';
         document.removeEventListener('click', closePreferencesOutside);
     } else {
-        menu.classList.add('show');
+        menu.style.display = 'block';
         setTimeout(() => {
             document.addEventListener('click', closePreferencesOutside);
         }, 100);
@@ -86,42 +80,61 @@ function createPreferencesMenu() {
     
     const menu = document.createElement('div');
     menu.id = 'preferencesMenu';
-    menu.className = 'preferences-menu';
+    
+    // Apply inline styles to ensure it works
+    menu.style.cssText = `
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        background: #FFFFFF;
+        border: 1px solid #C5C3B8;
+        border-radius: 12px;
+        box-shadow: 0 16px 32px rgba(0,0,0,0.2);
+        z-index: 6000;
+        min-width: 240px;
+        overflow: hidden;
+        display: none;
+    `;
     
     const currentFont = localStorage.getItem('enlighten_font_family') || 'inter';
     const currentLayout = localStorage.getItem('enlighten_layout') || 'grid';
     
-    let html = '<div class="preferences-menu-header">Preferences</div>';
+    let html = '';
+    
+    // Header
+    html += '<div style="padding:12px 16px;font-weight:700;border-bottom:2px solid #233130;color:#233130;font-size:1rem;background:#FFFFFF;">Preferences</div>';
     
     // Font Family Section
-    html += '<div class="preferences-section-label">Font Family</div>';
+    html += '<div style="padding:10px 16px 5px;font-weight:600;color:#5a745f;font-size:0.75rem;text-transform:uppercase;letter-spacing:1px;background:#FFFFFF;">Font Family</div>';
+    
     Object.keys(FONT_FAMILIES).forEach(fontKey => {
         const font = FONT_FAMILIES[fontKey];
         const isActive = currentFont === fontKey;
         
         html += `
-            <div class="preference-option" onclick="selectFontFamily('${fontKey}', this)">
-                <span class="material-icons preference-icon">${font.icon}</span>
-                <span class="preference-text">${font.name}</span>
-                ${isActive ? '<span class="material-icons preference-check">check</span>' : ''}
+            <div onclick="selectFontFamily('${fontKey}', this)" style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;background:#FFFFFF;color:#233130;font-size:0.85rem;border-bottom:1px solid #F0F0F0;transition:background-color 0.2s ease;" onmouseover="this.style.backgroundColor='#DFDDD3'" onmouseout="this.style.backgroundColor='#FFFFFF'">
+                <span class="material-icons" style="color:#5a745f;font-size:20px;">${font.icon}</span>
+                <span style="color:#233130;">${font.name}</span>
+                ${isActive ? '<span class="material-icons" style="margin-left:auto;color:#059669;font-size:18px;">check</span>' : ''}
             </div>
         `;
     });
     
     // Divider
-    html += '<div class="preferences-divider"></div>';
+    html += '<div style="height:1px;background:#C5C3B8;margin:5px 0;"></div>';
     
     // Layout Section
-    html += '<div class="preferences-section-label">Card Layout</div>';
+    html += '<div style="padding:10px 16px 5px;font-weight:600;color:#5a745f;font-size:0.75rem;text-transform:uppercase;letter-spacing:1px;background:#FFFFFF;">Card Layout</div>';
+    
     Object.keys(LAYOUTS).forEach(layoutKey => {
         const layout = LAYOUTS[layoutKey];
         const isActive = currentLayout === layoutKey;
         
         html += `
-            <div class="preference-option" onclick="selectLayout('${layoutKey}', this)">
-                <span class="material-icons preference-icon">${layout.icon}</span>
-                <span class="preference-text">${layout.name}</span>
-                ${isActive ? '<span class="material-icons preference-check">check</span>' : ''}
+            <div onclick="selectLayout('${layoutKey}', this)" style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;background:#FFFFFF;color:#233130;font-size:0.85rem;border-bottom:1px solid #F0F0F0;transition:background-color 0.2s ease;" onmouseover="this.style.backgroundColor='#DFDDD3'" onmouseout="this.style.backgroundColor='#FFFFFF'">
+                <span class="material-icons" style="color:#5a745f;font-size:20px;">${layout.icon}</span>
+                <span style="color:#233130;">${layout.name}</span>
+                ${isActive ? '<span class="material-icons" style="margin-left:auto;color:#059669;font-size:18px;">check</span>' : ''}
             </div>
         `;
     });
@@ -137,14 +150,18 @@ function selectFontFamily(fontName, element) {
     
     applyFontFamily(fontName);
     
+    // Update checkmarks
     const menu = document.getElementById('preferencesMenu');
     if (menu) {
-        menu.querySelectorAll('.preference-check').forEach(icon => icon.remove());
+        menu.querySelectorAll('.material-icons[style*="margin-left:auto"]').forEach(icon => {
+            if (icon.textContent === 'check') icon.remove();
+        });
         
         if (element) {
             const checkIcon = document.createElement('span');
-            checkIcon.className = 'material-icons preference-check';
+            checkIcon.className = 'material-icons';
             checkIcon.textContent = 'check';
+            checkIcon.style.cssText = 'margin-left:auto;color:#059669;font-size:18px;';
             element.appendChild(checkIcon);
         }
     }
@@ -160,12 +177,15 @@ function selectLayout(layoutName, element) {
     
     const menu = document.getElementById('preferencesMenu');
     if (menu) {
-        menu.querySelectorAll('.preference-check').forEach(icon => icon.remove());
+        menu.querySelectorAll('.material-icons[style*="margin-left:auto"]').forEach(icon => {
+            if (icon.textContent === 'check') icon.remove();
+        });
         
         if (element) {
             const checkIcon = document.createElement('span');
-            checkIcon.className = 'material-icons preference-check';
+            checkIcon.className = 'material-icons';
             checkIcon.textContent = 'check';
+            checkIcon.style.cssText = 'margin-left:auto;color:#059669;font-size:18px;';
             element.appendChild(checkIcon);
         }
     }
@@ -177,7 +197,7 @@ function selectLayout(layoutName, element) {
 function closePreferencesMenu() {
     const menu = document.getElementById('preferencesMenu');
     if (menu) {
-        menu.classList.remove('show');
+        menu.style.display = 'none';
         document.removeEventListener('click', closePreferencesOutside);
     }
 }
@@ -192,10 +212,8 @@ function closePreferencesOutside(e) {
     }
 }
 
-// Update preference buttons UI
-function updatePreferenceButtons() {
-    // Update icons if needed
-}
-
-// Initialize
-document.addEventListener('DOMContentLoaded', loadPreferences);
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadPreferences();
+    console.log('Preferences system loaded');
+});
