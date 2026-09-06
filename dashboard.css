@@ -2,7 +2,7 @@
    Enlighten Dashboard Styles
    ============================================ */
 
-/* Theme Variables - 6 Themes */
+/* Theme Variables */
 :root, [data-theme="default"] {
     --bg: #DFDDD3;
     --text: #233130;
@@ -280,8 +280,7 @@ img, video, iframe {
     transform: rotate(30deg);
 }
 
-/* Theme Menu */
-/* Theme Menu - Fixed Colors */
+/* Theme Menu - FIXED COLORS */
 .theme-menu {
     position: fixed;
     top: 80px;
@@ -292,11 +291,13 @@ img, video, iframe {
     box-shadow: 0 16px 32px rgba(0,0,0,0.2);
     z-index: 6000;
     min-width: 220px;
+    overflow: hidden;
     display: none;
-    animation: slideUp 0.3s ease;
 }
 
-.theme-menu.active { display: block; }
+.theme-menu.show {
+    display: block;
+}
 
 .theme-menu-header {
     padding: 12px 16px;
@@ -304,6 +305,7 @@ img, video, iframe {
     border-bottom: 1px solid #C5C3B8;
     color: #233130;
     font-size: 0.9rem;
+    background: #FFFFFF;
 }
 
 .theme-option {
@@ -312,21 +314,31 @@ img, video, iframe {
     gap: 10px;
     padding: 10px 16px;
     cursor: pointer;
-    transition: background-color 0.3s ease;
     color: #233130;
     font-size: 0.85rem;
+    background: #FFFFFF;
+    border-bottom: 1px solid #F0F0F0;
+    transition: background-color 0.2s ease;
 }
 
 .theme-option:hover {
     background: #DFDDD3;
 }
 
-.theme-option .material-icons:first-child {
+.theme-option:last-child {
+    border-bottom: none;
+}
+
+.theme-option-icon {
     color: #5a745f;
     font-size: 20px;
 }
 
-.theme-option .check-icon {
+.theme-option-text {
+    color: #233130;
+}
+
+.theme-check {
     margin-left: auto;
     color: #059669;
     font-size: 18px;
@@ -402,7 +414,6 @@ img, video, iframe {
     align-items: center;
     justify-content: center;
     flex-direction: column;
-    animation: fadeIn 0.3s ease;
 }
 
 .campus-loader.active { display: flex; }
@@ -484,16 +495,6 @@ img, video, iframe {
 @keyframes bounceDot {
     0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
     40% { transform: scale(1); opacity: 1; }
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-@keyframes slideUp {
-    from { transform: translateY(20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
 }
 
 /* Filters */
@@ -924,7 +925,6 @@ img, video, iframe {
     align-items: center;
     justify-content: center;
     padding: 1rem;
-    animation: fadeIn 0.3s ease;
 }
 
 .logout-dialog-overlay.active { display: flex; }
@@ -937,7 +937,6 @@ img, video, iframe {
     width: 100%;
     text-align: center;
     box-shadow: var(--shadow-lg);
-    animation: slideUp 0.3s ease;
 }
 
 .logout-dialog-icon {
@@ -1056,6 +1055,21 @@ img, video, iframe {
     color: var(--text-secondary);
     font-size: 0.85rem;
     margin-bottom: 1rem;
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-weight: 600;
+    font-family: inherit;
+    font-size: 0.9rem;
+}
+
+.btn-danger {
+    background: var(--danger);
+    color: white;
 }
 
 /* Install Button */
