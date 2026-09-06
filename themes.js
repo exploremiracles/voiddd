@@ -52,7 +52,6 @@ function toggleThemeMenu() {
     
     const isActive = menu.classList.contains('active');
     
-    // Close if already open
     if (isActive) {
         closeThemeMenu();
         return;
@@ -60,31 +59,46 @@ function toggleThemeMenu() {
     
     menu.classList.add('active');
     
-    // Close menu when clicking outside
     setTimeout(() => {
         document.addEventListener('click', closeThemeMenuOutside);
     }, 100);
 }
 
-// Create theme menu dynamically
+// Create theme menu dynamically with INLINE STYLES
 function createThemeMenu() {
     const menu = document.createElement('div');
     menu.id = 'themeMenu';
     menu.className = 'theme-menu';
     
+    // Apply inline styles to prevent theme changes
+    menu.style.cssText = `
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        background: #FFFFFF;
+        border: 1px solid #C5C3B8;
+        border-radius: 12px;
+        box-shadow: 0 16px 32px rgba(0,0,0,0.2);
+        z-index: 6000;
+        min-width: 220px;
+        display: none;
+        animation: slideUp 0.3s ease;
+    `;
+    
     const currentTheme = localStorage.getItem('enlighten_theme') || 'default';
     
-    let html = '<div class="theme-menu-header">Choose Theme</div>';
+    let html = '';
+    html += '<div style="padding:12px 16px;font-weight:600;border-bottom:1px solid #C5C3B8;color:#233130;font-size:0.9rem;">Choose Theme</div>';
     
     Object.keys(THEMES).forEach(themeKey => {
         const theme = THEMES[themeKey];
         const isActive = currentTheme === themeKey;
         
         html += `
-            <div class="theme-option" data-theme="${themeKey}" onclick="selectTheme('${themeKey}', this)">
-                <span class="material-icons">${theme.icon}</span>
+            <div class="theme-option" data-theme="${themeKey}" onclick="selectTheme('${themeKey}', this)" style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;transition:background-color 0.3s ease;color:#233130;font-size:0.85rem;" onmouseover="this.style.backgroundColor='#DFDDD3'" onmouseout="this.style.backgroundColor='transparent'">
+                <span class="material-icons" style="color:#5a745f;font-size:20px;">${theme.icon}</span>
                 <span>${theme.name}</span>
-                ${isActive ? '<span class="material-icons check-icon">check</span>' : ''}
+                ${isActive ? '<span class="material-icons check-icon" style="margin-left:auto;color:#059669;font-size:18px;">check</span>' : ''}
             </div>
         `;
     });
@@ -101,7 +115,7 @@ function selectTheme(themeName, element) {
     // Apply theme
     applyTheme(themeName);
     
-    // Remove all checkmarks
+    // Remove all checkmarks with inline styles
     const menu = document.getElementById('themeMenu');
     if (menu) {
         menu.querySelectorAll('.check-icon').forEach(icon => icon.remove());
@@ -111,8 +125,7 @@ function selectTheme(themeName, element) {
             const checkIcon = document.createElement('span');
             checkIcon.className = 'material-icons check-icon';
             checkIcon.textContent = 'check';
-            checkIcon.style.marginLeft = 'auto';
-            checkIcon.style.color = 'var(--accent)';
+            checkIcon.style.cssText = 'margin-left:auto;color:#059669;font-size:18px;';
             element.appendChild(checkIcon);
         }
     }
@@ -130,6 +143,7 @@ function closeThemeMenu() {
     const menu = document.getElementById('themeMenu');
     if (menu) {
         menu.classList.remove('active');
+        menu.style.display = 'none';
         document.removeEventListener('click', closeThemeMenuOutside);
     }
 }
