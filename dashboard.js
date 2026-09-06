@@ -1,0 +1,707 @@
+// Dashboard State
+let currentUser = null;
+let currentTab = 'videos';
+let selectedClass = null;
+let selectedSubject = null;
+let cachedData = [];
+let displayedCount = 0;
+const PAGE_SIZE = 5;
+let currentImageUrl = '';
+let currentImageTitle = '';
+let statusCheckInterval = null;
+let deferredPrompt = null;
+
+// Utility Functions
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Screenshot Protection
+function preventScreenshot() {
+    document.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        showScreenshotWarning();
+        return false;
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'PrintScreen' || 
+            (e.ctrlKey && e.key === 'p') || 
+            (e.ctrlKey && e.key === 's') || 
+            (e.ctrlKey && e.shiftKey && e.key === 'I') || 
+            e.key === 'F12') {
+            e.preventDefault();
+            showScreenshotWarning();
+            return false;
+        }
+    });
+}
+
+function showScreenshotWarning() {
+    const warning = document.createElement('div');
+    warning.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #DC2626;
+        color: white;
+        padding: 15px 25px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        z-index: 99999;
+        box-shadow: 0 10px 30px rgba(220,38,38,0.4);
+        text-align: center;
+    `;
+    warning.innerHTML = `
+        <span class="material-icons" style="font-size:2rem;display:block;margin-bottom:0.5rem;">block</span>
+        Screenshots are not allowed on this page
+    `;
+    document.body.appendChild(warning);
+    setTimeout(() => { warning.remove(); }, 2000);
+}
+
+// Image Download
+async function downloadCurrentImage() {
+    if (!currentImageUrl) return;
+    
+    const downloadBtn = document.getElementById('imageDownloadBtn');
+    const originalText = downloadBtn.innerHTML;
+    
+    try {
+        downloadBtn.innerHTML = '<span class="material-icons">hourglass_empty</span> Downloading...';
+        downloadBtn.disabled = true;
+        
+        const response = await fetch(currentImageUrl);
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = (currentImageTitle || 'image') + '.jpg';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+        
+        downloadBtn.innerHTML = originalText;
+        downloadBtn.disabled = false;
+        
+    } catch (error) {
+        console.error('Download error:', error);
+        window.open(currentImageUrl, '_blank');
+        downloadBtn.innerHTML = originalText;
+        downloadBtn.disabled = false;
+    }
+}
+
+// Status Monitoring
+function startStatusMonitoring() {
+    if (statusCheckInterval) clearInterval(statusCheckInterval);
+    
+    statusCheckInterval = setInterval(async () => {
+        const user = auth.currentUser;
+        if (!user) return;
+        
+        try {
+            const whitelistRef = db.collection('whitelist').doc(user.email.toLowerCase());
+            const doc = await whitelistRef.get();
+            
+            if (!doc.exists || doc.data().active !== true) {
+                clearInterval(statusCheckInterval);
+                showAccessRevoked();
+            }
+        } catch (error) {
+            console.error('Status check error:', error);
+        }
+    }, 5000);
+}
+
+function showAccessRevoked() {
+    document.getElementById('accessRevokedOverlay').classList.add('active');
+    document.body.style.overflow = 'hidden';
+    
+    setTimeout(async () => {
+        localStorage.removeItem('session');
+        await auth.signOut();
+        window.location.replace('index.html');
+    }, 3000);
+}
+
+// Refresh Content
+async function refreshAllContent() {
+    const refreshBtn = document.getElementById('refreshBtn');
+    const campusLoader = document.getElementById('campusLoader');
+    
+    refreshBtn.disabled = true;
+    refreshBtn.classList.add('spinning');
+    campusLoader.classList.add('active');
+    
+    try {
+        cachedData = [];
+        displayedCount = 0;
+        
+        if (selectedClass) {
+            await loadAvailableSubjects(selectedClass);
+            await loadContent();
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+    } catch (error) {
+        console.error('Refresh error:', error);
+    } finally {
+        campusLoader.classList.remove('active');
+        refreshBtn.disabled = false;
+        refreshBtn.classList.remove('spinning');
+    }
+}
+
+// Logout Functions
+function showLogoutDialog() {
+    document.getElementById('logoutDialogOverlay').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeLogoutDialog() {
+    document.getElementById('logoutDialogOverlay').classList.remove('active');
+    document.body.style.overflow = 'auto';
+}
+
+async function confirmLogout() {
+    try {
+        if (statusCheckInterval) clearInterval(statusCheckInterval);
+        localStorage.removeItem('session');
+        await auth.signOut();
+        window.location.replace('index.html');
+        history.pushState(null, null, 'index.html');
+    } catch (error) {
+        console.error('Logout error:', error);
+        closeLogoutDialog();
+    }
+}
+
+// Sidebar Functions
+function openSidebar() {
+    document.getElementById('sidebar').classList.add('open');
+    document.getElementById('sidebarOverlay').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('active');
+    document.body.style.overflow = 'auto';
+}
+
+function handleMobileTabClick(tab) {
+    if (window.innerWidth <= 768) closeSidebar();
+    switchTab(tab);
+}
+
+// PWA Install
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    document.getElementById('installBtn').style.display = 'flex';
+});
+
+async function installApp() {
+    if (!deferredPrompt) {
+        alert('To install: Use browser menu → Install App');
+        return;
+    }
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    document.getElementById('installBtn').style.display = 'none';
+}
+
+window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    document.getElementById('installBtn').style.display = 'none';
+});
+
+if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+    document.getElementById('installBtn').style.display = 'none';
+}
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+    });
+}
+
+// Auth Check
+function checkAuth() {
+    auth.onAuthStateChanged(async (user) => {
+        if (!user) {
+            localStorage.removeItem('session');
+            window.location.replace('index.html');
+            return;
+        }
+        
+        try {
+            const whitelistRef = db.collection('whitelist').doc(user.email.toLowerCase());
+            const whitelistDoc = await whitelistRef.get();
+            
+            if (!whitelistDoc.exists || whitelistDoc.data().active !== true) {
+                showAccessRevoked();
+                return;
+            }
+        } catch (error) {
+            console.error('Whitelist check error:', error);
+        }
+        
+        const session = localStorage.getItem('session');
+        if (!session) {
+            window.location.replace('index.html');
+            return;
+        }
+        
+        try {
+            currentUser = JSON.parse(session);
+            if (currentUser.email !== user.email.toLowerCase()) {
+                localStorage.removeItem('session');
+                auth.signOut();
+                window.location.replace('index.html');
+                return;
+            }
+            
+            if (currentUser.loginTime) {
+                const elapsedTime = Date.now() - currentUser.loginTime;
+                const twoHours = 2 * 60 * 60 * 1000;
+                if (elapsedTime > twoHours) {
+                    localStorage.removeItem('session');
+                    auth.signOut();
+                    window.location.replace('index.html');
+                    return;
+                }
+            }
+            
+            let studentName = currentUser.displayName || 'Student';
+            if (studentName === 'undefined' || studentName === 'null') {
+                studentName = currentUser.email.split('@')[0].replace(/[._]/g, ' ');
+                studentName = studentName.replace(/\b\w/g, c => c.toUpperCase());
+            }
+            
+            document.getElementById('welcomeName').textContent = `Welcome, ${studentName}!`;
+            document.getElementById('welcomeSubtitle').textContent = currentUser.email || '';
+            
+            if (currentUser.expiresAt) {
+                const expiry = new Date(currentUser.expiresAt);
+                document.getElementById('expiryDateValue').textContent = 
+                    expiry.toLocaleDateString('en-IN', {day:'numeric', month:'long', year:'numeric'});
+            }
+            
+            loadClassChips();
+            showClassSelectionPrompt();
+            startStatusMonitoring();
+            
+        } catch (error) {
+            localStorage.removeItem('session');
+            window.location.replace('index.html');
+        }
+    });
+}
+
+// Load Class Chips
+function loadClassChips() {
+    const chipsDiv = document.getElementById('classChips');
+    const classes = currentUser.allowedClasses || [];
+    
+    if (!classes.length) {
+        chipsDiv.innerHTML = '<p style="color:var(--text-secondary);">No classes assigned.</p>';
+        return;
+    }
+    
+    let html = '';
+    classes.forEach(cls => {
+        html += `<div class="chip" onclick="selectClass('${escapeHtml(cls)}')">${escapeHtml(cls)}</div>`;
+    });
+    chipsDiv.innerHTML = html;
+}
+
+function showClassSelectionPrompt() {
+    document.getElementById('contentArea').innerHTML = `
+        <div class="empty-state">
+            <span class="material-icons">touch_app</span>
+            <h3>Select Your Class</h3>
+            <p>Choose a class above to view content</p>
+        </div>
+    `;
+}
+
+// Select Class
+async function selectClass(cls) {
+    selectedClass = cls;
+    selectedSubject = null;
+    cachedData = [];
+    displayedCount = 0;
+    
+    document.querySelectorAll('.class-chips .chip').forEach(chip => {
+        chip.classList.remove('active');
+        if (chip.textContent === cls) chip.classList.add('active');
+    });
+    
+    document.getElementById('subjectLabel').style.display = 'block';
+    const subjectChipsDiv = document.getElementById('subjectChips');
+    subjectChipsDiv.style.display = 'flex';
+    subjectChipsDiv.innerHTML = '<span style="color:var(--text-secondary);font-size:0.8rem;">Loading...</span>';
+    
+    await loadAvailableSubjects(cls);
+    loadContent();
+}
+
+// Load Subjects
+async function loadAvailableSubjects(cls) {
+    const subjectChipsDiv = document.getElementById('subjectChips');
+    try {
+        const [videosSnap, pdfsSnap, imagesSnap, postsSnap] = await Promise.all([
+            db.collection('videos').where('class','==',cls).get(),
+            db.collection('pdfs').where('class','==',cls).get(),
+            db.collection('images').where('class','==',cls).get(),
+            db.collection('posts').where('class','array-contains',cls).get()
+        ]);
+        
+        const subjectsSet = new Set();
+        videosSnap.forEach(d => { if(d.data().subject) subjectsSet.add(d.data().subject); });
+        pdfsSnap.forEach(d => { if(d.data().subject) subjectsSet.add(d.data().subject); });
+        imagesSnap.forEach(d => { if(d.data().subject) subjectsSet.add(d.data().subject); });
+        postsSnap.forEach(d => { if(d.data().subject) subjectsSet.add(d.data().subject); });
+        
+        const subjects = Array.from(subjectsSet).sort();
+        if (subjects.length === 0) {
+            subjectChipsDiv.innerHTML = '<p style="color:var(--text-secondary);font-size:0.8rem;">No subjects yet.</p>';
+            return;
+        }
+        
+        let html = `<div class="chip active" onclick="selectSubject(null)">All (${subjects.length})</div>`;
+        subjects.forEach(s => { 
+            html += `<div class="chip" onclick="selectSubject('${escapeHtml(s)}')">${escapeHtml(s)}</div>`; 
+        });
+        subjectChipsDiv.innerHTML = html;
+    } catch (error) {
+        console.error('Error loading subjects:', error);
+        subjectChipsDiv.innerHTML = '<p style="color:var(--text-secondary);font-size:0.8rem;">Error loading subjects.</p>';
+    }
+}
+
+// Select Subject
+function selectSubject(subject) {
+    selectedSubject = subject;
+    cachedData = [];
+    displayedCount = 0;
+    document.querySelectorAll('.subject-chips .chip').forEach(chip => {
+        chip.classList.remove('active');
+        if ((subject === null && chip.textContent.startsWith('All')) || 
+            (subject !== null && chip.textContent === subject)) {
+            chip.classList.add('active');
+        }
+    });
+    loadContent();
+}
+
+// Load Content
+async function loadContent() {
+    if (!selectedClass) return;
+    const contentArea = document.getElementById('contentArea');
+    contentArea.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text);">Loading...</div>';
+    
+    try {
+        let allData = [];
+        
+        switch(currentTab) {
+            case 'videos': allData = await fetchCollection('videos', 'class', selectedClass); break;
+            case 'pdfs': allData = await fetchCollection('pdfs', 'class', selectedClass); break;
+            case 'images': allData = await fetchCollection('images', 'class', selectedClass); break;
+            case 'posts': allData = await fetchPosts(selectedClass); break;
+        }
+        
+        if (selectedSubject) {
+            allData = allData.filter(item => item.subject === selectedSubject);
+        }
+        
+        allData.sort((a, b) => {
+            const timeA = a.uploadedAt?.toMillis?.() || a.createdAt?.toMillis?.() || 0;
+            const timeB = b.uploadedAt?.toMillis?.() || b.createdAt?.toMillis?.() || 0;
+            return timeB - timeA;
+        });
+        
+        cachedData = allData;
+        displayedCount = 0;
+        contentArea.innerHTML = '';
+        appendContent();
+        
+    } catch (error) {
+        console.error('Error loading content:', error);
+        contentArea.innerHTML = `
+            <div class="empty-state">
+                <span class="material-icons">error_outline</span>
+                <h3>Error Loading Content</h3>
+                <p>Please try again.</p>
+            </div>
+        `;
+    }
+}
+
+// Fetch Functions
+async function fetchCollection(collectionName, field, value) {
+    const snapshot = await db.collection(collectionName).where(field, '==', value).get();
+    return snapshot.docs.map(d => ({id: d.id, ...d.data()}));
+}
+
+async function fetchPosts(cls) {
+    const snapshot = await db.collection('posts').where('class', 'array-contains', cls).get();
+    return snapshot.docs.map(d => ({id: d.id, ...d.data()}));
+}
+
+// Generate Card HTML
+function generateCardHtml(item) {
+    const title = escapeHtml(item.title || '');
+    const subject = escapeHtml(item.subject || '');
+    const description = escapeHtml(item.description || '');
+    
+    if (currentTab === 'videos') {
+        const vid = extractYouTubeId(item.videoUrl);
+        const thumb = vid ? `https://img.youtube.com/vi/${vid}/hqdefault.jpg` : '';
+        const duration = escapeHtml(item.duration || '');
+        const videoUrl = escapeHtml(item.videoUrl || '');
+        
+        return `
+            <div class="card" onclick="playVideo('${videoUrl}','${title}','${description}')">
+                <div class="video-thumbnail">
+                    ${thumb ? `<img src="${thumb}" style="width:100%;height:100%;object-fit:cover;" alt="${title}">` : ''}
+                    ${duration ? `<span class="video-duration">${duration}</span>` : ''}
+                </div>
+                <div class="card-info">
+                    <div class="card-title">${title}</div>
+                    ${subject ? `<div class="card-description">${subject}</div>` : ''}
+                </div>
+            </div>
+        `;
+    } else if (currentTab === 'pdfs') {
+        const pdfUrl = escapeHtml(item.pdfUrl || '#');
+        return `
+            <div class="card pdf-card">
+                <span class="material-icons pdf-icon">picture_as_pdf</span>
+                <div class="card-title">${title}</div>
+                ${subject ? `<div class="card-description">${subject}</div>` : ''}
+                <a href="${pdfUrl}" target="_blank" rel="noopener noreferrer" class="pdf-download-btn">Download PDF</a>
+            </div>
+        `;
+    } else if (currentTab === 'images') {
+        const imageUrl = escapeHtml(item.imageUrl || '');
+        return `
+            <div class="card" onclick="viewImage('${imageUrl}','${title}','${description}','${subject}')">
+                <img src="${imageUrl}" class="image-thumbnail" alt="${title}" loading="lazy">
+                <div class="card-info">
+                    <div class="card-title">${title}</div>
+                    ${subject ? `<div class="card-description">${subject}</div>` : ''}
+                </div>
+            </div>
+        `;
+    } else if (currentTab === 'posts') {
+        const content = escapeHtml(item.content || '');
+        const postUrl = escapeHtml(item.url || '');
+        return `
+            <div class="post-card">
+                <div class="post-title">${title}</div>
+                ${subject ? `<div class="card-description">${subject}</div>` : ''}
+                <p class="post-content">${content}</p>
+                ${item.url ? `<a href="${postUrl}" target="_blank" rel="noopener noreferrer" class="post-link">Read More →</a>` : ''}
+            </div>
+        `;
+    }
+    return '';
+}
+
+// Append Content
+function appendContent() {
+    const contentArea = document.getElementById('contentArea');
+    const allData = cachedData;
+    
+    if (!allData.length) {
+        const emptyMessages = {
+            videos: { icon: 'video_library', title: 'No Videos Yet', desc: 'New videos will appear here.' },
+            pdfs: { icon: 'picture_as_pdf', title: 'No PDFs Yet', desc: 'New PDFs will appear here.' },
+            images: { icon: 'image', title: 'No Images Yet', desc: 'New images will appear here.' },
+            posts: { icon: 'article', title: 'No Posts Yet', desc: 'Announcements will appear here.' }
+        };
+        const msg = emptyMessages[currentTab];
+        contentArea.innerHTML = `
+            <div class="empty-state">
+                <span class="material-icons">${msg.icon}</span>
+                <h3>${msg.title}</h3>
+                <p>${msg.desc}</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const existingLoadMore = contentArea.querySelector('.load-more-btn');
+    if (existingLoadMore) existingLoadMore.remove();
+    
+    let container;
+    if (currentTab === 'posts') {
+        container = contentArea.querySelector('.posts-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'posts-container';
+            contentArea.appendChild(container);
+        }
+    } else {
+        container = contentArea.querySelector('.content-grid');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'content-grid';
+            contentArea.appendChild(container);
+        }
+    }
+    
+    const startIndex = displayedCount;
+    const endIndex = Math.min(startIndex + PAGE_SIZE, allData.length);
+    const batchData = allData.slice(startIndex, endIndex);
+    
+    const fragment = document.createDocumentFragment();
+    const tempDiv = document.createElement('div');
+    
+    batchData.forEach(item => {
+        tempDiv.innerHTML = generateCardHtml(item);
+        while (tempDiv.firstChild) {
+            fragment.appendChild(tempDiv.firstChild);
+        }
+    });
+    
+    container.appendChild(fragment);
+    displayedCount = endIndex;
+    
+    if (displayedCount < allData.length) {
+        const loadMoreBtn = document.createElement('button');
+        loadMoreBtn.className = 'load-more-btn';
+        loadMoreBtn.textContent = `Load More (${allData.length - displayedCount} remaining)`;
+        loadMoreBtn.onclick = appendContent;
+        contentArea.appendChild(loadMoreBtn);
+    }
+}
+
+// YouTube Functions
+function extractYouTubeId(url) {
+    if (!url) return null;
+    let id = null;
+    if (url.includes('youtu.be/')) id = url.split('youtu.be/')[1].split('?')[0];
+    else if (url.includes('youtube.com/watch')) id = url.split('v=')[1]?.split('&')[0];
+    else if (url.includes('youtube.com/embed/')) id = url.split('embed/')[1].split('?')[0];
+    else if (url.includes('youtube.com/shorts/')) id = url.split('shorts/')[1].split('?')[0];
+    return id;
+}
+
+function getEmbedUrl(url) {
+    const id = extractYouTubeId(url);
+    return id ? `https://www.youtube.com/embed/${id}?rel=0` : url;
+}
+
+// Video Functions
+function playVideo(url, title, desc) {
+    document.getElementById('modalVideo').src = getEmbedUrl(url);
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalDescription').textContent = desc;
+    document.getElementById('videoModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function toggleFullscreen() {
+    const container = document.getElementById('videoPlayerContainer');
+    if (!document.fullscreenElement) {
+        container.requestFullscreen().catch(() => {});
+    } else {
+        document.exitFullscreen();
+    }
+}
+
+function closeVideoModal() {
+    if (document.fullscreenElement) document.exitFullscreen();
+    document.getElementById('videoModal').style.display = 'none';
+    document.getElementById('modalVideo').src = '';
+    document.body.style.overflow = 'auto';
+}
+
+// Image Functions
+function viewImage(url, title, desc, subject) {
+    currentImageUrl = url;
+    currentImageTitle = title;
+    document.getElementById('modalImage').src = url;
+    document.getElementById('imageModalTitle').textContent = title;
+    document.getElementById('imageModalDescription').textContent = `${subject ? subject : ''}${desc ? ' • ' + desc : ''}`;
+    document.getElementById('imageModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeImageModal() {
+    document.getElementById('imageModal').style.display = 'none';
+    document.getElementById('modalImage').src = '';
+    currentImageUrl = '';
+    currentImageTitle = '';
+    document.body.style.overflow = 'auto';
+}
+
+// Tab Switching
+function switchTab(tab) {
+    currentTab = tab;
+    cachedData = [];
+    displayedCount = 0;
+    document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+    const tabs = ['videos','pdfs','images','posts'];
+    const index = tabs.indexOf(tab);
+    if (index !== -1) document.querySelectorAll('.sidebar-item')[index].classList.add('active');
+    if (selectedClass) {
+        loadContent();
+    }
+}
+
+// Event Listeners
+document.getElementById('videoModal').addEventListener('click', function(e) {
+    if (e.target === this) closeVideoModal();
+});
+
+document.getElementById('imageModal').addEventListener('click', function(e) {
+    if (e.target === this) closeImageModal();
+});
+
+document.getElementById('logoutDialogOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeLogoutDialog();
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeLogoutDialog();
+        closeVideoModal();
+        closeImageModal();
+    }
+});
+
+// Back button prevention
+window.addEventListener('pageshow', function(event) {
+    if (event.persisted) {
+        const session = localStorage.getItem('session');
+        if (!session) {
+            window.location.replace('index.html');
+        }
+    }
+});
+
+window.addEventListener('popstate', function() {
+    const session = localStorage.getItem('session');
+    if (!session) {
+        window.location.replace('index.html');
+    }
+});
+
+history.pushState(null, null, location.href);
+
+// Initialize
+preventScreenshot();
+checkAuth();
