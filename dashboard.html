@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="default">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Enlighten</title>
+    <meta name="theme-color" content="#DFDDD3">
+    
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+    <!-- Campus Loader -->
+    <div class="campus-loader" id="campusLoader">
+        <div class="campus-loader-content">
+            <div class="campus-loader-icon"></div>
+            <div class="campus-loader-text">Campus Unfolded</div>
+            <div class="campus-loader-subtext">Refreshing your content...</div>
+            <div class="campus-loader-dots">
+                <div class="campus-loader-dot"></div>
+                <div class="campus-loader-dot"></div>
+                <div class="campus-loader-dot"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Access Revoked Dialog -->
+    <div class="access-revoked-overlay" id="accessRevokedOverlay">
+        <div class="access-revoked-dialog">
+            <div class="access-revoked-icon">
+                <span class="material-icons">block</span>
+            </div>
+            <h2>Access Revoked</h2>
+            <p>Your access has been revoked by the administrator. Please contact support for more information.</p>
+            <button class="btn btn-danger" onclick="window.location.href='index.html'">
+                Go to Login
+            </button>
+        </div>
+    </div>
+
+    <div class="dashboard">
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">Enlighten</div>
+                <button class="close-sidebar-btn" onclick="closeSidebar()" aria-label="Close menu">
+                    <span class="material-icons">close</span>
+                </button>
+            </div>
+            <div class="sidebar-nav">
+                <div class="sidebar-item active" onclick="handleMobileTabClick('videos')">
+                    <span class="material-icons">play_circle</span><span>Videos</span>
+                </div>
+                <div class="sidebar-item" onclick="handleMobileTabClick('pdfs')">
+                    <span class="material-icons">picture_as_pdf</span><span>PDFs</span>
+                </div>
+                <div class="sidebar-item" onclick="handleMobileTabClick('images')">
+                    <span class="material-icons">image</span><span>Images</span>
+                </div>
+                <div class="sidebar-item" onclick="handleMobileTabClick('posts')">
+                    <span class="material-icons">article</span><span>Posts</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="mobile-top-bar">
+                <button class="mobile-menu-btn" onclick="openSidebar()" aria-label="Open menu">
+                    <span class="material-icons">menu</span>
+                </button>
+                <span class="mobile-title">Enlighten</span>
+            </div>
+
+            <div class="welcome-header">
+                <div class="welcome-left">
+                    <h1 class="welcome-name" id="welcomeName">Welcome!</h1>
+                    <p class="welcome-subtitle" id="welcomeSubtitle">Your learning journey continues</p>
+                </div>
+                <div class="header-actions">
+                    <button class="theme-btn" onclick="toggleThemeMenu()" aria-label="Change theme">
+                        <span class="material-icons" id="themeIcon">light_mode</span>
+                    </button>
+                    <button class="refresh-btn" id="refreshBtn" onclick="refreshAllContent()">
+                        <span class="material-icons">refresh</span>
+                        Refresh
+                    </button>
+                    <button class="logout-btn" onclick="showLogoutDialog()">
+                        <span class="material-icons">logout</span>
+                        Logout
+                    </button>
+                </div>
+            </div>
+
+            <div class="filters-section">
+                <div class="filter-label">Select Class:</div>
+                <div class="class-chips" id="classChips"></div>
+                <div class="filter-label" id="subjectLabel" style="display:none;">Select Subject:</div>
+                <div class="subject-chips" id="subjectChips" style="display:none;"></div>
+            </div>
+
+            <div id="contentArea"></div>
+
+            <div class="batch-cards">
+                <div class="batch-card expiry">
+                    <div class="batch-icon"><span class="material-icons">event_available</span></div>
+                    <div class="batch-label">Batch Access</div>
+                    <div class="batch-value">Active</div>
+                    <div class="batch-message">Your batch access is currently active.</div>
+                </div>
+                <div class="batch-card date">
+                    <div class="batch-icon"><span class="material-icons">calendar_today</span></div>
+                    <div class="batch-label">Valid Till</div>
+                    <div class="batch-value" id="expiryDateValue">--</div>
+                    <div class="batch-message" id="expiryMessage">Your access includes all study materials.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Video Modal -->
+    <div class="modal-overlay" id="videoModal">
+        <div class="modal-content">
+            <div class="video-player-wrapper" id="videoPlayerContainer">
+                <iframe id="modalVideo" src="" allowfullscreen webkitallowfullscreen mozallowfullscreen allow="autoplay; encrypted-media; fullscreen; picture-in-picture"></iframe>
+                <button class="fullscreen-btn" onclick="toggleFullscreen()" aria-label="Toggle fullscreen">
+                    <span class="material-icons">fullscreen</span>
+                    <span>Fullscreen</span>
+                </button>
+            </div>
+            <h3 id="modalTitle"></h3>
+            <p id="modalDescription"></p>
+            <button class="load-more-btn" onclick="closeVideoModal()">Close</button>
+        </div>
+    </div>
+
+    <!-- Image Modal -->
+    <div class="modal-overlay" id="imageModal">
+        <div class="modal-content image-modal-content">
+            <div class="image-modal-img-container">
+                <img src="" id="modalImage" class="image-modal-img" alt="Image">
+                <div class="watermark-overlay">
+                    <span class="watermark-text">ENLIGHTEN</span>
+                </div>
+            </div>
+            <div class="image-modal-info">
+                <h3 class="image-modal-title" id="imageModalTitle"></h3>
+                <p class="image-modal-description" id="imageModalDescription"></p>
+                <div class="modal-buttons">
+                    <button class="image-download-btn" id="imageDownloadBtn" onclick="downloadCurrentImage()">
+                        <span class="material-icons">download</span>
+                        Download
+                    </button>
+                    <button class="load-more-btn" onclick="closeImageModal()">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logout Dialog -->
+    <div class="logout-dialog-overlay" id="logoutDialogOverlay">
+        <div class="logout-dialog">
+            <div class="logout-dialog-icon">
+                <span class="material-icons">logout</span>
+            </div>
+            <h2>Ready to Leave?</h2>
+            <p>Are you sure you want to logout? You'll need to sign in again to access your courses.</p>
+            <div class="logout-dialog-buttons">
+                <button class="logout-cancel-btn" onclick="closeLogoutDialog()">
+                    <span class="material-icons">close</span>
+                    Cancel
+                </button>
+                <button class="logout-confirm-btn" onclick="confirmLogout()">
+                    <span class="material-icons">logout</span>
+                    Logout
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <button id="installBtn" class="install-btn" style="display:none;" onclick="installApp()">
+        <span class="material-icons">download</span>
+        Install App
+    </button>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
+    <!-- Custom Scripts -->
+    <script src="js/firebase-config.js"></script>
+    <script src="js/themes.js"></script>
+    <script src="js/dashboard.js"></script>
+</body>
+</html>
