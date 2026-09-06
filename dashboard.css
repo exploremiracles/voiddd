@@ -1125,3 +1125,209 @@ img, video, iframe {
     .install-btn { bottom: 10px; right: 10px; padding: 10px 16px; font-size: 0.8rem; }
     .theme-menu { top: auto; bottom: 70px; right: 10px; }
 }
+
+/* ============================================
+   Preferences Menu Styles
+   ============================================ */
+
+/* Preferences Button */
+.preferences-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: var(--surface);
+    color: var(--text);
+    border: 2px solid var(--border);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.preferences-btn:hover {
+    background: var(--accent);
+    color: var(--bg);
+    transform: rotate(45deg);
+}
+
+/* Preferences Menu - Fixed Colors */
+.preferences-menu {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    background: #FFFFFF;
+    border: 1px solid #C5C3B8;
+    border-radius: 12px;
+    box-shadow: 0 16px 32px rgba(0,0,0,0.2);
+    z-index: 6000;
+    min-width: 240px;
+    overflow: hidden;
+    display: none;
+}
+
+.preferences-menu.show {
+    display: block;
+}
+
+.preferences-menu-header {
+    padding: 12px 16px;
+    font-weight: 700;
+    border-bottom: 2px solid #233130;
+    color: #233130;
+    font-size: 1rem;
+    background: #FFFFFF;
+}
+
+.preferences-section-label {
+    padding: 10px 16px 5px;
+    font-weight: 600;
+    color: #5a745f;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    background: #FFFFFF;
+}
+
+.preferences-divider {
+    height: 1px;
+    background: #C5C3B8;
+    margin: 5px 0;
+}
+
+.preference-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    cursor: pointer;
+    color: #233130;
+    font-size: 0.85rem;
+    background: #FFFFFF;
+    border-bottom: 1px solid #F0F0F0;
+    transition: background-color 0.2s ease;
+}
+
+.preference-option:hover {
+    background: #DFDDD3;
+}
+
+.preference-option:last-child {
+    border-bottom: none;
+}
+
+.preference-icon {
+    color: #5a745f;
+    font-size: 20px;
+}
+
+.preference-text {
+    color: #233130;
+}
+
+.preference-check {
+    margin-left: auto;
+    color: #059669;
+    font-size: 18px;
+}
+
+/* ============================================
+   Layout Views
+   ============================================ */
+
+/* Grid View */
+.grid-view .content-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1rem;
+}
+
+/* List View */
+.list-view .content-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.list-view .card {
+    flex-direction: row;
+    min-height: 120px;
+    max-height: 150px;
+}
+
+.list-view .video-thumbnail {
+    width: 200px;
+    min-width: 200px;
+    aspect-ratio: 16/9;
+}
+
+.list-view .image-thumbnail {
+    width: 150px;
+    min-width: 150px;
+    aspect-ratio: 4/3;
+}
+
+.list-view .card-info {
+    justify-content: center;
+    text-align: left;
+    padding: 0.5rem 1rem;
+}
+
+.list-view .card-title {
+    font-size: 0.9rem;
+}
+
+.list-view .card-description {
+    font-size: 0.75rem;
+}
+
+/* List view for PDF cards */
+.list-view .pdf-card {
+    flex-direction: row;
+    min-height: 100px;
+    max-height: 120px;
+    padding: 0.75rem;
+    text-align: left;
+    gap: 1rem;
+}
+
+.list-view .pdf-icon {
+    font-size: 2rem !important;
+    margin-bottom: 0;
+}
+
+.list-view .pdf-card .card-title {
+    margin-top: 0;
+    flex: 1;
+    text-align: left;
+}
+
+.list-view .pdf-download-btn {
+    margin-top: 0;
+    padding: 6px 15px;
+    font-size: 0.75rem;
+}
+
+/* List view for posts */
+.list-view .posts-container {
+    max-width: 100%;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .preferences-menu {
+        top: auto;
+        bottom: 70px;
+        right: 10px;
+    }
+    
+    .list-view .video-thumbnail {
+        width: 120px;
+        min-width: 120px;
+    }
+    
+    .list-view .image-thumbnail {
+        width: 100px;
+        min-width: 100px;
+    }
+}
