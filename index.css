@@ -20,19 +20,126 @@
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* GitHub Dark Mode Theme */
 [data-theme="dark"] {
-    --bg: #121212;
-    --text: #ffffff;
-    --text-secondary: #b0b0b0;
-    --surface: #1e1e1e;
-    --border: #333333;
-    --accent: #bb86fc;
-    --accent-hover: #9c64f4;
-    --danger: #cf6679;
-    --success: #03dac6;
-    --shadow-sm: 0 2px 4px rgba(0,0,0,0.5);
-    --shadow-md: 0 8px 16px rgba(0,0,0,0.6);
-    --shadow-lg: 0 20px 40px rgba(0,0,0,0.7);
+    --bg: #0d1117;              /* GitHub dark background */
+    --text: #c9d1d9;            /* GitHub primary text */
+    --text-secondary: #8b949e;  /* GitHub secondary text */
+    --surface: #161b22;         /* GitHub surface */
+    --border: #30363d;          /* GitHub border */
+    --accent: #58a6ff;          /* GitHub blue */
+    --accent-hover: #1f6feb;    /* GitHub darker blue */
+    --danger: #f85149;          /* GitHub red */
+    --success: #3fb950;         /* GitHub green */
+    --warning: #d29922;         /* GitHub yellow */
+    --shadow-sm: 0 2px 4px rgba(0,0,0,0.4);
+    --shadow-md: 0 8px 16px rgba(0,0,0,0.5);
+    --shadow-lg: 0 20px 40px rgba(0,0,0,0.6);
+}
+
+/* Dark Mode Specific Overrides */
+[data-theme="dark"] .navbar {
+    background: rgba(22, 27, 34, 0.85);
+    backdrop-filter: blur(20px);
+}
+
+[data-theme="dark"] .login-card {
+    background: #161b22;
+    border-color: #30363d;
+}
+
+[data-theme="dark"] .login-card::before {
+    background: linear-gradient(90deg, #58a6ff, #3fb950, #58a6ff);
+}
+
+[data-theme="dark"] .form-input {
+    background: #0d1117;
+    border-color: #30363d;
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .form-input:focus {
+    border-color: #58a6ff;
+    box-shadow: 0 0 0 4px rgba(88, 166, 255, 0.2);
+    background: #0d1117;
+}
+
+[data-theme="dark"] .btn-google {
+    background: #21262d;
+    border-color: #30363d;
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .btn-google:hover {
+    background: #30363d;
+    border-color: #58a6ff;
+}
+
+[data-theme="dark"] .hero-badge {
+    background: #161b22;
+    border-color: #30363d;
+    color: #58a6ff;
+}
+
+[data-theme="dark"] .hero-feature-item {
+    background: #161b22;
+    border-color: #30363d;
+}
+
+[data-theme="dark"] .security-notice {
+    background: #21262d;
+    color: #8b949e;
+}
+
+[data-theme="dark"] .upi-id {
+    background: #21262d;
+    border-color: #30363d;
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .bg-blob {
+    opacity: 0.08;
+}
+
+[data-theme="dark"] .bg-grid {
+    background-image: 
+        linear-gradient(rgba(201,209,217,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(201,209,217,0.03) 1px, transparent 1px);
+}
+
+[data-theme="dark"] .verified-badge {
+    background: rgba(63, 185, 80, 0.15);
+    color: #3fb950;
+}
+
+[data-theme="dark"] .error-message {
+    background: rgba(248, 81, 73, 0.15);
+    color: #f85149;
+}
+
+[data-theme="dark"] .success-message {
+    background: rgba(63, 185, 80, 0.15);
+    color: #3fb950;
+}
+
+[data-theme="dark"] .step-number {
+    background: linear-gradient(135deg, #58a6ff, #1f6feb);
+}
+
+[data-theme="dark"] .copy-btn {
+    background: #21262d;
+    border: 1px solid #30363d;
+    color: #58a6ff;
+}
+
+[data-theme="dark"] .copy-btn:hover {
+    background: #30363d;
+    color: #58a6ff;
+}
+
+[data-theme="dark"] .transition-spinner {
+    border-color: #30363d;
+    border-top-color: #58a6ff;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
