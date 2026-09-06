@@ -238,23 +238,22 @@ body {
 .logo {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
 }
 
-.logo-icon {
-    width: 40px;
-    height: 40px;
-    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.logo-image {
+    width: 55px;
+    height: 55px;
+    object-fit: contain;
+    border-radius: 10px;
+    transition: var(--transition);
 }
 
-.logo-icon .material-icons {
-    color: white;
-    font-size: 22px;
+.logo-image:hover {
+    transform: scale(1.1);
+    filter: brightness(1.1);
 }
+
 
 .logo-text {
     font-family: 'Playfair Display', serif;
