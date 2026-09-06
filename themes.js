@@ -50,27 +50,48 @@ function toggleThemeMenu() {
         menu = createThemeMenu();
     }
     
-    const isActive = menu.classList.contains('active');
-    
-    if (isActive) {
-        closeThemeMenu();
-        return;
+    if (menu.style.display === 'block') {
+        menu.style.display = 'none';
+        document.removeEventListener('click', closeThemeMenuOutside);
+    } else {
+        menu.style.display = 'block';
+        setTimeout(() => {
+            document.addEventListener('click', closeThemeMenuOutside);
+        }, 100);
     }
-    
-    menu.classList.add('active');
-    
-    setTimeout(() => {
-        document.addEventListener('click', closeThemeMenuOutside);
-    }, 100);
 }
 
-// Create theme menu dynamically with INLINE STYLES
+// Create theme menu dynamically
 function createThemeMenu() {
+    // Remove existing menu if any
+    const existingMenu = document.getElementById('themeMenu');
+    if (existingMenu) {
+        existingMenu.remove();
+    }
+    
     const menu = document.createElement('div');
     menu.id = 'themeMenu';
-    menu.className = 'theme-menu';
     
-    // Apply inline styles to prevent theme changes
+    const currentTheme = localStorage.getItem('enlighten_theme') || 'default';
+    
+    let html = '<div style="padding:12px 16px;font-weight:600;border-bottom:1px solid #C5C3B8;color:#233130;font-size:0.9rem;background:#FFFFFF;">Choose Theme</div>';
+    
+    Object.keys(THEMES).forEach(themeKey => {
+        const theme = THEMES[themeKey];
+        const isActive = currentTheme === themeKey;
+        
+        html += `
+            <div data-theme="${themeKey}" onclick="selectTheme('${themeKey}', this)" style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;background:#FFFFFF;color:#233130;font-size:0.85rem;border-bottom:1px solid #F0F0F0;" onmouseover="this.style.backgroundColor='#DFDDD3'" onmouseout="this.style.backgroundColor='#FFFFFF'">
+                <span class="material-icons" style="color:#5a745f;font-size:20px;">${theme.icon}</span>
+                <span>${theme.name}</span>
+                ${isActive ? '<span class="material-icons check-icon" style="margin-left:auto;color:#059669;font-size:18px;">check</span>' : ''}
+            </div>
+        `;
+    });
+    
+    menu.innerHTML = html;
+    
+    // Apply styles to menu container
     menu.style.cssText = `
         position: fixed;
         top: 80px;
@@ -81,29 +102,10 @@ function createThemeMenu() {
         box-shadow: 0 16px 32px rgba(0,0,0,0.2);
         z-index: 6000;
         min-width: 220px;
+        overflow: hidden;
         display: none;
-        animation: slideUp 0.3s ease;
     `;
     
-    const currentTheme = localStorage.getItem('enlighten_theme') || 'default';
-    
-    let html = '';
-    html += '<div style="padding:12px 16px;font-weight:600;border-bottom:1px solid #C5C3B8;color:#233130;font-size:0.9rem;">Choose Theme</div>';
-    
-    Object.keys(THEMES).forEach(themeKey => {
-        const theme = THEMES[themeKey];
-        const isActive = currentTheme === themeKey;
-        
-        html += `
-            <div class="theme-option" data-theme="${themeKey}" onclick="selectTheme('${themeKey}', this)" style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;transition:background-color 0.3s ease;color:#233130;font-size:0.85rem;" onmouseover="this.style.backgroundColor='#DFDDD3'" onmouseout="this.style.backgroundColor='transparent'">
-                <span class="material-icons" style="color:#5a745f;font-size:20px;">${theme.icon}</span>
-                <span>${theme.name}</span>
-                ${isActive ? '<span class="material-icons check-icon" style="margin-left:auto;color:#059669;font-size:18px;">check</span>' : ''}
-            </div>
-        `;
-    });
-    
-    menu.innerHTML = html;
     document.body.appendChild(menu);
     return menu;
 }
@@ -115,9 +117,10 @@ function selectTheme(themeName, element) {
     // Apply theme
     applyTheme(themeName);
     
-    // Remove all checkmarks with inline styles
+    // Update checkmarks
     const menu = document.getElementById('themeMenu');
     if (menu) {
+        // Remove all existing checkmarks
         menu.querySelectorAll('.check-icon').forEach(icon => icon.remove());
         
         // Add checkmark to clicked element
@@ -132,20 +135,14 @@ function selectTheme(themeName, element) {
     
     // Close menu after short delay
     setTimeout(() => {
-        closeThemeMenu();
+        const menu = document.getElementById('themeMenu');
+        if (menu) {
+            menu.style.display = 'none';
+            document.removeEventListener('click', closeThemeMenuOutside);
+        }
     }, 300);
     
     console.log('Theme changed to:', THEMES[themeName].name);
-}
-
-// Close theme menu
-function closeThemeMenu() {
-    const menu = document.getElementById('themeMenu');
-    if (menu) {
-        menu.classList.remove('active');
-        menu.style.display = 'none';
-        document.removeEventListener('click', closeThemeMenuOutside);
-    }
 }
 
 // Close theme menu when clicking outside
@@ -154,7 +151,8 @@ function closeThemeMenuOutside(e) {
     const themeBtn = document.querySelector('.theme-btn');
     
     if (menu && themeBtn && !menu.contains(e.target) && !themeBtn.contains(e.target)) {
-        closeThemeMenu();
+        menu.style.display = 'none';
+        document.removeEventListener('click', closeThemeMenuOutside);
     }
 }
 
