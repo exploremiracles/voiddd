@@ -12,6 +12,7 @@ const THEMES = {
 function loadTheme() {
     const savedTheme = localStorage.getItem('enlighten_theme') || 'default';
     applyTheme(savedTheme);
+    updateThemeIcon(savedTheme);
 }
 
 // Apply theme to document
@@ -21,16 +22,23 @@ function applyTheme(themeName) {
     document.documentElement.setAttribute('data-theme', themeName);
     localStorage.setItem('enlighten_theme', themeName);
     
-    const themeIcon = document.getElementById('themeIcon');
-    if (themeIcon) {
-        themeIcon.textContent = THEMES[themeName].icon;
-    }
+    updateThemeIcon(themeName);
     
     // Update meta theme-color
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (metaThemeColor) {
-        const bgColor = getComputedStyle(document.body).backgroundColor;
-        metaThemeColor.setAttribute('content', bgColor);
+        setTimeout(() => {
+            const bgColor = getComputedStyle(document.body).backgroundColor;
+            metaThemeColor.setAttribute('content', bgColor);
+        }, 100);
+    }
+}
+
+// Update theme icon in button
+function updateThemeIcon(themeName) {
+    const themeIcon = document.getElementById('themeIcon');
+    if (themeIcon && THEMES[themeName]) {
+        themeIcon.textContent = THEMES[themeName].icon;
     }
 }
 
@@ -42,14 +50,20 @@ function toggleThemeMenu() {
         menu = createThemeMenu();
     }
     
-    menu.classList.toggle('active');
+    const isActive = menu.classList.contains('active');
+    
+    // Close if already open
+    if (isActive) {
+        closeThemeMenu();
+        return;
+    }
+    
+    menu.classList.add('active');
     
     // Close menu when clicking outside
-    if (menu.classList.contains('active')) {
-        setTimeout(() => {
-            document.addEventListener('click', closeThemeMenuOutside);
-        }, 100);
-    }
+    setTimeout(() => {
+        document.addEventListener('click', closeThemeMenuOutside);
+    }, 100);
 }
 
 // Create theme menu dynamically
@@ -58,17 +72,19 @@ function createThemeMenu() {
     menu.id = 'themeMenu';
     menu.className = 'theme-menu';
     
+    const currentTheme = localStorage.getItem('enlighten_theme') || 'default';
+    
     let html = '<div class="theme-menu-header">Choose Theme</div>';
     
     Object.keys(THEMES).forEach(themeKey => {
         const theme = THEMES[themeKey];
-        const isActive = localStorage.getItem('enlighten_theme') === themeKey;
+        const isActive = currentTheme === themeKey;
         
         html += `
-            <div class="theme-option" onclick="selectTheme('${themeKey}')">
+            <div class="theme-option" data-theme="${themeKey}" onclick="selectTheme('${themeKey}', this)">
                 <span class="material-icons">${theme.icon}</span>
                 <span>${theme.name}</span>
-                ${isActive ? '<span class="material-icons">check</span>' : ''}
+                ${isActive ? '<span class="material-icons check-icon">check</span>' : ''}
             </div>
         `;
     });
@@ -78,14 +94,35 @@ function createThemeMenu() {
     return menu;
 }
 
-// Select a theme
-function selectTheme(themeName) {
-    applyTheme(themeName);
-    closeThemeMenu();
+// Select a theme with immediate visual feedback
+function selectTheme(themeName, element) {
+    if (!THEMES[themeName]) return;
     
-    // Show brief feedback
-    const themeNameDisplay = THEMES[themeName].name;
-    console.log('Theme changed to:', themeNameDisplay);
+    // Apply theme
+    applyTheme(themeName);
+    
+    // Remove all checkmarks
+    const menu = document.getElementById('themeMenu');
+    if (menu) {
+        menu.querySelectorAll('.check-icon').forEach(icon => icon.remove());
+        
+        // Add checkmark to clicked element
+        if (element) {
+            const checkIcon = document.createElement('span');
+            checkIcon.className = 'material-icons check-icon';
+            checkIcon.textContent = 'check';
+            checkIcon.style.marginLeft = 'auto';
+            checkIcon.style.color = 'var(--accent)';
+            element.appendChild(checkIcon);
+        }
+    }
+    
+    // Close menu after short delay
+    setTimeout(() => {
+        closeThemeMenu();
+    }, 300);
+    
+    console.log('Theme changed to:', THEMES[themeName].name);
 }
 
 // Close theme menu
@@ -93,6 +130,7 @@ function closeThemeMenu() {
     const menu = document.getElementById('themeMenu');
     if (menu) {
         menu.classList.remove('active');
+        document.removeEventListener('click', closeThemeMenuOutside);
     }
 }
 
@@ -102,8 +140,7 @@ function closeThemeMenuOutside(e) {
     const themeBtn = document.querySelector('.theme-btn');
     
     if (menu && themeBtn && !menu.contains(e.target) && !themeBtn.contains(e.target)) {
-        menu.classList.remove('active');
-        document.removeEventListener('click', closeThemeMenuOutside);
+        closeThemeMenu();
     }
 }
 
