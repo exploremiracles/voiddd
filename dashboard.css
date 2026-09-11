@@ -25,19 +25,36 @@
 }
 
 [data-theme="midnight"] {
-    --bg: #0b0f17;
-    --text: #eef2f7;
-    --text-secondary: #8f9bab;
-    --surface: #121925;
-    --border: #222c3a;
-    --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.20);
-    --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.28);
-    --shadow-lg: 0 18px 40px rgba(0, 0, 0, 0.36);
-    --accent: #7c9cff;
-    --accent-hover: #91adff;
-    --danger: #e57979;
-    --success: #6fba8a;
-    --warning: #d9b65d;
+    /* Base */
+    --bg: #0a0d14;
+    --text: #f5f7fb;
+    --text-secondary: #9da6b8;
+
+    /* Liquid Glass surfaces */
+    --surface: rgba(255, 255, 255, 0.075);
+    --border: rgba(255, 255, 255, 0.14);
+
+    /* Soft depth */
+    --shadow-sm:
+        0 2px 8px rgba(0, 0, 0, 0.16),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+
+    --shadow-md:
+        0 10px 30px rgba(0, 0, 0, 0.22),
+        inset 0 1px 0 rgba(255, 255, 255, 0.07);
+
+    --shadow-lg:
+        0 20px 50px rgba(0, 0, 0, 0.30),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+
+    /* Soothing blue-violet glass accent */
+    --accent: #8fa9ff;
+    --accent-hover: #a7baff;
+
+    /* Semantic colors — soft, not neon */
+    --danger: #ed929b;
+    --success: #8fc9a9;
+    --warning: #e5c27a;
 }
 
 [data-theme="forest"] {
