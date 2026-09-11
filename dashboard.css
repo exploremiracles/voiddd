@@ -41,19 +41,19 @@
 }
 
 [data-theme="forest"] {
-    --bg: #1b2e1b;
-    --text: #e8f5e9;
-    --text-secondary: #a5d6a7;
-    --surface: #2e4a2e;
-    --border: #4a6a4a;
-    --shadow-sm: 0 2px 4px rgba(0,0,0,0.3);
-    --shadow-md: 0 8px 16px rgba(0,0,0,0.4);
-    --shadow-lg: 0 16px 32px rgba(0,0,0,0.5);
-    --accent: #81c784;
-    --accent-hover: #66bb6a;
-    --danger: #ef5350;
-    --success: #69f0ae;
-    --warning: #ffd54f;
+    --bg: #111714;
+    --text: #edf2ee;
+    --text-secondary: #9aa79f;
+    --surface: #1a211d;
+    --border: #2b342f;
+    --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.18);
+    --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.24);
+    --shadow-lg: 0 16px 36px rgba(0, 0, 0, 0.30);
+    --accent: #8fae9a;
+    --accent-hover: #a5c1ad;
+    --danger: #d98282;
+    --success: #8fba9d;
+    --warning: #d6b878;
 }
 
 [data-theme="sunset"] {
