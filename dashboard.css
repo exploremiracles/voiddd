@@ -57,19 +57,19 @@
 }
 
 [data-theme="sunset"] {
-    --bg: #1a0f0a;
-    --text: #ffe0b2;
-    --text-secondary: #ffab91;
-    --surface: #2c1810;
-    --border: #4e342e;
-    --shadow-sm: 0 2px 4px rgba(0,0,0,0.3);
-    --shadow-md: 0 8px 16px rgba(0,0,0,0.4);
-    --shadow-lg: 0 16px 32px rgba(0,0,0,0.5);
-    --accent: #ff7043;
-    --accent-hover: #f4511e;
-    --danger: #ff5252;
-    --success: #ffd740;
-    --warning: #ffab40;
+    --bg: #140f0d;
+    --text: #f5eee8;
+    --text-secondary: #a99a91;
+    --surface: #211815;
+    --border: #352722;
+    --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.20);
+    --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.28);
+    --shadow-lg: 0 18px 40px rgba(0, 0, 0, 0.36);
+    --accent: #e98b68;
+    --accent-hover: #f0a080;
+    --danger: #d97878;
+    --success: #8fb08d;
+    --warning: #d6ad68;
 }
 
 [data-theme="ocean"] {
