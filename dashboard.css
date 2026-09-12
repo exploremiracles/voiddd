@@ -1343,3 +1343,135 @@ img, video, iframe {
         min-width: 100px;
     }
 }
+/* ============================================
+   Campus Unfolded Animated Text
+   ============================================ */
+
+.campus-unfolded-text {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.5rem;
+    font-weight: 900;
+    text-align: center;
+    margin-bottom: 2rem;
+    padding: 0.5rem;
+    perspective: 1000px;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 2px;
+}
+
+.campus-unfolded-text .letter {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--text), var(--accent), #8da788);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: letterUnfold 3s ease-in-out infinite;
+    animation-delay: calc(var(--i) * 0.1s);
+    transform-origin: center;
+    cursor: default;
+    transition: transform 0.3s ease;
+}
+
+.campus-unfolded-text .letter:hover {
+    transform: scale(1.3) rotate(10deg);
+    animation-play-state: paused;
+}
+
+.campus-unfolded-text .letter.space {
+    width: 0.3em;
+}
+
+@keyframes letterUnfold {
+    0%, 100% {
+        transform: translateY(0) rotateX(0deg) scale(1);
+        filter: brightness(1);
+    }
+    10% {
+        transform: translateY(-15px) rotateX(180deg) scale(1.1);
+        filter: brightness(1.3);
+    }
+    20% {
+        transform: translateY(0) rotateX(360deg) scale(1);
+        filter: brightness(1);
+    }
+    30% {
+        transform: translateY(-5px) rotateZ(-10deg) scale(1.05);
+    }
+    40% {
+        transform: translateY(0) rotateZ(10deg) scale(1);
+    }
+    50% {
+        transform: translateY(-8px) rotateZ(0deg) scale(1.08);
+        filter: brightness(1.2);
+    }
+    60% {
+        transform: translateY(0) rotateY(0deg) scale(1);
+    }
+    70% {
+        transform: translateY(-3px) rotateY(180deg) scale(1.05);
+    }
+    80%, 100% {
+        transform: translateY(0) rotateY(360deg) scale(1);
+        filter: brightness(1);
+    }
+}
+
+/* Add subtle glow effect */
+.campus-unfolded-text::before {
+    content: 'Campus Unfolded';
+    position: absolute;
+    font-family: 'Playfair Display', serif;
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: var(--accent);
+    filter: blur(20px);
+    opacity: 0.15;
+    z-index: -1;
+    animation: textGlow 3s ease-in-out infinite;
+}
+
+@keyframes textGlow {
+    0%, 100% { opacity: 0.1; filter: blur(20px); }
+    50% { opacity: 0.3; filter: blur(25px); }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .campus-unfolded-text {
+        font-size: 1.8rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .campus-unfolded-text::before {
+        font-size: 1.8rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .campus-unfolded-text {
+        font-size: 1.4rem;
+    }
+    
+    .campus-unfolded-text::before {
+        font-size: 1.4rem;
+    }
+}
+
+/* Enhanced animation with rainbow effect for dark theme */
+[data-theme="dark"] .campus-unfolded-text .letter,
+[data-theme="midnight"] .campus-unfolded-text .letter {
+    background: linear-gradient(135deg, #58a6ff, #bb86fc, #3fb950, #58a6ff);
+    background-size: 300% 300%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: letterUnfold 3s ease-in-out infinite, 
+               rainbowShift 4s ease-in-out infinite;
+}
+
+@keyframes rainbowShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
