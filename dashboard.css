@@ -27,7 +27,7 @@
 [data-theme="midnight"] { 
    --text: #f5f7fb; 
    --text-secondary: #9da6b8;
---surface: rgba(255, 255, 255, 0.075);
+--surface: #A7C7E7;
 --border: rgba(255, 255, 255, 0.14);
 
 --shadow-sm:
