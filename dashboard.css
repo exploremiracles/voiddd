@@ -24,37 +24,44 @@
     --font-body: 'Inter', sans-serif;
 }
 
-[data-theme="midnight"] {
-    /* Base */
-    --bg: #0a0d14;
-    --text: #f5f7fb;
-    --text-secondary: #9da6b8;
+[data-theme="midnight"] { 
+   --bg: #0a0d14; 
+   --text: #f5f7fb; 
+   --text-secondary: #9da6b8;
+--surface: rgba(255, 255, 255, 0.075);
+--border: rgba(255, 255, 255, 0.14);
 
-    /* Liquid Glass surfaces */
-    --surface: rgba(255, 255, 255, 0.075);
-    --border: rgba(255, 255, 255, 0.14);
+--shadow-sm:
+    0 2px 8px rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 
-    /* Soft depth */
-    --shadow-sm:
-        0 2px 8px rgba(0, 0, 0, 0.16),
-        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+--shadow-md:
+    0 10px 30px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
 
-    --shadow-md:
-        0 10px 30px rgba(0, 0, 0, 0.22),
-        inset 0 1px 0 rgba(255, 255, 255, 0.07);
+--shadow-lg:
+    0 20px 50px rgba(0, 0, 0, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 
-    --shadow-lg:
-        0 20px 50px rgba(0, 0, 0, 0.30),
-        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+--accent: #8fa9ff;
+--accent-hover: #a7baff;
 
-    /* Soothing blue-violet glass accent */
-    --accent: #8fa9ff;
-    --accent-hover: #a7baff;
+--danger: #ed929b;
+--success: #8fc9a9;
+--warning: #e5c27a;
 
-    /* Semantic colors — soft, not neon */
-    --danger: #ed929b;
-    --success: #8fc9a9;
-    --warning: #e5c27a;
+background:
+    linear-gradient(
+        rgba(5, 8, 18, 0.72),
+        rgba(10, 13, 25, 0.82)
+    ),
+    url("https://images.unsplash.com/photo-1519608487953-e999c86e7455?auto=format&fit=crop&w=2400&q=85")
+    center / cover fixed no-repeat;
+
+color: var(--text);
+
+backdrop-filter: blur(20px);
+-webkit-backdrop-filter: blur(20px);
 }
 
 [data-theme="forest"] {
