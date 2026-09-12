@@ -50,7 +50,7 @@
 --success: #8fc9a9;
 --warning: #e5c27a;
 
-background:
+--bg:
     linear-gradient(
         rgba(5, 8, 18, 0.72),
         rgba(10, 13, 25, 0.82)
