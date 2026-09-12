@@ -1344,134 +1344,189 @@ img, video, iframe {
     }
 }
 /* ============================================
-   Campus Unfolded Animated Text
+   Campus Unfolded - Signature Style
    ============================================ */
 
-.campus-unfolded-text {
-    font-family: 'Playfair Display', serif;
-    font-size: 2.5rem;
-    font-weight: 900;
+.campus-signature {
+    font-family: 'Dancing Script', cursive;
+    font-size: 2.8rem;
+    font-weight: 400;
     text-align: center;
-    margin-bottom: 2rem;
+    margin: 0.5rem 0 1.5rem 0;
     padding: 0.5rem;
-    perspective: 1000px;
     display: flex;
     justify-content: center;
+    align-items: center;
     flex-wrap: wrap;
-    gap: 2px;
+    letter-spacing: 2px;
+    position: relative;
+    min-height: 60px;
 }
 
-.campus-unfolded-text .letter {
+.campus-signature .sig-letter {
     display: inline-block;
-    background: linear-gradient(135deg, var(--text), var(--accent), #8da788);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    animation: letterUnfold 3s ease-in-out infinite;
-    animation-delay: calc(var(--i) * 0.1s);
-    transform-origin: center;
+    color: var(--text);
+    opacity: 0;
+    animation: letterReveal 0.6s ease-out forwards;
+    animation-delay: calc(var(--i) * 0.08s);
+    transition: color 0.3s ease, transform 0.3s ease;
     cursor: default;
-    transition: transform 0.3s ease;
+    position: relative;
 }
 
-.campus-unfolded-text .letter:hover {
-    transform: scale(1.3) rotate(10deg);
-    animation-play-state: paused;
+.campus-signature .sig-letter:hover {
+    color: var(--accent);
+    transform: translateY(-3px);
 }
 
-.campus-unfolded-text .letter.space {
-    width: 0.3em;
+.campus-signature .sig-space {
+    display: inline-block;
+    width: 0.4em;
 }
 
-@keyframes letterUnfold {
-    0%, 100% {
-        transform: translateY(0) rotateX(0deg) scale(1);
-        filter: brightness(1);
-    }
-    10% {
-        transform: translateY(-15px) rotateX(180deg) scale(1.1);
-        filter: brightness(1.3);
-    }
-    20% {
-        transform: translateY(0) rotateX(360deg) scale(1);
-        filter: brightness(1);
-    }
-    30% {
-        transform: translateY(-5px) rotateZ(-10deg) scale(1.05);
-    }
-    40% {
-        transform: translateY(0) rotateZ(10deg) scale(1);
+/* Minimal, soothing reveal animation */
+@keyframes letterReveal {
+    0% {
+        opacity: 0;
+        transform: translateY(8px);
+        filter: blur(4px);
     }
     50% {
-        transform: translateY(-8px) rotateZ(0deg) scale(1.08);
-        filter: brightness(1.2);
+        opacity: 1;
+        transform: translateY(-2px);
+        filter: blur(0);
     }
-    60% {
-        transform: translateY(0) rotateY(0deg) scale(1);
-    }
-    70% {
-        transform: translateY(-3px) rotateY(180deg) scale(1.05);
-    }
-    80%, 100% {
-        transform: translateY(0) rotateY(360deg) scale(1);
-        filter: brightness(1);
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+        filter: blur(0);
     }
 }
 
-/* Add subtle glow effect */
-.campus-unfolded-text::before {
-    content: 'Campus Unfolded';
+/* Subtle continuous breathing animation */
+.campus-signature .sig-letter {
+    animation: letterReveal 0.6s ease-out forwards,
+               subtleBreath 4s ease-in-out infinite;
+    animation-delay: calc(var(--i) * 0.08s), 
+                     calc(1.5s + var(--i) * 0.1s);
+}
+
+@keyframes subtleBreath {
+    0%, 100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    50% {
+        opacity: 0.85;
+        transform: translateY(-1px);
+    }
+}
+
+/* Underline flourish - like a signature stroke */
+.campus-signature::after {
+    content: '';
     position: absolute;
-    font-family: 'Playfair Display', serif;
-    font-size: 2.5rem;
-    font-weight: 900;
-    color: var(--accent);
-    filter: blur(20px);
-    opacity: 0.15;
-    z-index: -1;
-    animation: textGlow 3s ease-in-out infinite;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%) scaleX(0);
+    width: 60%;
+    height: 2px;
+    background: linear-gradient(90deg, 
+        transparent 0%, 
+        var(--text-secondary) 20%, 
+        var(--accent) 50%, 
+        var(--text-secondary) 80%, 
+        transparent 100%);
+    border-radius: 2px;
+    animation: underlineFlourish 8s ease-in-out infinite;
+    transform-origin: center;
 }
 
-@keyframes textGlow {
-    0%, 100% { opacity: 0.1; filter: blur(20px); }
-    50% { opacity: 0.3; filter: blur(25px); }
+@keyframes underlineFlourish {
+    0% {
+        transform: translateX(-50%) scaleX(0);
+        opacity: 0;
+    }
+    15% {
+        transform: translateX(-50%) scaleX(1);
+        opacity: 0.6;
+    }
+    50% {
+        transform: translateX(-50%) scaleX(0.9);
+        opacity: 0.4;
+    }
+    85% {
+        transform: translateX(-50%) scaleX(1);
+        opacity: 0.6;
+    }
+    100% {
+        transform: translateX(-50%) scaleX(0);
+        opacity: 0;
+    }
+}
+
+/* Subtle dot accent */
+.campus-signature::before {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    background: var(--accent);
+    border-radius: 50%;
+    opacity: 0;
+    animation: dotPulse 8s ease-in-out infinite;
+}
+
+@keyframes dotPulse {
+    0%, 40% {
+        opacity: 0;
+        transform: translateX(-50%) scale(0);
+    }
+    50% {
+        opacity: 1;
+        transform: translateX(-50%) scale(1.5);
+    }
+    60%, 100% {
+        opacity: 0;
+        transform: translateX(-50%) scale(0);
+    }
 }
 
 /* Responsive */
 @media (max-width: 768px) {
-    .campus-unfolded-text {
-        font-size: 1.8rem;
-        margin-bottom: 1.5rem;
+    .campus-signature {
+        font-size: 2rem;
+        margin: 0.25rem 0 1rem 0;
+        letter-spacing: 1px;
     }
     
-    .campus-unfolded-text::before {
-        font-size: 1.8rem;
+    .campus-signature::after {
+        width: 70%;
     }
 }
 
 @media (max-width: 480px) {
-    .campus-unfolded-text {
-        font-size: 1.4rem;
+    .campus-signature {
+        font-size: 1.6rem;
+        letter-spacing: 0.5px;
     }
     
-    .campus-unfolded-text::before {
-        font-size: 1.4rem;
+    .campus-signature::after {
+        width: 80%;
+        height: 1.5px;
     }
 }
 
-/* Enhanced animation with rainbow effect for dark theme */
-[data-theme="dark"] .campus-unfolded-text .letter,
-[data-theme="midnight"] .campus-unfolded-text .letter {
-    background: linear-gradient(135deg, #58a6ff, #bb86fc, #3fb950, #58a6ff);
-    background-size: 300% 300%;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    animation: letterUnfold 3s ease-in-out infinite, 
-               rainbowShift 4s ease-in-out infinite;
+/* Dark theme - subtle accent color */
+[data-theme="dark"] .campus-signature .sig-letter:hover,
+[data-theme="midnight"] .campus-signature .sig-letter:hover {
+    color: #58a6ff;
 }
 
-@keyframes rainbowShift {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
+[data-theme="dark"] .campus-signature::before,
+[data-theme="midnight"] .campus-signature::before {
+    background: #58a6ff;
 }
