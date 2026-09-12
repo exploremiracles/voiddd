@@ -25,7 +25,6 @@
 }
 
 [data-theme="midnight"] { 
-   --bg: #0a0d14; 
    --text: #f5f7fb; 
    --text-secondary: #9da6b8;
 --surface: rgba(255, 255, 255, 0.075);
