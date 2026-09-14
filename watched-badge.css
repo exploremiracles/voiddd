@@ -1,15 +1,16 @@
 /* ============================================
-   Watched Badge - Minimal & Smooth
+   Watched Badge - Videos Only
+   Minimal & Smooth
    ============================================ */
 
-/* Watched Indicator Below Card */
+/* Watched Indicator Below Video Card */
 .watched-indicator {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
     padding: 6px 12px;
-    margin: 8px auto 0;
+    margin: 10px auto 0;
     background: transparent;
     border: 1.5px solid var(--border);
     border-radius: 20px;
@@ -94,21 +95,7 @@
     opacity: 0;
 }
 
-/* Loading state */
-.watched-indicator.loading {
-    pointer-events: none;
-    opacity: 0.7;
-}
-
-.watched-indicator.loading .material-icons {
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-/* Card watched subtle effect */
+/* Green dot on watched cards */
 .card.watched-card {
     position: relative;
 }
