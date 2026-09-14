@@ -1,4 +1,4 @@
-// Dashboard State
+
 let currentUser = null;
 let currentTab = 'videos';
 let selectedClass = null;
