@@ -470,14 +470,14 @@ function generateCardHtml(item) {
     const thumb = vid ? `https://img.youtube.com/vi/${vid}/hqdefault.jpg` : '';
     const duration = escapeHtml(item.duration || '');
     const videoUrl = escapeHtml(item.videoUrl || '');
-    const isItemWatched = typeof isWatched === 'function' ? isWatched(item.id) : false;
+    const isItemWatched = typeof isVideoWatched === 'function' ? isVideoWatched(item.id) : false;
+    const escapedTitle = title.replace(/'/g, "\\'");
     
     return `
         <div class="card ${isItemWatched ? 'watched-card' : ''}" 
              data-item-id="${item.id}" 
              data-item-title="${title}"
-             data-item-type="videos"
-             onclick="playVideo('${videoUrl}','${title}','${description}')">
+             onclick="playVideo('${videoUrl}','${escapedTitle}','${description.replace(/'/g, "\\'")}')">
             <div class="video-thumbnail">
                 ${thumb ? `<img src="${thumb}" style="width:100%;height:100%;object-fit:cover;">` : ''}
                 ${duration ? `<span class="video-duration">${duration}</span>` : ''}
@@ -486,16 +486,15 @@ function generateCardHtml(item) {
                 <div class="card-title">${title}</div>
                 ${subject ? `<div class="card-description">${subject}</div>` : ''}
                 
-                <!-- Watched Badge Below -->
                 <div class="watched-indicator ${isItemWatched ? 'watched' : ''}" 
-                     onclick="event.stopPropagation(); toggleWatched('${item.id}', '${title}', 'videos', this)">
+                     onclick="event.stopPropagation(); event.preventDefault(); toggleWatched('${item.id}', '${escapedTitle}', this); return false;">
                     <span class="material-icons">${isItemWatched ? 'check_circle' : 'check_circle_outline'}</span>
                     <span>${isItemWatched ? 'Watched' : 'Mark as watched'}</span>
                 </div>
             </div>
         </div>
     `;
-}else if (currentTab === 'pdfs') {
+} else if (currentTab === 'pdfs') {
         const pdfUrl = escapeHtml(item.pdfUrl || '#');
         return `
             <div class="card pdf-card">
@@ -598,7 +597,13 @@ function appendContent() {
         loadMoreBtn.onclick = appendContent;
         contentArea.appendChild(loadMoreBtn);
     }
+    // ... all your existing code ...
+    // At the very end of the function, add:
+    if (typeof refreshWatchedBadges === 'function') {
+        setTimeout(refreshWatchedBadges, 100);
+    }
 }
+
 
 // YouTube Functions
 function extractYouTubeId(url) {
