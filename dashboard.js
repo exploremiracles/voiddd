@@ -1,4 +1,27 @@
 
+// Global flag for user readiness
+let isUserReady = false;
+
+// Add this function to check when user is ready
+function onUserReady(callback) {
+    if (isUserReady) {
+        callback();
+        return;
+    }
+    
+    const checkInterval = setInterval(() => {
+        if (isUserReady) {
+            clearInterval(checkInterval);
+            callback();
+        }
+    }, 100);
+    
+    // Timeout after 10 seconds
+    setTimeout(() => clearInterval(checkInterval), 10000);
+}
+
+
+
 let currentUser = null;
 let currentTab = 'videos';
 let selectedClass = null;
@@ -244,26 +267,47 @@ function checkAuth() {
             return;
         }
         
-        try {
-            const whitelistRef = db.collection('whitelist').doc(user.email.toLowerCase());
-            const whitelistDoc = await whitelistRef.get();
-            
-            if (!whitelistDoc.exists || whitelistDoc.data().active !== true) {
-                showAccessRevoked();
+        // Get session from localStorage
+        let session = localStorage.getItem('session');
+        
+        // If no session, try to create one from Firestore
+        if (!session) {
+            console.log('No session in localStorage, fetching from Firestore...');
+            try {
+                const whitelistDoc = await db.collection('whitelist').doc(user.email.toLowerCase()).get();
+                
+                if (!whitelistDoc.exists || whitelistDoc.data().active !== true) {
+                    await auth.signOut();
+                    window.location.replace('index.html');
+                    return;
+                }
+                
+                const whitelistData = whitelistDoc.data();
+                
+                const newSession = {
+                    uid: user.uid,
+                    email: user.email.toLowerCase(),
+                    displayName: whitelistData.studentName || user.displayName || 'Student',
+                    photoURL: user.photoURL || '',
+                    allowedClasses: whitelistData.allowedClasses || [],
+                    expiresAt: whitelistData.expiresAt ? whitelistData.expiresAt.toDate().toISOString() : null,
+                    loginTime: Date.now()
+                };
+                
+                localStorage.setItem('session', JSON.stringify(newSession));
+                session = JSON.stringify(newSession);
+                
+            } catch (error) {
+                console.error('Error fetching session:', error);
+                window.location.replace('index.html');
                 return;
             }
-        } catch (error) {
-            console.error('Whitelist check error:', error);
-        }
-        
-        const session = localStorage.getItem('session');
-        if (!session) {
-            window.location.replace('index.html');
-            return;
         }
         
         try {
             currentUser = JSON.parse(session);
+            
+            // Verify email matches
             if (currentUser.email !== user.email.toLowerCase()) {
                 localStorage.removeItem('session');
                 auth.signOut();
@@ -271,6 +315,7 @@ function checkAuth() {
                 return;
             }
             
+            // Check session expiry
             if (currentUser.loginTime) {
                 const elapsedTime = Date.now() - currentUser.loginTime;
                 const twoHours = 2 * 60 * 60 * 1000;
@@ -282,26 +327,49 @@ function checkAuth() {
                 }
             }
             
+            // Get student name
             let studentName = currentUser.displayName || 'Student';
-            if (studentName === 'undefined' || studentName === 'null') {
+            if (studentName === 'undefined' || studentName === 'null' || !studentName) {
                 studentName = currentUser.email.split('@')[0].replace(/[._]/g, ' ');
                 studentName = studentName.replace(/\b\w/g, c => c.toUpperCase());
             }
             
-            document.getElementById('welcomeName').textContent = `Welcome, ${studentName}!`;
-            document.getElementById('welcomeSubtitle').textContent = currentUser.email || '';
+            console.log('👤 Student:', studentName);
+            console.log('📚 Classes:', currentUser.allowedClasses);
             
-            if (currentUser.expiresAt) {
-                const expiry = new Date(currentUser.expiresAt);
-                document.getElementById('expiryDateValue').textContent = 
-                    expiry.toLocaleDateString('en-IN', {day:'numeric', month:'long', year:'numeric'});
+            // Set welcome text
+            const welcomeNameEl = document.getElementById('welcomeName');
+            const welcomeSubtitleEl = document.getElementById('welcomeSubtitle');
+            
+            if (welcomeNameEl) {
+                welcomeNameEl.textContent = `Welcome, ${studentName}!`;
+            }
+            if (welcomeSubtitleEl) {
+                welcomeSubtitleEl.textContent = currentUser.email || '';
             }
             
+            // Set expiry date
+            if (currentUser.expiresAt) {
+                const expiry = new Date(currentUser.expiresAt);
+                const expiryDateValueEl = document.getElementById('expiryDateValue');
+                if (expiryDateValueEl) {
+                    expiryDateValueEl.textContent = 
+                        expiry.toLocaleDateString('en-IN', {day:'numeric', month:'long', year:'numeric'});
+                }
+            }
+            
+            // Load class chips
             loadClassChips();
             showClassSelectionPrompt();
             startStatusMonitoring();
             
+            // Trigger search re-init now that we have user data
+            if (typeof crossSearch !== 'undefined' && crossSearch) {
+                console.log('✅ User loaded, search is ready');
+            }
+            
         } catch (error) {
+            console.error('Session parse error:', error);
             localStorage.removeItem('session');
             window.location.replace('index.html');
         }
