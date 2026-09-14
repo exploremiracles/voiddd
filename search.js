@@ -45,14 +45,24 @@ class CrossSearch {
         `;
         
         // Insert before filters section
-        const filtersSection = document.querySelector('.filters-section');
-        if (filtersSection && filtersSection.parentNode) {
-            filtersSection.parentNode.insertBefore(
-                this.createSearchElement(searchHTML),
-                filtersSection
-            );
-        }
+        // Insert AFTER welcome-header (above filters)
+const welcomeHeader = document.querySelector('.welcome-header');
+if (welcomeHeader && welcomeHeader.parentNode) {
+    welcomeHeader.parentNode.insertBefore(
+        this.createSearchElement(searchHTML),
+        welcomeHeader.nextSibling
+    );
+} else {
+    // Fallback: insert at top of main-content
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) {
+        mainContent.insertBefore(
+            this.createSearchElement(searchHTML),
+            mainContent.firstChild
+        );
     }
+}
+        
     
     createSearchElement(html) {
         const temp = document.createElement('div');
