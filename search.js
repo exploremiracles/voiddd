@@ -62,6 +62,7 @@ if (welcomeHeader && welcomeHeader.parentNode) {
         );
     }
 }
+    }
         
     
     createSearchElement(html) {
