@@ -788,17 +788,17 @@ function updateProgressMessage(watched, total, percentage) {
     let message = '';
     
     if (watched === 0) {
-        message = '🎬 Start watching to track your progress!';
+        message = ' Start watching to track your progress!';
     } else if (percentage < 25) {
-        message = `🎯 Great start! ${total - watched} more lectures to go!`;
+        message = ` Great start! ${total - watched} more lectures to go!`;
     } else if (percentage < 50) {
-        message = `🚀 You're ${percentage}% done. Keep going!`;
+        message = ` You're ${percentage}% done. Keep going!`;
     } else if (percentage < 75) {
-        message = `💪 Halfway there! ${total - watched} lectures remaining.`;
+        message = ` Halfway there! ${total - watched} lectures remaining.`;
     } else if (percentage < 100) {
-        message = `🔥 Almost there! Just ${total - watched} left!`;
+        message = ` Almost there! Just ${total - watched} left!`;
     } else {
-        message = '🏆 Congratulations! You completed all lectures!';
+        message = ' Congratulations! You completed all lectures!';
     }
     
     messageEl.textContent = message;
@@ -814,10 +814,10 @@ function celebrateMilestone(percentage) {
     
     // Show toast
     const messages = {
-        25: '🎯 25% Complete! Great progress!',
-        50: '🚀 Halfway there! Amazing!',
-        75: '🔥 75% Done! Almost finished!',
-        100: '🏆 All lectures completed! Legendary!'
+        25: ' 25% Complete! Great progress!',
+        50: ' Halfway there! Amazing!',
+        75: ' 75% Done! Almost finished!',
+        100: ' All lectures completed! Legendary!'
     };
     
     if (messages[percentage]) {
