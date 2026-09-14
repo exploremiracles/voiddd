@@ -1,7 +1,7 @@
 // ============================================
 // Cross-Search Feature
 // Search across videos, PDFs, images, posts
-// With user-ready wait and class fallback
+// With auto-load pagination support
 // ============================================
 
 class CrossSearch {
@@ -37,7 +37,7 @@ class CrossSearch {
     // Wait until currentUser is loaded and ready
     waitForUserReady() {
         let attempts = 0;
-        const maxAttempts = 50; // 10 seconds max
+        const maxAttempts = 50;
         
         const check = () => {
             attempts++;
@@ -66,7 +66,6 @@ class CrossSearch {
     
     // Create search UI
     createSearchUI() {
-        // Don't create if already exists
         if (document.getElementById('searchContainer')) {
             console.log('Search UI already exists, skipping');
             return;
@@ -91,7 +90,6 @@ class CrossSearch {
             </div>
         `;
         
-        // Insert before filters section
         const filtersSection = document.querySelector('.filters-section');
         if (filtersSection && filtersSection.parentNode) {
             filtersSection.parentNode.insertBefore(
@@ -218,11 +216,9 @@ class CrossSearch {
         this.currentQuery = query.toLowerCase();
         this.searchStartTime = Date.now();
         
-        // Show spinner
         this.spinner.classList.add('visible');
         
         try {
-            // Get allowed classes with fallback
             const allowedClasses = await this.getAllowedClasses();
             
             console.log('🔍 Searching with classes:', allowedClasses);
@@ -243,7 +239,6 @@ class CrossSearch {
             
             console.log(`📊 Found: ${videos.length} videos, ${pdfs.length} PDFs, ${images.length} images, ${posts.length} posts`);
             
-            // Combine results
             const allResults = [
                 ...videos.map(v => ({...v, type: 'video'})),
                 ...pdfs.map(p => ({...p, type: 'pdf'})),
@@ -251,16 +246,12 @@ class CrossSearch {
                 ...posts.map(p => ({...p, type: 'post'}))
             ];
             
-            // Filter by search query
             const filtered = this.filterResults(allResults, this.currentQuery);
-            
-            // Sort by relevance
             const sorted = this.sortByRelevance(filtered, this.currentQuery);
             
             this.allResults = sorted;
             this.displayedCount = 0;
             
-            // Minimum display time for smoothness
             const elapsed = Date.now() - this.searchStartTime;
             const minTime = 300;
             if (elapsed < minTime) {
@@ -280,7 +271,6 @@ class CrossSearch {
     // Search a collection by class
     async searchCollection(collectionName, allowedClasses) {
         try {
-            // Firestore 'in' query limit is 10
             const classesToQuery = allowedClasses.slice(0, 10);
             
             const snapshot = await db.collection(collectionName)
@@ -350,17 +340,14 @@ class CrossSearch {
             const aTitle = (a.title || '').toLowerCase();
             const bTitle = (b.title || '').toLowerCase();
             
-            // Exact title match first
             const aExact = aTitle === query ? 2 : 0;
             const bExact = bTitle === query ? 2 : 0;
             if (aExact !== bExact) return bExact - aExact;
             
-            // Title starts with query
             const aStarts = aTitle.startsWith(query) ? 1 : 0;
             const bStarts = bTitle.startsWith(query) ? 1 : 0;
             if (aStarts !== bStarts) return bStarts - aStarts;
             
-            // Title contains query
             const aContains = aTitle.includes(query) ? 1 : 0;
             const bContains = bTitle.includes(query) ? 1 : 0;
             if (aContains !== bContains) return bContains - aContains;
@@ -381,16 +368,13 @@ class CrossSearch {
             return;
         }
         
-        // Remove existing show more button
         const existingBtn = this.searchResults.querySelector('.search-show-more');
         if (existingBtn) existingBtn.remove();
         
-        // Get next batch
         const start = this.displayedCount;
         const end = Math.min(start + this.RESULTS_PER_PAGE, results.length);
         const batch = results.slice(start, end);
         
-        // Add header if first batch
         if (!append) {
             const header = document.createElement('div');
             header.className = 'search-results-header';
@@ -401,7 +385,6 @@ class CrossSearch {
             this.searchResults.appendChild(header);
         }
         
-        // Add results
         batch.forEach(item => {
             const itemEl = this.createResultElement(item);
             this.searchResults.appendChild(itemEl);
@@ -409,7 +392,6 @@ class CrossSearch {
         
         this.displayedCount = end;
         
-        // Add show more button if needed
         if (this.displayedCount < results.length) {
             const showMoreBtn = document.createElement('button');
             showMoreBtn.className = 'search-show-more';
@@ -507,29 +489,40 @@ class CrossSearch {
             switchTab(targetTab);
         }
         
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Wait for tab switch
+        await new Promise(resolve => setTimeout(resolve, 400));
         
         // Ensure class is selected
         if (item.class && typeof selectClass === 'function') {
             const classChips = document.querySelectorAll('.class-chips .chip');
-            let found = false;
+            let classAlreadySelected = false;
+            
             classChips.forEach(chip => {
-                if (chip.textContent === item.class) {
-                    found = true;
-                    if (!chip.classList.contains('active')) {
-                        chip.click();
-                    }
+                if (chip.textContent === item.class && chip.classList.contains('active')) {
+                    classAlreadySelected = true;
                 }
             });
             
-            if (!found) {
-                // Try subject filter too
+            if (!classAlreadySelected) {
+                let found = false;
+                classChips.forEach(chip => {
+                    if (chip.textContent === item.class) {
+                        found = true;
+                        chip.click();
+                    }
+                });
+                
+                if (!found) {
+                    this.showToast('You do not have access to this class', 'error');
+                    return;
+                }
             }
         }
         
-        await new Promise(resolve => setTimeout(resolve, 800));
+        // Wait for content to load
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // Scroll and highlight
+        // Scroll and highlight (auto-loads pages if needed)
         this.scrollToAndHighlight(item);
         
         // Clear search
@@ -537,50 +530,125 @@ class CrossSearch {
         this.clearBtn.classList.remove('visible');
     }
     
-    // Scroll to and highlight item
+    // Scroll to and highlight item (auto-loads pages until found)
     scrollToAndHighlight(item) {
         let attempts = 0;
-        const maxAttempts = 15;
+        const maxAttempts = 30;
+        let autoLoadsDone = 0;
+        const maxAutoLoads = 20;
+        
+        // Show loading toast
+        this.showLoadingToast('Loading content...');
         
         const tryFind = () => {
+            attempts++;
+            
+            // Try to find the card
             const card = document.querySelector(`[data-item-id="${item.id}"]`);
             
             if (card) {
-                // Remove existing highlights
-                document.querySelectorAll('.golden-highlight').forEach(el => {
-                    el.classList.remove('golden-highlight');
-                });
-                
-                // Scroll to card
-                card.scrollIntoView({ 
-                    behavior: 'smooth', 
-                    block: 'center' 
-                });
-                
-                // Add golden highlight
-                setTimeout(() => {
-                    card.classList.add('golden-highlight');
-                    
-                    setTimeout(() => {
-                        card.classList.remove('golden-highlight');
-                    }, 3200);
-                }, 400);
-                
-                console.log('✅ Highlighted:', item.title);
+                // Found it! Hide loading toast and highlight
+                this.hideLoadingToast();
+                this.highlightCard(card, item);
                 return true;
             }
             
-            attempts++;
-            if (attempts < maxAttempts) {
-                setTimeout(tryFind, 300);
-            } else {
-                console.log('❌ Could not find item');
-                this.showToast('Content loaded but not visible', 'info');
+            // Not found - try to load more content
+            if (autoLoadsDone < maxAutoLoads) {
+                const loadMoreBtn = document.querySelector('.load-more-btn');
+                
+                if (loadMoreBtn) {
+                    autoLoadsDone++;
+                    console.log(`📥 Auto-loading page ${autoLoadsDone}...`);
+                    loadMoreBtn.click();
+                    
+                    setTimeout(tryFind, 200);
+                    return false;
+                } else {
+                    // No load more button - item not in current data
+                    console.log('❌ No more pages to load');
+                    this.hideLoadingToast();
+                    this.showToast('Content not available', 'error');
+                    return false;
+                }
             }
+            
+            // Max attempts reached
+            if (attempts >= maxAttempts) {
+                console.log('❌ Could not find item after loading all pages');
+                this.hideLoadingToast();
+                this.showToast('Content not found', 'error');
+                return false;
+            }
+            
+            setTimeout(tryFind, 200);
             return false;
         };
         
-        tryFind();
+        // Start after short delay
+        setTimeout(tryFind, 400);
+    }
+    
+    // Highlight a specific card
+    highlightCard(card, item) {
+        // Remove existing highlights
+        document.querySelectorAll('.golden-highlight').forEach(el => {
+            el.classList.remove('golden-highlight');
+        });
+        
+        // Scroll to card
+        card.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center' 
+        });
+        
+        // Add golden highlight
+        setTimeout(() => {
+            card.classList.add('golden-highlight');
+            
+            setTimeout(() => {
+                card.classList.remove('golden-highlight');
+            }, 3200);
+        }, 500);
+        
+        console.log('✅ Highlighted:', item.title);
+        this.showToast('Content found!', 'success');
+    }
+    
+    // Loading toast
+    showLoadingToast(message) {
+        this.hideLoadingToast();
+        
+        const toast = document.createElement('div');
+        toast.className = 'search-loading-toast';
+        toast.style.cssText = `
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(0);
+            background: linear-gradient(135deg, #5a745f, #7c967a);
+            color: white;
+            padding: 14px 24px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            box-shadow: 0 10px 30px rgba(90, 116, 95, 0.4);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: inherit;
+        `;
+        toast.innerHTML = `
+            <div style="width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin 0.6s linear infinite;"></div>
+            <span>${message}</span>
+        `;
+        document.body.appendChild(toast);
+    }
+    
+    hideLoadingToast() {
+        const toast = document.querySelector('.search-loading-toast');
+        if (toast) toast.remove();
     }
     
     showEmpty() {
@@ -608,6 +676,17 @@ class CrossSearch {
         const existingToast = document.querySelector('.search-toast');
         if (existingToast) existingToast.remove();
         
+        let bgColor = 'linear-gradient(135deg, #6b7280, #9ca3af)';
+        let icon = 'info';
+        
+        if (type === 'error') {
+            bgColor = 'linear-gradient(135deg, #DC2626, #ef4444)';
+            icon = 'error';
+        } else if (type === 'success') {
+            bgColor = 'linear-gradient(135deg, #059669, #10b981)';
+            icon = 'check_circle';
+        }
+        
         const toast = document.createElement('div');
         toast.className = 'search-toast';
         toast.style.cssText = `
@@ -615,7 +694,7 @@ class CrossSearch {
             bottom: 30px;
             left: 50%;
             transform: translateX(-50%) translateY(100px);
-            background: ${type === 'error' ? 'linear-gradient(135deg, #DC2626, #ef4444)' : 'linear-gradient(135deg, #6b7280, #9ca3af)'};
+            background: ${bgColor};
             color: white;
             padding: 12px 22px;
             border-radius: 25px;
@@ -625,8 +704,14 @@ class CrossSearch {
             z-index: 99999;
             transition: transform 0.4s ease;
             font-family: inherit;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         `;
-        toast.textContent = message;
+        toast.innerHTML = `
+            <span class="material-icons" style="font-size:18px;">${icon}</span>
+            <span>${message}</span>
+        `;
         document.body.appendChild(toast);
         
         setTimeout(() => {
