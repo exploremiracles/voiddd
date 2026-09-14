@@ -1,10 +1,11 @@
 // ============================================
-// Watched Badge System - Real-time Sync
+// Watched Badge System - Videos Only
+// Real-time Sync with Firebase
 // ============================================
 
 class WatchedBadgeSystem {
     constructor() {
-        this.watchedItems = new Set();
+        this.watchedVideos = new Set();
         this.userId = null;
         this.unsubscribe = null;
         this.isInitialized = false;
@@ -18,26 +19,26 @@ class WatchedBadgeSystem {
         }
         
         this.userId = user.uid;
-        await this.loadWatchedItems();
+        await this.loadWatchedVideos();
         this.setupRealtimeListener();
         this.isInitialized = true;
         
-        console.log(`✅ Watched Badge System initialized (${this.watchedItems.size} items)`);
+        console.log(`✅ Watched Badge System ready (${this.watchedVideos.size} videos)`);
     }
     
-    // Load all watched items from Firestore
-    async loadWatchedItems() {
+    // Load all watched videos from Firestore
+    async loadWatchedVideos() {
         try {
-            const snapshot = await db.collection('watched')
+            const snapshot = await db.collection('watchedVideos')
                 .where('userId', '==', this.userId)
                 .get();
             
             snapshot.forEach(doc => {
-                this.watchedItems.add(doc.data().itemId);
+                this.watchedVideos.add(doc.data().videoId);
             });
             
         } catch (error) {
-            console.error('Error loading watched items:', error);
+            console.error('Error loading watched videos:', error);
         }
     }
     
@@ -47,22 +48,22 @@ class WatchedBadgeSystem {
             this.unsubscribe();
         }
         
-        this.unsubscribe = db.collection('watched')
+        this.unsubscribe = db.collection('watchedVideos')
             .where('userId', '==', this.userId)
             .onSnapshot((snapshot) => {
                 snapshot.docChanges().forEach((change) => {
                     const data = change.doc.data();
                     
                     if (change.type === 'added') {
-                        if (!this.watchedItems.has(data.itemId)) {
-                            this.watchedItems.add(data.itemId);
-                            this.updateBadgeUI(data.itemId, true);
+                        if (!this.watchedVideos.has(data.videoId)) {
+                            this.watchedVideos.add(data.videoId);
+                            this.updateBadgeUI(data.videoId, true);
                         }
                     }
                     
                     if (change.type === 'removed') {
-                        this.watchedItems.delete(data.itemId);
-                        this.updateBadgeUI(data.itemId, false);
+                        this.watchedVideos.delete(data.videoId);
+                        this.updateBadgeUI(data.videoId, false);
                     }
                 });
             }, (error) => {
@@ -70,14 +71,14 @@ class WatchedBadgeSystem {
             });
     }
     
-    // Check if item is watched
-    isWatched(itemId) {
-        return this.watchedItems.has(itemId);
+    // Check if video is watched
+    isWatched(videoId) {
+        return this.watchedVideos.has(videoId);
     }
     
-    // Mark as watched with smooth animation
-    async markAsWatched(itemId, itemTitle, itemType, buttonElement) {
-        if (this.watchedItems.has(itemId)) {
+    // Mark video as watched
+    async markAsWatched(videoId, videoTitle, buttonElement) {
+        if (this.watchedVideos.has(videoId)) {
             return; // Already watched
         }
         
@@ -88,15 +89,14 @@ class WatchedBadgeSystem {
         }
         
         // Optimistic update (instant UI feedback)
-        this.watchedItems.add(itemId);
-        this.updateBadgeUI(itemId, true);
+        this.watchedVideos.add(videoId);
+        this.updateBadgeUI(videoId, true);
         
         try {
-            await db.collection('watched').add({
+            await db.collection('watchedVideos').add({
                 userId: this.userId,
-                itemId: itemId,
-                itemTitle: itemTitle || '',
-                itemType: itemType || 'videos',
+                videoId: videoId,
+                videoTitle: videoTitle || '',
                 watchedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             
@@ -106,15 +106,15 @@ class WatchedBadgeSystem {
             console.error('Error marking as watched:', error);
             
             // Rollback on error
-            this.watchedItems.delete(itemId);
-            this.updateBadgeUI(itemId, false);
-            this.showToast('Failed to save. Try again.', 'error');
+            this.watchedVideos.delete(videoId);
+            this.updateBadgeUI(videoId, false);
+            this.showToast('Failed to save', 'error');
         }
     }
     
     // Remove watched status
-    async removeWatched(itemId, buttonElement) {
-        if (!this.watchedItems.has(itemId)) return;
+    async removeWatched(videoId, buttonElement) {
+        if (!this.watchedVideos.has(videoId)) return;
         
         // Add ripple
         if (buttonElement) {
@@ -123,13 +123,13 @@ class WatchedBadgeSystem {
         }
         
         // Optimistic update
-        this.watchedItems.delete(itemId);
-        this.updateBadgeUI(itemId, false);
+        this.watchedVideos.delete(videoId);
+        this.updateBadgeUI(videoId, false);
         
         try {
-            const snapshot = await db.collection('watched')
+            const snapshot = await db.collection('watchedVideos')
                 .where('userId', '==', this.userId)
-                .where('itemId', '==', itemId)
+                .where('videoId', '==', videoId)
                 .get();
             
             const batch = db.batch();
@@ -142,14 +142,14 @@ class WatchedBadgeSystem {
             console.error('Error removing watched status:', error);
             
             // Rollback
-            this.watchedItems.add(itemId);
-            this.updateBadgeUI(itemId, true);
+            this.watchedVideos.add(videoId);
+            this.updateBadgeUI(videoId, true);
         }
     }
     
-    // Update badge UI on a card
-    updateBadgeUI(itemId, isWatched) {
-        const card = document.querySelector(`[data-item-id="${itemId}"]`);
+    // Update badge UI on a video card
+    updateBadgeUI(videoId, isWatched) {
+        const card = document.querySelector(`[data-item-id="${videoId}"]`);
         if (!card) return;
         
         const indicator = card.querySelector('.watched-indicator');
@@ -194,11 +194,6 @@ class WatchedBadgeSystem {
         setTimeout(() => toast.remove(), 2500);
     }
     
-    // Get watched count
-    getWatchedCount() {
-        return this.watchedItems.size;
-    }
-    
     // Cleanup
     destroy() {
         if (this.unsubscribe) {
@@ -222,19 +217,19 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================
-// Global Helper Functions (for onclick handlers)
+// Global Helper Functions
 // ============================================
 
-function isWatched(itemId) {
-    return watchedBadgeSystem ? watchedBadgeSystem.isWatched(itemId) : false;
+function isVideoWatched(videoId) {
+    return watchedBadgeSystem ? watchedBadgeSystem.isWatched(videoId) : false;
 }
 
-async function toggleWatched(itemId, itemTitle, itemType, element) {
+async function toggleWatched(videoId, videoTitle, element) {
     if (!watchedBadgeSystem) return;
     
-    if (watchedBadgeSystem.isWatched(itemId)) {
-        await watchedBadgeSystem.removeWatched(itemId, element);
+    if (watchedBadgeSystem.isWatched(videoId)) {
+        await watchedBadgeSystem.removeWatched(videoId, element);
     } else {
-        await watchedBadgeSystem.markAsWatched(itemId, itemTitle, itemType, element);
+        await watchedBadgeSystem.markAsWatched(videoId, videoTitle, element);
     }
 }
