@@ -1,6 +1,7 @@
 // ============================================
 // Cross-Search Feature
 // Search across videos, PDFs, images, posts
+// With user-ready wait and class fallback
 // ============================================
 
 class CrossSearch {
@@ -15,16 +16,62 @@ class CrossSearch {
         this.displayedCount = 0;
         this.RESULTS_PER_PAGE = 8;
         this.searchStartTime = 0;
+        this.listenersAttached = false;
     }
     
     initialize() {
-        this.createSearchUI();
-        this.attachListeners();
+        // Check if search UI already exists in HTML
+        const existingSearch = document.getElementById('searchInput');
+        if (!existingSearch) {
+            this.createSearchUI();
+        } else {
+            console.log('🔍 Using existing search UI from HTML');
+        }
+        
+        // Wait for user to be ready before attaching listeners
+        this.waitForUserReady();
+        
         console.log('🔍 Cross-Search initialized');
+    }
+    
+    // Wait until currentUser is loaded and ready
+    waitForUserReady() {
+        let attempts = 0;
+        const maxAttempts = 50; // 10 seconds max
+        
+        const check = () => {
+            attempts++;
+            
+            const userReady = typeof currentUser !== 'undefined' && 
+                             currentUser !== null && 
+                             currentUser.allowedClasses && 
+                             currentUser.allowedClasses.length > 0;
+            
+            if (userReady) {
+                console.log('✅ Search: User ready, attaching listeners');
+                this.attachListeners();
+                return;
+            }
+            
+            if (attempts < maxAttempts) {
+                setTimeout(check, 200);
+            } else {
+                console.log('⚠️ Search: User not ready after 10s, attaching anyway');
+                this.attachListeners();
+            }
+        };
+        
+        check();
     }
     
     // Create search UI
     createSearchUI() {
+        // Don't create if already exists
+        if (document.getElementById('searchContainer')) {
+            console.log('Search UI already exists, skipping');
+            return;
+        }
+        
         const searchHTML = `
             <div class="search-container" id="searchContainer">
                 <div class="search-bar">
@@ -45,25 +92,14 @@ class CrossSearch {
         `;
         
         // Insert before filters section
-        // Insert AFTER welcome-header (above filters)
-const welcomeHeader = document.querySelector('.welcome-header');
-if (welcomeHeader && welcomeHeader.parentNode) {
-    welcomeHeader.parentNode.insertBefore(
-        this.createSearchElement(searchHTML),
-        welcomeHeader.nextSibling
-    );
-} else {
-    // Fallback: insert at top of main-content
-    const mainContent = document.querySelector('.main-content');
-    if (mainContent) {
-        mainContent.insertBefore(
-            this.createSearchElement(searchHTML),
-            mainContent.firstChild
-        );
+        const filtersSection = document.querySelector('.filters-section');
+        if (filtersSection && filtersSection.parentNode) {
+            filtersSection.parentNode.insertBefore(
+                this.createSearchElement(searchHTML),
+                filtersSection
+            );
+        }
     }
-}
-    }
-        
     
     createSearchElement(html) {
         const temp = document.createElement('div');
@@ -71,17 +107,27 @@ if (welcomeHeader && welcomeHeader.parentNode) {
         return temp.firstElementChild;
     }
     
+    // Attach listeners (only once)
     attachListeners() {
+        if (this.listenersAttached) {
+            console.log('Search listeners already attached');
+            return;
+        }
+        
         this.searchInput = document.getElementById('searchInput');
         this.searchResults = document.getElementById('searchResults');
         this.clearBtn = document.getElementById('searchClear');
         this.spinner = document.getElementById('searchSpinner');
         
+        if (!this.searchInput) {
+            console.error('❌ Search input not found');
+            return;
+        }
+        
         // Input listener with debounce
         this.searchInput.addEventListener('input', (e) => {
             const query = e.target.value.trim();
             
-            // Show/hide clear button
             if (query.length > 0) {
                 this.clearBtn.classList.add('visible');
             } else {
@@ -90,7 +136,6 @@ if (welcomeHeader && welcomeHeader.parentNode) {
                 return;
             }
             
-            // Debounce
             clearTimeout(this.debounceTimer);
             this.debounceTimer = setTimeout(() => {
                 this.performSearch(query);
@@ -121,6 +166,46 @@ if (welcomeHeader && welcomeHeader.parentNode) {
                 this.hideResults();
             }
         });
+        
+        this.listenersAttached = true;
+        console.log('✅ Search listeners attached');
+    }
+    
+    // Get allowed classes with multiple fallbacks
+    async getAllowedClasses() {
+        // Try 1: Global currentUser
+        if (typeof currentUser !== 'undefined' && currentUser && 
+            currentUser.allowedClasses && currentUser.allowedClasses.length > 0) {
+            return currentUser.allowedClasses;
+        }
+        
+        // Try 2: localStorage session
+        try {
+            const session = JSON.parse(localStorage.getItem('session') || '{}');
+            if (session.allowedClasses && session.allowedClasses.length > 0) {
+                return session.allowedClasses;
+            }
+        } catch (e) {
+            console.log('Session parse failed');
+        }
+        
+        // Try 3: Fetch from Firestore directly
+        try {
+            const user = auth.currentUser;
+            if (user) {
+                const whitelistDoc = await db.collection('whitelist').doc(user.email.toLowerCase()).get();
+                if (whitelistDoc.exists) {
+                    const data = whitelistDoc.data();
+                    if (data.allowedClasses && data.allowedClasses.length > 0) {
+                        return data.allowedClasses;
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching classes from Firestore:', error);
+        }
+        
+        return [];
     }
     
     // Perform search across all collections
@@ -137,24 +222,28 @@ if (welcomeHeader && welcomeHeader.parentNode) {
         this.spinner.classList.add('visible');
         
         try {
-            // Get student's allowed classes
-            const session = JSON.parse(localStorage.getItem('session') || '{}');
-            const allowedClasses = session.allowedClasses || [];
+            // Get allowed classes with fallback
+            const allowedClasses = await this.getAllowedClasses();
+            
+            console.log('🔍 Searching with classes:', allowedClasses);
             
             if (allowedClasses.length === 0) {
-                this.showError('No classes assigned');
+                this.spinner.classList.remove('visible');
+                this.showError('Please wait, loading your content...');
                 return;
             }
             
             // Search all collections in parallel
             const [videos, pdfs, images, posts] = await Promise.all([
-                this.searchCollection('videos', 'class', allowedClasses),
-                this.searchCollection('pdfs', 'class', allowedClasses),
-                this.searchCollection('images', 'class', allowedClasses),
+                this.searchCollection('videos', allowedClasses),
+                this.searchCollection('pdfs', allowedClasses),
+                this.searchCollection('images', allowedClasses),
                 this.searchPosts(allowedClasses)
             ]);
             
-            // Combine and filter results
+            console.log(`📊 Found: ${videos.length} videos, ${pdfs.length} PDFs, ${images.length} images, ${posts.length} posts`);
+            
+            // Combine results
             const allResults = [
                 ...videos.map(v => ({...v, type: 'video'})),
                 ...pdfs.map(p => ({...p, type: 'pdf'})),
@@ -171,17 +260,14 @@ if (welcomeHeader && welcomeHeader.parentNode) {
             this.allResults = sorted;
             this.displayedCount = 0;
             
-            // Minimum display time for smoothness (300ms)
+            // Minimum display time for smoothness
             const elapsed = Date.now() - this.searchStartTime;
             const minTime = 300;
             if (elapsed < minTime) {
                 await new Promise(resolve => setTimeout(resolve, minTime - elapsed));
             }
             
-            // Hide spinner
             this.spinner.classList.remove('visible');
-            
-            // Display results
             this.displayResults(sorted, false);
             
         } catch (error) {
@@ -192,10 +278,13 @@ if (welcomeHeader && welcomeHeader.parentNode) {
     }
     
     // Search a collection by class
-    async searchCollection(collectionName, classField, allowedClasses) {
+    async searchCollection(collectionName, allowedClasses) {
         try {
+            // Firestore 'in' query limit is 10
+            const classesToQuery = allowedClasses.slice(0, 10);
+            
             const snapshot = await db.collection(collectionName)
-                .where(classField, 'in', allowedClasses.slice(0, 10))
+                .where('class', 'in', classesToQuery)
                 .limit(50)
                 .get();
             
@@ -276,7 +365,6 @@ if (welcomeHeader && welcomeHeader.parentNode) {
             const bContains = bTitle.includes(query) ? 1 : 0;
             if (aContains !== bContains) return bContains - aContains;
             
-            // Otherwise alphabetical
             return aTitle.localeCompare(bTitle);
         });
     }
@@ -327,7 +415,7 @@ if (welcomeHeader && welcomeHeader.parentNode) {
             showMoreBtn.className = 'search-show-more';
             showMoreBtn.innerHTML = `
                 <span class="material-icons">expand_more</span>
-                <span>Show ${Math.min(this.RESULTS_PER_PAGE, results.length - this.displayedCount)} more (${results.length - this.displayedCount} remaining)</span>
+                <span>Show more (${results.length - this.displayedCount} remaining)</span>
             `;
             showMoreBtn.onclick = (e) => {
                 e.stopPropagation();
@@ -346,7 +434,7 @@ if (welcomeHeader && welcomeHeader.parentNode) {
             post: { icon: 'article', label: 'Post', class: 'post' }
         };
         
-        const config = typeConfig[item.type];
+        const config = typeConfig[item.type] || typeConfig.video;
         const title = this.highlightText(item.title || 'Untitled', this.currentQuery);
         const metaParts = [];
         
@@ -391,24 +479,20 @@ if (welcomeHeader && welcomeHeader.parentNode) {
         return escaped.replace(regex, '<span class="search-highlight">$1</span>');
     }
     
-    // Escape HTML
     escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
     }
     
-    // Escape regex
     escapeRegex(str) {
         return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
     
     // Handle result click
     async handleResultClick(item) {
-        // Hide search results
         this.hideResults();
         
-        // Switch to correct tab
         const tabMap = {
             video: 'videos',
             pdf: 'pdfs',
@@ -423,7 +507,6 @@ if (welcomeHeader && welcomeHeader.parentNode) {
             switchTab(targetTab);
         }
         
-        // Wait for content to load
         await new Promise(resolve => setTimeout(resolve, 500));
         
         // Ensure class is selected
@@ -439,17 +522,14 @@ if (welcomeHeader && welcomeHeader.parentNode) {
                 }
             });
             
-            if (!found && typeof selectedClass !== 'undefined' && selectedClass !== item.class) {
-                // Class not assigned to student, can't navigate
-                this.showToast('You do not have access to this class', 'error');
-                return;
+            if (!found) {
+                // Try subject filter too
             }
         }
         
-        // Wait for content to render
         await new Promise(resolve => setTimeout(resolve, 800));
         
-        // Find and highlight the item
+        // Scroll and highlight
         this.scrollToAndHighlight(item);
         
         // Clear search
@@ -459,15 +539,14 @@ if (welcomeHeader && welcomeHeader.parentNode) {
     
     // Scroll to and highlight item
     scrollToAndHighlight(item) {
-        // Try multiple times in case content is still loading
         let attempts = 0;
-        const maxAttempts = 10;
+        const maxAttempts = 15;
         
         const tryFind = () => {
             const card = document.querySelector(`[data-item-id="${item.id}"]`);
             
             if (card) {
-                // Remove any existing highlights
+                // Remove existing highlights
                 document.querySelectorAll('.golden-highlight').forEach(el => {
                     el.classList.remove('golden-highlight');
                 });
@@ -478,11 +557,10 @@ if (welcomeHeader && welcomeHeader.parentNode) {
                     block: 'center' 
                 });
                 
-                // Add golden highlight after scroll
+                // Add golden highlight
                 setTimeout(() => {
                     card.classList.add('golden-highlight');
                     
-                    // Remove highlight after animation
                     setTimeout(() => {
                         card.classList.remove('golden-highlight');
                     }, 3200);
@@ -496,7 +574,7 @@ if (welcomeHeader && welcomeHeader.parentNode) {
             if (attempts < maxAttempts) {
                 setTimeout(tryFind, 300);
             } else {
-                console.log('❌ Could not find item to highlight');
+                console.log('❌ Could not find item');
                 this.showToast('Content loaded but not visible', 'info');
             }
             return false;
@@ -505,7 +583,6 @@ if (welcomeHeader && welcomeHeader.parentNode) {
         tryFind();
     }
     
-    // Show empty state
     showEmpty() {
         this.searchResults.innerHTML = `
             <div class="search-empty">
@@ -517,7 +594,6 @@ if (welcomeHeader && welcomeHeader.parentNode) {
         this.searchResults.classList.add('visible');
     }
     
-    // Show error
     showError(message) {
         this.searchResults.innerHTML = `
             <div class="search-empty">
@@ -528,9 +604,12 @@ if (welcomeHeader && welcomeHeader.parentNode) {
         this.searchResults.classList.add('visible');
     }
     
-    // Show toast
     showToast(message, type = 'info') {
+        const existingToast = document.querySelector('.search-toast');
+        if (existingToast) existingToast.remove();
+        
         const toast = document.createElement('div');
+        toast.className = 'search-toast';
         toast.style.cssText = `
             position: fixed;
             bottom: 30px;
@@ -560,15 +639,15 @@ if (welcomeHeader && welcomeHeader.parentNode) {
         }, 2500);
     }
     
-    // Hide results
     hideResults() {
-        this.searchResults.classList.remove('visible');
+        if (this.searchResults) {
+            this.searchResults.classList.remove('visible');
+        }
     }
     
-    // Clear search
     clearSearch() {
-        this.searchInput.value = '';
-        this.clearBtn.classList.remove('visible');
+        if (this.searchInput) this.searchInput.value = '';
+        if (this.clearBtn) this.clearBtn.classList.remove('visible');
         this.hideResults();
         this.currentQuery = '';
         this.allResults = [];
@@ -577,7 +656,7 @@ if (welcomeHeader && welcomeHeader.parentNode) {
 }
 
 // ============================================
-// Initialize Cross-Search
+// Initialize
 // ============================================
 
 let crossSearch = null;
