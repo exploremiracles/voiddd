@@ -337,80 +337,85 @@
 
 /* ============================================
    Golden Highlight for Clicked Content
+   Centered Limited Border - Forest Royal Green
    ============================================ */
 
 .golden-highlight {
     position: relative;
-    animation: goldenPulse 3s ease-out;
+    animation: greenPulse 3s ease-out;
     z-index: 10;
 }
 
+/* Centered limited border */
 .golden-highlight::before {
     content: '';
     position: absolute;
-    top: -8px;
-    left: -8px;
-    right: -8px;
-    bottom: -8px;
-    border: 3px solid #FFD700;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 70%;
+    height: 70%;
+    border: 3px solid #0d5c2e;
     border-radius: calc(var(--radius) + 4px);
     box-shadow: 
-        0 0 20px rgba(255, 215, 0, 0.6),
-        0 0 40px rgba(255, 215, 0, 0.4),
-        inset 0 0 20px rgba(255, 215, 0, 0.1);
-    animation: goldenRing 3s ease-out;
+        0 0 20px rgba(13, 92, 46, 0.6),
+        0 0 40px rgba(13, 92, 46, 0.4),
+        inset 0 0 20px rgba(13, 92, 46, 0.1);
+    animation: greenRing 3s ease-out;
     pointer-events: none;
     z-index: 11;
 }
 
+/* Sparkle icon */
 .golden-highlight::after {
-    content: '✨';
+    content: '🌿';
     position: absolute;
-    top: -20px;
-    right: -20px;
-    font-size: 32px;
-    animation: sparkleSpin 3s ease-out;
+    top: 10px;
+    right: 10px;
+    font-size: 28px;
+    animation: sparkleLeaf 3s ease-out;
     z-index: 12;
 }
 
-@keyframes goldenPulse {
+@keyframes greenPulse {
     0% {
         transform: scale(1);
     }
     15% {
-        transform: scale(1.03);
+        transform: scale(1.02);
     }
     30%, 100% {
         transform: scale(1);
     }
 }
 
-@keyframes goldenRing {
+@keyframes greenRing {
     0% {
         opacity: 0;
-        transform: scale(0.9);
+        transform: translate(-50%, -50%) scale(0.6);
     }
     20% {
         opacity: 1;
-        transform: scale(1);
+        transform: translate(-50%, -50%) scale(1);
     }
     80% {
         opacity: 1;
+        transform: translate(-50%, -50%) scale(1.02);
     }
     100% {
         opacity: 0;
-        transform: scale(1.05);
+        transform: translate(-50%, -50%) scale(1.05);
     }
 }
 
-@keyframes sparkleSpin {
+@keyframes sparkleLeaf {
     0% {
         opacity: 0;
         transform: rotate(0deg) scale(0);
     }
     20% {
         opacity: 1;
-        transform: rotate(180deg) scale(1.5);
+        transform: rotate(180deg) scale(1.3);
     }
     80% {
         opacity: 1;
@@ -422,20 +427,20 @@
     }
 }
 
-/* Golden shimmer for highlighted card */
+/* Green shimmer for highlighted card */
 .golden-highlight .card,
 .golden-highlight .post-card {
     background: linear-gradient(
         135deg,
         var(--surface) 0%,
-        rgba(255, 215, 0, 0.05) 50%,
+        rgba(13, 92, 46, 0.05) 50%,
         var(--surface) 100%
     );
     background-size: 200% 200%;
-    animation: goldenShimmer 3s ease-out;
+    animation: greenShimmer 3s ease-out;
 }
 
-@keyframes goldenShimmer {
+@keyframes greenShimmer {
     0% {
         background-position: 0% 50%;
     }
@@ -445,6 +450,32 @@
     100% {
         background-position: 0% 50%;
     }
+}
+
+/* ============================================
+   Forest Royal Green Variations for Dark Themes
+   ============================================ */
+
+[data-theme="dark"] .golden-highlight::before,
+[data-theme="midnight"] .golden-highlight::before {
+    border-color: #3fb950;
+    box-shadow: 
+        0 0 20px rgba(63, 185, 80, 0.6),
+        0 0 40px rgba(63, 185, 80, 0.4),
+        inset 0 0 20px rgba(63, 185, 80, 0.1);
+}
+
+[data-theme="dark"] .golden-highlight .card,
+[data-theme="dark"] .golden-highlight .post-card,
+[data-theme="midnight"] .golden-highlight .card,
+[data-theme="midnight"] .golden-highlight .post-card {
+    background: linear-gradient(
+        135deg,
+        var(--surface) 0%,
+        rgba(63, 185, 80, 0.08) 50%,
+        var(--surface) 100%
+    );
+    background-size: 200% 200%;
 }
 
 /* Responsive */
@@ -477,5 +508,18 @@
     
     .result-meta {
         font-size: 0.68rem;
+    }
+    
+    /* Smaller centered border on mobile */
+    .golden-highlight::before {
+        width: 80%;
+        height: 80%;
+        border-width: 2px;
+    }
+    
+    .golden-highlight::after {
+        font-size: 22px;
+        top: 8px;
+        right: 8px;
     }
 }
