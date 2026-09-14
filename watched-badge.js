@@ -1,6 +1,7 @@
 // ============================================
 // Watched Badge System - Videos Only
-// Real-time Sync with Firebase - FIXED
+// Real-time Sync with Firebase
+// With Progress Bar Integration
 // ============================================
 
 class WatchedBadgeSystem {
@@ -35,6 +36,9 @@ class WatchedBadgeSystem {
         
         // Update all existing badges on page
         this.refreshAllBadges();
+        
+        // Update progress bar if exists
+        this.triggerProgressUpdate();
     }
     
     // Wait for auth to be ready
@@ -101,6 +105,10 @@ class WatchedBadgeSystem {
                         this.updateBadgeUI(data.videoId, false);
                     }
                 });
+                
+                // Update progress bar on any change
+                this.triggerProgressUpdate();
+                
             }, (error) => {
                 console.error('Realtime listener error:', error);
             });
@@ -136,6 +144,9 @@ class WatchedBadgeSystem {
         this.watchedVideos.add(videoId);
         this.updateBadgeUI(videoId, true);
         
+        // Update progress bar immediately (optimistic)
+        this.triggerProgressUpdate();
+        
         try {
             await db.collection('watchedVideos').add({
                 userId: this.userId,
@@ -153,6 +164,7 @@ class WatchedBadgeSystem {
             // Rollback
             this.watchedVideos.delete(videoId);
             this.updateBadgeUI(videoId, false);
+            this.triggerProgressUpdate();
             this.showToast('Failed to save', 'error');
         }
     }
@@ -169,8 +181,10 @@ class WatchedBadgeSystem {
             setTimeout(() => buttonElement.classList.remove('ripple'), 600);
         }
         
+        // Optimistic update
         this.watchedVideos.delete(videoId);
         this.updateBadgeUI(videoId, false);
+        this.triggerProgressUpdate();
         
         try {
             const snapshot = await db.collection('watchedVideos')
@@ -190,6 +204,7 @@ class WatchedBadgeSystem {
             // Rollback
             this.watchedVideos.add(videoId);
             this.updateBadgeUI(videoId, true);
+            this.triggerProgressUpdate();
         }
     }
     
@@ -233,6 +248,26 @@ class WatchedBadgeSystem {
         });
     }
     
+    // Trigger progress bar update
+    triggerProgressUpdate() {
+        if (typeof updateVideoProgress === 'function' && 
+            typeof cachedData !== 'undefined' && 
+            cachedData && cachedData.length > 0) {
+            updateVideoProgress(cachedData);
+        }
+    }
+    
+    // Get watched count
+    getWatchedCount() {
+        return this.watchedVideos.size;
+    }
+    
+    // Get total watched count for a specific list of videos
+    getWatchedCountFromList(videos) {
+        if (!videos || !Array.isArray(videos)) return 0;
+        return videos.filter(v => this.watchedVideos.has(v.id)).length;
+    }
+    
     // Show toast
     showToast(message, type = 'success') {
         const existingToast = document.querySelector('.watched-toast-mini');
@@ -269,11 +304,12 @@ class WatchedBadgeSystem {
 
 let watchedBadgeSystem = null;
 
-// Initialize function that can be called multiple times
+// Initialize function
 function initWatchedBadge() {
     if (watchedBadgeSystem && watchedBadgeSystem.isInitialized) {
         console.log('WatchedBadge already initialized');
         watchedBadgeSystem.refreshAllBadges();
+        watchedBadgeSystem.triggerProgressUpdate();
         return;
     }
     
@@ -294,8 +330,14 @@ if (document.readyState === 'loading') {
 // Global Helper Functions
 // ============================================
 
+// Check if video is watched
 function isVideoWatched(videoId) {
     return watchedBadgeSystem && watchedBadgeSystem.isWatched(videoId);
+}
+
+// Get watched count for list of videos
+function getWatchedCountForList(videos) {
+    return watchedBadgeSystem ? watchedBadgeSystem.getWatchedCountFromList(videos) : 0;
 }
 
 // Toggle watched status
@@ -307,7 +349,6 @@ window.toggleWatched = async function(videoId, videoTitle, element) {
     if (!watchedBadgeSystem) {
         console.log('Initializing watched badge system...');
         initWatchedBadge();
-        // Wait a moment
         await new Promise(resolve => setTimeout(resolve, 1000));
     }
     
@@ -328,11 +369,23 @@ window.toggleWatched = async function(videoId, videoTitle, element) {
     }
 };
 
-// Re-init after content loads
+// Refresh badges after content loads
 window.refreshWatchedBadges = function() {
     if (watchedBadgeSystem) {
         watchedBadgeSystem.refreshAllBadges();
+        watchedBadgeSystem.triggerProgressUpdate();
     } else {
         initWatchedBadge();
     }
+};
+
+// Get progress stats for current videos
+window.getWatchedProgress = function() {
+    if (!watchedBadgeSystem) return { watched: 0, total: 0, percentage: 0 };
+    
+    const total = (typeof cachedData !== 'undefined' && cachedData) ? cachedData.length : 0;
+    const watched = watchedBadgeSystem.getWatchedCountFromList(cachedData);
+    const percentage = total > 0 ? Math.round((watched / total) * 100) : 0;
+    
+    return { watched, total, percentage };
 };
