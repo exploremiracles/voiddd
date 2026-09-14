@@ -1,0 +1,196 @@
+/* ============================================
+   Watched Badge - Minimal & Smooth
+   ============================================ */
+
+/* Watched Indicator Below Card */
+.watched-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 12px;
+    margin: 8px auto 0;
+    background: transparent;
+    border: 1.5px solid var(--border);
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    width: fit-content;
+    font-family: inherit;
+    user-select: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.watched-indicator:hover {
+    border-color: #10b981;
+    color: #10b981;
+    transform: translateY(-1px);
+}
+
+.watched-indicator .material-icons {
+    font-size: 14px;
+    transition: transform 0.3s ease;
+}
+
+.watched-indicator:active .material-icons {
+    transform: scale(0.85);
+}
+
+/* Watched State */
+.watched-indicator.watched {
+    background: linear-gradient(135deg, #059669, #10b981);
+    border-color: transparent;
+    color: white;
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+}
+
+.watched-indicator.watched:hover {
+    box-shadow: 0 6px 16px rgba(5, 150, 105, 0.35);
+    transform: translateY(-1px);
+}
+
+/* Smooth check animation */
+.watched-indicator.watched .material-icons {
+    animation: smoothCheck 0.4s ease-out;
+}
+
+@keyframes smoothCheck {
+    0% {
+        transform: scale(0) rotate(-90deg);
+        opacity: 0;
+    }
+    60% {
+        transform: scale(1.15) rotate(5deg);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+    }
+}
+
+/* Ripple effect on click */
+.watched-indicator::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(16, 185, 129, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s ease, height 0.6s ease;
+    pointer-events: none;
+}
+
+.watched-indicator.ripple::after {
+    width: 200px;
+    height: 200px;
+    opacity: 0;
+}
+
+/* Loading state */
+.watched-indicator.loading {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.watched-indicator.loading .material-icons {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Card watched subtle effect */
+.card.watched-card {
+    position: relative;
+}
+
+.card.watched-card::before {
+    content: '';
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: 8px;
+    height: 8px;
+    background: #10b981;
+    border-radius: 50%;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+    z-index: 3;
+    animation: dotPulse 2s ease-in-out infinite;
+}
+
+@keyframes dotPulse {
+    0%, 100% {
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.1);
+    }
+}
+
+/* Toast notification */
+.watched-toast-mini {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: linear-gradient(135deg, #059669, #10b981);
+    color: white;
+    padding: 12px 22px;
+    border-radius: 25px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    box-shadow: 0 10px 30px rgba(5, 150, 105, 0.4);
+    z-index: 99998;
+    animation: toastIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards,
+               toastOut 0.4s ease-out 2s forwards;
+}
+
+.watched-toast-mini .material-icons {
+    font-size: 20px;
+}
+
+@keyframes toastIn {
+    0% {
+        transform: translateX(-50%) translateY(100px);
+        opacity: 0;
+    }
+    100% {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes toastOut {
+    0% {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+    100% {
+        transform: translateX(-50%) translateY(100px);
+        opacity: 0;
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .watched-indicator {
+        font-size: 0.7rem;
+        padding: 5px 10px;
+    }
+    
+    .watched-indicator .material-icons {
+        font-size: 13px;
+    }
+}
