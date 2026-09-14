@@ -495,53 +495,28 @@ function generateCardHtml(item) {
             </div>
         </div>
     `;
-} else if (currentTab === 'pdfs') {
-    const pdfUrl = escapeHtml(item.pdfUrl || '#');
-    const isItemWatched = typeof isWatched === 'function' ? isWatched(item.id) : false;
-    
-    return `
-        <div class="card pdf-card ${isItemWatched ? 'watched-card' : ''}" 
-             data-item-id="${item.id}" 
-             data-item-title="${title}"
-             data-item-type="pdfs">
-            <span class="material-icons pdf-icon">picture_as_pdf</span>
-            <div class="card-title">${title}</div>
-            ${subject ? `<div class="card-description">${subject}</div>` : ''}
-            <a href="${pdfUrl}" target="_blank" rel="noopener noreferrer" class="pdf-download-btn">Download PDF</a>
-            
-            <!-- Watched Badge Below -->
-            <div class="watched-indicator ${isItemWatched ? 'watched' : ''}" 
-                 onclick="event.stopPropagation(); toggleWatched('${item.id}', '${title}', 'pdfs', this)">
-                <span class="material-icons">${isItemWatched ? 'check_circle' : 'check_circle_outline'}</span>
-                <span>${isItemWatched ? 'Read' : 'Mark as read'}</span>
-            </div>
-        </div>
-    `;
-} else if (currentTab === 'images') {
-    const imageUrl = escapeHtml(item.imageUrl || '');
-    const isItemWatched = typeof isWatched === 'function' ? isWatched(item.id) : false;
-    
-    return `
-        <div class="card ${isItemWatched ? 'watched-card' : ''}" 
-             data-item-id="${item.id}" 
-             data-item-title="${title}"
-             data-item-type="images"
-             onclick="viewImage('${imageUrl}','${title}','${description}','${subject}')">
-            <img src="${imageUrl}" class="image-thumbnail" alt="${title}" loading="lazy">
-            <div class="card-info">
+}else if (currentTab === 'pdfs') {
+        const pdfUrl = escapeHtml(item.pdfUrl || '#');
+        return `
+            <div class="card pdf-card">
+                <span class="material-icons pdf-icon">picture_as_pdf</span>
                 <div class="card-title">${title}</div>
                 ${subject ? `<div class="card-description">${subject}</div>` : ''}
-                
-                <!-- Watched Badge Below -->
-                <div class="watched-indicator ${isItemWatched ? 'watched' : ''}" 
-                     onclick="event.stopPropagation(); toggleWatched('${item.id}', '${title}', 'images', this)">
-                    <span class="material-icons">${isItemWatched ? 'check_circle' : 'check_circle_outline'}</span>
-                    <span>${isItemWatched ? 'Viewed' : 'Mark as viewed'}</span>
+                <a href="${pdfUrl}" target="_blank" rel="noopener noreferrer" class="pdf-download-btn">Download PDF</a>
+            </div>
+        `;
+    } else if (currentTab === 'images') {
+        const imageUrl = escapeHtml(item.imageUrl || '');
+        return `
+            <div class="card" onclick="viewImage('${imageUrl}','${title}','${description}','${subject}')">
+                <img src="${imageUrl}" class="image-thumbnail" alt="${title}" loading="lazy">
+                <div class="card-info">
+                    <div class="card-title">${title}</div>
+                    ${subject ? `<div class="card-description">${subject}</div>` : ''}
                 </div>
             </div>
-        </div>
-    `;
-} else if (currentTab === 'posts') {
+        `;
+    } else if (currentTab === 'posts') {
         const content = escapeHtml(item.content || '');
         const postUrl = escapeHtml(item.url || '');
         return `
