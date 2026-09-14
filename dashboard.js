@@ -504,39 +504,45 @@ function generateCardHtml(item) {
         </div>
     `;
 } else if (currentTab === 'pdfs') {
-        const pdfUrl = escapeHtml(item.pdfUrl || '#');
-        return `
-            <div class="card pdf-card">
-                <span class="material-icons pdf-icon">picture_as_pdf</span>
+    const pdfUrl = escapeHtml(item.pdfUrl || '#');
+    
+    return `
+        <div class="card pdf-card" 
+             data-item-id="${item.id}" 
+             data-item-title="${title}">
+            <span class="material-icons pdf-icon">picture_as_pdf</span>
+            <div class="card-title">${title}</div>
+            ${subject ? `<div class="card-description">${subject}</div>` : ''}
+            <a href="${pdfUrl}" target="_blank" rel="noopener noreferrer" class="pdf-download-btn">Download PDF</a>
+        </div>
+    `;
+} else if (currentTab === 'images') {
+    const imageUrl = escapeHtml(item.imageUrl || '');
+    
+    return `
+        <div class="card" 
+             data-item-id="${item.id}" 
+             data-item-title="${title}"
+             onclick="viewImage('${imageUrl}','${title}','${description}','${subject}')">
+            <img src="${imageUrl}" class="image-thumbnail" alt="${title}" loading="lazy">
+            <div class="card-info">
                 <div class="card-title">${title}</div>
                 ${subject ? `<div class="card-description">${subject}</div>` : ''}
-                <a href="${pdfUrl}" target="_blank" rel="noopener noreferrer" class="pdf-download-btn">Download PDF</a>
             </div>
-        `;
-    } else if (currentTab === 'images') {
-        const imageUrl = escapeHtml(item.imageUrl || '');
-        return `
-            <div class="card" onclick="viewImage('${imageUrl}','${title}','${description}','${subject}')">
-                <img src="${imageUrl}" class="image-thumbnail" alt="${title}" loading="lazy">
-                <div class="card-info">
-                    <div class="card-title">${title}</div>
-                    ${subject ? `<div class="card-description">${subject}</div>` : ''}
-                </div>
-            </div>
-        `;
-    } else if (currentTab === 'posts') {
-        const content = escapeHtml(item.content || '');
-        const postUrl = escapeHtml(item.url || '');
-        return `
-            <div class="post-card">
-                <div class="post-title">${title}</div>
-                ${subject ? `<div class="card-description">${subject}</div>` : ''}
-                <p class="post-content">${content}</p>
-                ${item.url ? `<a href="${postUrl}" target="_blank" rel="noopener noreferrer" class="post-link">Read More →</a>` : ''}
-            </div>
-        `;
-    }
-    return '';
+        </div>
+    `;
+} else if (currentTab === 'posts') {
+    const content = escapeHtml(item.content || '');
+    const postUrl = escapeHtml(item.url || '');
+    
+    return `
+        <div class="post-card" data-item-id="${item.id}">
+            <div class="post-title">${title}</div>
+            ${subject ? `<div class="card-description">${subject}</div>` : ''}
+            <p class="post-content">${content}</p>
+            ${item.url ? `<a href="${postUrl}" target="_blank" rel="noopener noreferrer" class="post-link">Read More →</a>` : ''}
+        </div>
+    `;
 }
 
 // Append Content
