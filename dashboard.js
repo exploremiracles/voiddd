@@ -1,4 +1,3 @@
-
 // Global flag for user readiness
 let isUserReady = false;
 
@@ -16,11 +15,8 @@ function onUserReady(callback) {
         }
     }, 100);
     
-    // Timeout after 10 seconds
     setTimeout(() => clearInterval(checkInterval), 10000);
 }
-
-
 
 let currentUser = null;
 let currentTab = 'videos';
@@ -267,10 +263,8 @@ function checkAuth() {
             return;
         }
         
-        // Get session from localStorage
         let session = localStorage.getItem('session');
         
-        // If no session, try to create one from Firestore
         if (!session) {
             console.log('No session in localStorage, fetching from Firestore...');
             try {
@@ -307,7 +301,6 @@ function checkAuth() {
         try {
             currentUser = JSON.parse(session);
             
-            // Verify email matches
             if (currentUser.email !== user.email.toLowerCase()) {
                 localStorage.removeItem('session');
                 auth.signOut();
@@ -315,7 +308,6 @@ function checkAuth() {
                 return;
             }
             
-            // Check session expiry
             if (currentUser.loginTime) {
                 const elapsedTime = Date.now() - currentUser.loginTime;
                 const twoHours = 2 * 60 * 60 * 1000;
@@ -327,7 +319,6 @@ function checkAuth() {
                 }
             }
             
-            // Get student name
             let studentName = currentUser.displayName || 'Student';
             if (studentName === 'undefined' || studentName === 'null' || !studentName) {
                 studentName = currentUser.email.split('@')[0].replace(/[._]/g, ' ');
@@ -337,7 +328,6 @@ function checkAuth() {
             console.log('👤 Student:', studentName);
             console.log('📚 Classes:', currentUser.allowedClasses);
             
-            // Set welcome text
             const welcomeNameEl = document.getElementById('welcomeName');
             const welcomeSubtitleEl = document.getElementById('welcomeSubtitle');
             
@@ -348,7 +338,6 @@ function checkAuth() {
                 welcomeSubtitleEl.textContent = currentUser.email || '';
             }
             
-            // Set expiry date
             if (currentUser.expiresAt) {
                 const expiry = new Date(currentUser.expiresAt);
                 const expiryDateValueEl = document.getElementById('expiryDateValue');
@@ -358,18 +347,13 @@ function checkAuth() {
                 }
             }
             
-            // Load class chips
             loadClassChips();
             showClassSelectionPrompt();
             startStatusMonitoring();
             
-            // Trigger search re-init now that we have user data
-            if (typeof crossSearch !== 'undefined' && crossSearch) {
-                console.log('✅ User loaded, search is ready');
-                // After console.log('📚 Classes:', currentUser.allowedClasses);
-isUserReady = true;
-console.log('✅ User ready flag set');
-            }
+            // SET USER READY FLAG
+            isUserReady = true;
+            console.log('✅ User ready flag set');
             
         } catch (error) {
             console.error('Session parse error:', error);
@@ -423,7 +407,6 @@ async function selectClass(cls) {
     subjectChipsDiv.style.display = 'flex';
     subjectChipsDiv.innerHTML = '<span style="color:var(--text-secondary);font-size:0.8rem;">Loading...</span>';
     
-    // Reset progress bar
     const progressContainer = document.getElementById('videoProgressContainer');
     if (progressContainer) {
         progressContainer.style.display = currentTab === 'videos' ? 'block' : 'none';
@@ -509,12 +492,11 @@ async function loadContent() {
         });
         
         cachedData = allData;
-displayedCount = 0;
-contentArea.innerHTML = '';
-appendContent();
-
-// Update progress bar
-updateVideoProgress(allData);
+        displayedCount = 0;
+        contentArea.innerHTML = '';
+        appendContent();
+        
+        updateVideoProgress(allData);
         
     } catch (error) {
         console.error('Error loading content:', error);
@@ -546,74 +528,76 @@ function generateCardHtml(item) {
     const description = escapeHtml(item.description || '');
     
     if (currentTab === 'videos') {
-    const vid = extractYouTubeId(item.videoUrl);
-    const thumb = vid ? `https://img.youtube.com/vi/${vid}/hqdefault.jpg` : '';
-    const duration = escapeHtml(item.duration || '');
-    const videoUrl = escapeHtml(item.videoUrl || '');
-    const isItemWatched = typeof isVideoWatched === 'function' ? isVideoWatched(item.id) : false;
-    const escapedTitle = title.replace(/'/g, "\\'");
-    
-    return `
-        <div class="card ${isItemWatched ? 'watched-card' : ''}" 
-             data-item-id="${item.id}" 
-             data-item-title="${title}"
-             onclick="playVideo('${videoUrl}','${escapedTitle}','${description.replace(/'/g, "\\'")}')">
-            <div class="video-thumbnail">
-                ${thumb ? `<img src="${thumb}" style="width:100%;height:100%;object-fit:cover;">` : ''}
-                ${duration ? `<span class="video-duration">${duration}</span>` : ''}
-            </div>
-            <div class="card-info">
-                <div class="card-title">${title}</div>
-                ${subject ? `<div class="card-description">${subject}</div>` : ''}
-                
-                <div class="watched-indicator ${isItemWatched ? 'watched' : ''}" 
-                     onclick="event.stopPropagation(); event.preventDefault(); toggleWatched('${item.id}', '${escapedTitle}', this); return false;">
-                    <span class="material-icons">${isItemWatched ? 'check_circle' : 'check_circle_outline'}</span>
-                    <span>${isItemWatched ? 'Watched' : 'Mark as watched'}</span>
+        const vid = extractYouTubeId(item.videoUrl);
+        const thumb = vid ? `https://img.youtube.com/vi/${vid}/hqdefault.jpg` : '';
+        const duration = escapeHtml(item.duration || '');
+        const videoUrl = escapeHtml(item.videoUrl || '');
+        const isItemWatched = typeof isVideoWatched === 'function' ? isVideoWatched(item.id) : false;
+        const escapedTitle = title.replace(/'/g, "\\'");
+        
+        return `
+            <div class="card ${isItemWatched ? 'watched-card' : ''}" 
+                 data-item-id="${item.id}" 
+                 data-item-title="${title}"
+                 onclick="playVideo('${videoUrl}','${escapedTitle}','${description.replace(/'/g, "\\'")}')">
+                <div class="video-thumbnail">
+                    ${thumb ? `<img src="${thumb}" style="width:100%;height:100%;object-fit:cover;">` : ''}
+                    ${duration ? `<span class="video-duration">${duration}</span>` : ''}
+                </div>
+                <div class="card-info">
+                    <div class="card-title">${title}</div>
+                    ${subject ? `<div class="card-description">${subject}</div>` : ''}
+                    
+                    <div class="watched-indicator ${isItemWatched ? 'watched' : ''}" 
+                         onclick="event.stopPropagation(); event.preventDefault(); toggleWatched('${item.id}', '${escapedTitle}', this); return false;">
+                        <span class="material-icons">${isItemWatched ? 'check_circle' : 'check_circle_outline'}</span>
+                        <span>${isItemWatched ? 'Watched' : 'Mark as watched'}</span>
+                    </div>
                 </div>
             </div>
-        </div>
-    `;
-} else if (currentTab === 'pdfs') {
-    const pdfUrl = escapeHtml(item.pdfUrl || '#');
-    
-    return `
-        <div class="card pdf-card" 
-             data-item-id="${item.id}" 
-             data-item-title="${title}">
-            <span class="material-icons pdf-icon">picture_as_pdf</span>
-            <div class="card-title">${title}</div>
-            ${subject ? `<div class="card-description">${subject}</div>` : ''}
-            <a href="${pdfUrl}" target="_blank" rel="noopener noreferrer" class="pdf-download-btn">Download PDF</a>
-        </div>
-    `;
-} else if (currentTab === 'images') {
-    const imageUrl = escapeHtml(item.imageUrl || '');
-    
-    return `
-        <div class="card" 
-             data-item-id="${item.id}" 
-             data-item-title="${title}"
-             onclick="viewImage('${imageUrl}','${title}','${description}','${subject}')">
-            <img src="${imageUrl}" class="image-thumbnail" alt="${title}" loading="lazy">
-            <div class="card-info">
+        `;
+    } else if (currentTab === 'pdfs') {
+        const pdfUrl = escapeHtml(item.pdfUrl || '#');
+        
+        return `
+            <div class="card pdf-card" 
+                 data-item-id="${item.id}" 
+                 data-item-title="${title}">
+                <span class="material-icons pdf-icon">picture_as_pdf</span>
                 <div class="card-title">${title}</div>
                 ${subject ? `<div class="card-description">${subject}</div>` : ''}
+                <a href="${pdfUrl}" target="_blank" rel="noopener noreferrer" class="pdf-download-btn">Download PDF</a>
             </div>
-        </div>
-    `;
-} else if (currentTab === 'posts') {
-    const content = escapeHtml(item.content || '');
-    const postUrl = escapeHtml(item.url || '');
-    
-    return `
-        <div class="post-card" data-item-id="${item.id}">
-            <div class="post-title">${title}</div>
-            ${subject ? `<div class="card-description">${subject}</div>` : ''}
-            <p class="post-content">${content}</p>
-            ${item.url ? `<a href="${postUrl}" target="_blank" rel="noopener noreferrer" class="post-link">Read More →</a>` : ''}
-        </div>
-    `;
+        `;
+    } else if (currentTab === 'images') {
+        const imageUrl = escapeHtml(item.imageUrl || '');
+        
+        return `
+            <div class="card" 
+                 data-item-id="${item.id}" 
+                 data-item-title="${title}"
+                 onclick="viewImage('${imageUrl}','${title}','${description}','${subject}')">
+                <img src="${imageUrl}" class="image-thumbnail" alt="${title}" loading="lazy">
+                <div class="card-info">
+                    <div class="card-title">${title}</div>
+                    ${subject ? `<div class="card-description">${subject}</div>` : ''}
+                </div>
+            </div>
+        `;
+    } else if (currentTab === 'posts') {
+        const content = escapeHtml(item.content || '');
+        const postUrl = escapeHtml(item.url || '');
+        
+        return `
+            <div class="post-card" data-item-id="${item.id}">
+                <div class="post-title">${title}</div>
+                ${subject ? `<div class="card-description">${subject}</div>` : ''}
+                <p class="post-content">${content}</p>
+                ${item.url ? `<a href="${postUrl}" target="_blank" rel="noopener noreferrer" class="post-link">Read More →</a>` : ''}
+            </div>
+        `;
+    }
+    return '';
 }
 
 // Append Content
@@ -683,13 +667,11 @@ function appendContent() {
         loadMoreBtn.onclick = appendContent;
         contentArea.appendChild(loadMoreBtn);
     }
-    // ... all your existing code ...
-    // At the very end of the function, add:
+    
     if (typeof refreshWatchedBadges === 'function') {
         setTimeout(refreshWatchedBadges, 100);
     }
 }
-
 
 // YouTube Functions
 function extractYouTubeId(url) {
@@ -761,7 +743,6 @@ function switchTab(tab) {
     const index = tabs.indexOf(tab);
     if (index !== -1) document.querySelectorAll('.sidebar-item')[index].classList.add('active');
     
-    // Hide progress bar if not videos tab
     const progressContainer = document.getElementById('videoProgressContainer');
     if (progressContainer && tab !== 'videos') {
         progressContainer.style.display = 'none';
@@ -814,6 +795,7 @@ history.pushState(null, null, location.href);
 
 // Initialize
 preventScreenshot();
+
 // ============================================
 // Video Progress Tracker
 // ============================================
@@ -821,9 +803,7 @@ preventScreenshot();
 let totalVideos = 0;
 let watchedCount = 0;
 
-// Update progress when videos are loaded
 function updateVideoProgress(allVideos) {
-    // Only show for videos tab
     const progressContainer = document.getElementById('videoProgressContainer');
     
     if (currentTab !== 'videos' || !allVideos || allVideos.length === 0) {
@@ -833,31 +813,23 @@ function updateVideoProgress(allVideos) {
     
     if (progressContainer) progressContainer.style.display = 'block';
     
-    // Count total videos for the selected class + subject
     totalVideos = allVideos.length;
-    
-    // Count watched videos
     watchedCount = allVideos.filter(video => isVideoWatched(video.id)).length;
     
-    // Calculate percentage
     const percentage = totalVideos > 0 ? Math.round((watchedCount / totalVideos) * 100) : 0;
     
-    // Update UI
     document.getElementById('watchedCount').textContent = watchedCount;
     document.getElementById('totalCount').textContent = totalVideos;
     document.getElementById('videoProgressFill').style.width = percentage + '%';
     document.getElementById('videoProgressPercentage').textContent = percentage + '%';
     
-    // Update message based on progress
     updateProgressMessage(watchedCount, totalVideos, percentage);
     
-    // Celebrate milestones
     if (percentage === 25 || percentage === 50 || percentage === 75 || percentage === 100) {
         celebrateMilestone(percentage);
     }
 }
 
-// Update message based on progress
 function updateProgressMessage(watched, total, percentage) {
     const messageEl = document.getElementById('videoProgressMessage');
     if (!messageEl) return;
@@ -865,23 +837,22 @@ function updateProgressMessage(watched, total, percentage) {
     let message = '';
     
     if (watched === 0) {
-        message = ' Start watching to track your progress!';
+        message = '🎬 Start watching to track your progress!';
     } else if (percentage < 25) {
-        message = ` Great start! ${total - watched} more lectures to go!`;
+        message = `🎯 Great start! ${total - watched} more lectures to go!`;
     } else if (percentage < 50) {
-        message = ` You're ${percentage}% done. Keep going!`;
+        message = `🚀 You're ${percentage}% done. Keep going!`;
     } else if (percentage < 75) {
-        message = ` Halfway there! ${total - watched} lectures remaining.`;
+        message = `💪 Halfway there! ${total - watched} lectures remaining.`;
     } else if (percentage < 100) {
-        message = ` Almost there! Just ${total - watched} left!`;
+        message = `🔥 Almost there! Just ${total - watched} left!`;
     } else {
-        message = ' Congratulations! You completed all lectures!';
+        message = '🏆 Congratulations! You completed all lectures!';
     }
     
     messageEl.textContent = message;
 }
 
-// Celebrate milestones
 function celebrateMilestone(percentage) {
     const container = document.getElementById('videoProgressContainer');
     if (!container) return;
@@ -889,12 +860,11 @@ function celebrateMilestone(percentage) {
     container.classList.add('milestone');
     setTimeout(() => container.classList.remove('milestone'), 600);
     
-    // Show toast
     const messages = {
-        25: ' 25% Complete! Great progress!',
-        50: ' Halfway there! Amazing!',
-        75: ' 75% Done! Almost finished!',
-        100: ' All lectures completed! Legendary!'
+        25: '🎯 25% Complete! Great progress!',
+        50: '🚀 Halfway there! Amazing!',
+        75: '🔥 75% Done! Almost finished!',
+        100: '🏆 All lectures completed! Legendary!'
     };
     
     if (messages[percentage]) {
@@ -902,7 +872,6 @@ function celebrateMilestone(percentage) {
     }
 }
 
-// Progress toast
 function showProgressToast(message) {
     const toast = document.createElement('div');
     toast.style.cssText = `
@@ -923,7 +892,6 @@ function showProgressToast(message) {
     toast.textContent = message;
     document.body.appendChild(toast);
     
-    // Add keyframes if not exists
     if (!document.getElementById('progressToastStyles')) {
         const style = document.createElement('style');
         style.id = 'progressToastStyles';
@@ -946,9 +914,7 @@ function showProgressToast(message) {
     }, 3000);
 }
 
-// Hook into the watched badge system
 function onVideoWatched(videoId) {
-    // Recalculate progress
     if (cachedData && cachedData.length > 0) {
         updateVideoProgress(cachedData);
     }
@@ -959,4 +925,5 @@ function onVideoUnwatched(videoId) {
         updateVideoProgress(cachedData);
     }
 }
+
 checkAuth();
