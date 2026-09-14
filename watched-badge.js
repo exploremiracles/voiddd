@@ -1,6 +1,6 @@
 // ============================================
 // Watched Badge System - Videos Only
-// Real-time Sync with Firebase
+// Real-time Sync with Firebase - FIXED
 // ============================================
 
 class WatchedBadgeSystem {
@@ -9,26 +9,59 @@ class WatchedBadgeSystem {
         this.userId = null;
         this.unsubscribe = null;
         this.isInitialized = false;
+        this.initRetries = 0;
+        this.maxRetries = 10;
     }
     
     async initialize() {
-        const user = auth.currentUser;
+        console.log('🎬 WatchedBadge: Initializing...');
+        
+        // Wait for auth to be ready
+        const user = await this.waitForAuth();
+        
         if (!user) {
-            console.log('No user logged in');
+            console.log('❌ WatchedBadge: No user found');
             return;
         }
         
         this.userId = user.uid;
+        console.log('✅ WatchedBadge: User found:', this.userId);
+        
         await this.loadWatchedVideos();
         this.setupRealtimeListener();
         this.isInitialized = true;
         
-        console.log(`✅ Watched Badge System ready (${this.watchedVideos.size} videos)`);
+        console.log(`✅ WatchedBadge: Ready (${this.watchedVideos.size} videos)`);
+        
+        // Update all existing badges on page
+        this.refreshAllBadges();
+    }
+    
+    // Wait for auth to be ready
+    waitForAuth() {
+        return new Promise((resolve) => {
+            // Check if already logged in
+            if (auth.currentUser) {
+                resolve(auth.currentUser);
+                return;
+            }
+            
+            // Wait for auth state change
+            const unsubscribe = auth.onAuthStateChanged((user) => {
+                unsubscribe();
+                resolve(user);
+            });
+            
+            // Timeout after 10 seconds
+            setTimeout(() => resolve(null), 10000);
+        });
     }
     
     // Load all watched videos from Firestore
     async loadWatchedVideos() {
         try {
+            console.log('📥 WatchedBadge: Loading videos...');
+            
             const snapshot = await db.collection('watchedVideos')
                 .where('userId', '==', this.userId)
                 .get();
@@ -37,16 +70,18 @@ class WatchedBadgeSystem {
                 this.watchedVideos.add(doc.data().videoId);
             });
             
+            console.log(`📥 Loaded ${this.watchedVideos.size} watched videos`);
+            
         } catch (error) {
-            console.error('Error loading watched videos:', error);
+            console.error('❌ Error loading watched videos:', error);
         }
     }
     
-    // Real-time listener for cross-device sync
+    // Real-time listener
     setupRealtimeListener() {
-        if (this.unsubscribe) {
-            this.unsubscribe();
-        }
+        if (this.unsubscribe) this.unsubscribe();
+        
+        console.log('🔄 WatchedBadge: Setting up realtime listener...');
         
         this.unsubscribe = db.collection('watchedVideos')
             .where('userId', '==', this.userId)
@@ -78,17 +113,26 @@ class WatchedBadgeSystem {
     
     // Mark video as watched
     async markAsWatched(videoId, videoTitle, buttonElement) {
-        if (this.watchedVideos.has(videoId)) {
-            return; // Already watched
+        console.log('🎯 Marking as watched:', videoId);
+        
+        if (!this.userId) {
+            console.error('❌ No user ID');
+            this.showToast('Please wait, loading...', 'error');
+            return;
         }
         
-        // Add ripple effect
+        if (this.watchedVideos.has(videoId)) {
+            console.log('Already watched');
+            return;
+        }
+        
+        // Ripple effect
         if (buttonElement) {
             buttonElement.classList.add('ripple');
             setTimeout(() => buttonElement.classList.remove('ripple'), 600);
         }
         
-        // Optimistic update (instant UI feedback)
+        // Optimistic update
         this.watchedVideos.add(videoId);
         this.updateBadgeUI(videoId, true);
         
@@ -100,12 +144,13 @@ class WatchedBadgeSystem {
                 watchedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             
+            console.log('✅ Saved to Firestore');
             this.showToast('✓ Marked as watched');
             
         } catch (error) {
-            console.error('Error marking as watched:', error);
+            console.error('❌ Error:', error);
             
-            // Rollback on error
+            // Rollback
             this.watchedVideos.delete(videoId);
             this.updateBadgeUI(videoId, false);
             this.showToast('Failed to save', 'error');
@@ -114,15 +159,16 @@ class WatchedBadgeSystem {
     
     // Remove watched status
     async removeWatched(videoId, buttonElement) {
+        console.log('🔄 Removing watched:', videoId);
+        
+        if (!this.userId) return;
         if (!this.watchedVideos.has(videoId)) return;
         
-        // Add ripple
         if (buttonElement) {
             buttonElement.classList.add('ripple');
             setTimeout(() => buttonElement.classList.remove('ripple'), 600);
         }
         
-        // Optimistic update
         this.watchedVideos.delete(videoId);
         this.updateBadgeUI(videoId, false);
         
@@ -139,7 +185,7 @@ class WatchedBadgeSystem {
             this.showToast('Removed from watched', 'info');
             
         } catch (error) {
-            console.error('Error removing watched status:', error);
+            console.error('❌ Error:', error);
             
             // Rollback
             this.watchedVideos.add(videoId);
@@ -147,13 +193,19 @@ class WatchedBadgeSystem {
         }
     }
     
-    // Update badge UI on a video card
+    // Update badge UI
     updateBadgeUI(videoId, isWatched) {
         const card = document.querySelector(`[data-item-id="${videoId}"]`);
-        if (!card) return;
+        if (!card) {
+            console.log('Card not found for:', videoId);
+            return;
+        }
         
         const indicator = card.querySelector('.watched-indicator');
-        if (!indicator) return;
+        if (!indicator) {
+            console.log('Indicator not found');
+            return;
+        }
         
         if (isWatched) {
             indicator.classList.add('watched');
@@ -172,8 +224,20 @@ class WatchedBadgeSystem {
         }
     }
     
-    // Show smooth toast
+    // Refresh all badges on page
+    refreshAllBadges() {
+        document.querySelectorAll('[data-item-id]').forEach(card => {
+            const videoId = card.dataset.itemId;
+            const isWatched = this.watchedVideos.has(videoId);
+            this.updateBadgeUI(videoId, isWatched);
+        });
+    }
+    
+    // Show toast
     showToast(message, type = 'success') {
+        const existingToast = document.querySelector('.watched-toast-mini');
+        if (existingToast) existingToast.remove();
+        
         const toast = document.createElement('div');
         toast.className = 'watched-toast-mini';
         
@@ -194,11 +258,8 @@ class WatchedBadgeSystem {
         setTimeout(() => toast.remove(), 2500);
     }
     
-    // Cleanup
     destroy() {
-        if (this.unsubscribe) {
-            this.unsubscribe();
-        }
+        if (this.unsubscribe) this.unsubscribe();
     }
 }
 
@@ -206,30 +267,72 @@ class WatchedBadgeSystem {
 // Global Instance
 // ============================================
 
-let watchedBadgeSystem;
+let watchedBadgeSystem = null;
 
-// Initialize when auth is ready
-document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-        watchedBadgeSystem = new WatchedBadgeSystem();
-        watchedBadgeSystem.initialize();
-    }, 1000);
-});
+// Initialize function that can be called multiple times
+function initWatchedBadge() {
+    if (watchedBadgeSystem && watchedBadgeSystem.isInitialized) {
+        console.log('WatchedBadge already initialized');
+        watchedBadgeSystem.refreshAllBadges();
+        return;
+    }
+    
+    watchedBadgeSystem = new WatchedBadgeSystem();
+    watchedBadgeSystem.initialize();
+}
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(initWatchedBadge, 500);
+    });
+} else {
+    setTimeout(initWatchedBadge, 500);
+}
 
 // ============================================
 // Global Helper Functions
 // ============================================
 
 function isVideoWatched(videoId) {
-    return watchedBadgeSystem ? watchedBadgeSystem.isWatched(videoId) : false;
+    return watchedBadgeSystem && watchedBadgeSystem.isWatched(videoId);
 }
 
-async function toggleWatched(videoId, videoTitle, element) {
-    if (!watchedBadgeSystem) return;
+// Toggle watched status
+window.toggleWatched = async function(videoId, videoTitle, element) {
+    console.log('toggleWatched called:', videoId);
+    console.log('watchedBadgeSystem exists:', !!watchedBadgeSystem);
+    
+    // If system not ready, initialize it first
+    if (!watchedBadgeSystem) {
+        console.log('Initializing watched badge system...');
+        initWatchedBadge();
+        // Wait a moment
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    if (!watchedBadgeSystem) {
+        console.error('Failed to initialize');
+        return;
+    }
+    
+    if (!watchedBadgeSystem.userId) {
+        console.log('Waiting for user...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
     
     if (watchedBadgeSystem.isWatched(videoId)) {
         await watchedBadgeSystem.removeWatched(videoId, element);
     } else {
         await watchedBadgeSystem.markAsWatched(videoId, videoTitle, element);
     }
-}
+};
+
+// Re-init after content loads
+window.refreshWatchedBadges = function() {
+    if (watchedBadgeSystem) {
+        watchedBadgeSystem.refreshAllBadges();
+    } else {
+        initWatchedBadge();
+    }
+};
