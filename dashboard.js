@@ -366,6 +366,9 @@ function checkAuth() {
             // Trigger search re-init now that we have user data
             if (typeof crossSearch !== 'undefined' && crossSearch) {
                 console.log('✅ User loaded, search is ready');
+                // After console.log('📚 Classes:', currentUser.allowedClasses);
+isUserReady = true;
+console.log('✅ User ready flag set');
             }
             
         } catch (error) {
