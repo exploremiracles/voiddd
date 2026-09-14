@@ -129,6 +129,31 @@
                 <div class="subject-chips" id="subjectChips" style="display:none;"></div>
             </div>
 
+            <!-- Video Progress Bar - Only shows in Videos tab -->
+<div class="video-progress-container" id="videoProgressContainer" style="display:none;">
+    <div class="video-progress-header">
+        <div class="video-progress-info">
+            <span class="material-icons">play_circle</span>
+            <span class="video-progress-label">Lecture Progress</span>
+        </div>
+        <div class="video-progress-count">
+            <span id="watchedCount">0</span>
+            <span class="count-divider">/</span>
+            <span id="totalCount">0</span>
+            <span class="count-label">lectures</span>
+        </div>
+    </div>
+    <div class="video-progress-bar-wrapper">
+        <div class="video-progress-bar" id="videoProgressBar">
+            <div class="video-progress-fill" id="videoProgressFill"></div>
+        </div>
+        <div class="video-progress-percentage" id="videoProgressPercentage">0%</div>
+    </div>
+    <div class="video-progress-message" id="videoProgressMessage">
+        Start watching to track your progress!
+    </div>
+</div>
+
             <div id="contentArea" class="grid-view"></div>
 
             <div class="batch-cards">
