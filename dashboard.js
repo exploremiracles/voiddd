@@ -352,6 +352,12 @@ async function selectClass(cls) {
     subjectChipsDiv.style.display = 'flex';
     subjectChipsDiv.innerHTML = '<span style="color:var(--text-secondary);font-size:0.8rem;">Loading...</span>';
     
+    // Reset progress bar
+    const progressContainer = document.getElementById('videoProgressContainer');
+    if (progressContainer) {
+        progressContainer.style.display = currentTab === 'videos' ? 'block' : 'none';
+    }
+    
     await loadAvailableSubjects(cls);
     loadContent();
 }
@@ -432,9 +438,12 @@ async function loadContent() {
         });
         
         cachedData = allData;
-        displayedCount = 0;
-        contentArea.innerHTML = '';
-        appendContent();
+displayedCount = 0;
+contentArea.innerHTML = '';
+appendContent();
+
+// Update progress bar
+updateVideoProgress(allData);
         
     } catch (error) {
         console.error('Error loading content:', error);
@@ -674,6 +683,13 @@ function switchTab(tab) {
     const tabs = ['videos','pdfs','images','posts'];
     const index = tabs.indexOf(tab);
     if (index !== -1) document.querySelectorAll('.sidebar-item')[index].classList.add('active');
+    
+    // Hide progress bar if not videos tab
+    const progressContainer = document.getElementById('videoProgressContainer');
+    if (progressContainer && tab !== 'videos') {
+        progressContainer.style.display = 'none';
+    }
+    
     if (selectedClass) {
         loadContent();
     }
@@ -721,4 +737,149 @@ history.pushState(null, null, location.href);
 
 // Initialize
 preventScreenshot();
+// ============================================
+// Video Progress Tracker
+// ============================================
+
+let totalVideos = 0;
+let watchedCount = 0;
+
+// Update progress when videos are loaded
+function updateVideoProgress(allVideos) {
+    // Only show for videos tab
+    const progressContainer = document.getElementById('videoProgressContainer');
+    
+    if (currentTab !== 'videos' || !allVideos || allVideos.length === 0) {
+        if (progressContainer) progressContainer.style.display = 'none';
+        return;
+    }
+    
+    if (progressContainer) progressContainer.style.display = 'block';
+    
+    // Count total videos for the selected class + subject
+    totalVideos = allVideos.length;
+    
+    // Count watched videos
+    watchedCount = allVideos.filter(video => isVideoWatched(video.id)).length;
+    
+    // Calculate percentage
+    const percentage = totalVideos > 0 ? Math.round((watchedCount / totalVideos) * 100) : 0;
+    
+    // Update UI
+    document.getElementById('watchedCount').textContent = watchedCount;
+    document.getElementById('totalCount').textContent = totalVideos;
+    document.getElementById('videoProgressFill').style.width = percentage + '%';
+    document.getElementById('videoProgressPercentage').textContent = percentage + '%';
+    
+    // Update message based on progress
+    updateProgressMessage(watchedCount, totalVideos, percentage);
+    
+    // Celebrate milestones
+    if (percentage === 25 || percentage === 50 || percentage === 75 || percentage === 100) {
+        celebrateMilestone(percentage);
+    }
+}
+
+// Update message based on progress
+function updateProgressMessage(watched, total, percentage) {
+    const messageEl = document.getElementById('videoProgressMessage');
+    if (!messageEl) return;
+    
+    let message = '';
+    
+    if (watched === 0) {
+        message = '🎬 Start watching to track your progress!';
+    } else if (percentage < 25) {
+        message = `🎯 Great start! ${total - watched} more lectures to go!`;
+    } else if (percentage < 50) {
+        message = `🚀 You're ${percentage}% done. Keep going!`;
+    } else if (percentage < 75) {
+        message = `💪 Halfway there! ${total - watched} lectures remaining.`;
+    } else if (percentage < 100) {
+        message = `🔥 Almost there! Just ${total - watched} left!`;
+    } else {
+        message = '🏆 Congratulations! You completed all lectures!';
+    }
+    
+    messageEl.textContent = message;
+}
+
+// Celebrate milestones
+function celebrateMilestone(percentage) {
+    const container = document.getElementById('videoProgressContainer');
+    if (!container) return;
+    
+    container.classList.add('milestone');
+    setTimeout(() => container.classList.remove('milestone'), 600);
+    
+    // Show toast
+    const messages = {
+        25: '🎯 25% Complete! Great progress!',
+        50: '🚀 Halfway there! Amazing!',
+        75: '🔥 75% Done! Almost finished!',
+        100: '🏆 All lectures completed! Legendary!'
+    };
+    
+    if (messages[percentage]) {
+        showProgressToast(messages[percentage]);
+    }
+}
+
+// Progress toast
+function showProgressToast(message) {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        top: 100px;
+        left: 50%;
+        transform: translateX(-50%) translateY(-100px);
+        background: linear-gradient(135deg, #059669, #10b981);
+        color: white;
+        padding: 14px 28px;
+        border-radius: 25px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        box-shadow: 0 10px 30px rgba(5, 150, 105, 0.4);
+        z-index: 99999;
+        animation: progressToastIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    // Add keyframes if not exists
+    if (!document.getElementById('progressToastStyles')) {
+        const style = document.createElement('style');
+        style.id = 'progressToastStyles';
+        style.textContent = `
+            @keyframes progressToastIn {
+                0% { transform: translateX(-50%) translateY(-100px); opacity: 0; }
+                100% { transform: translateX(-50%) translateY(0); opacity: 1; }
+            }
+            @keyframes progressToastOut {
+                0% { transform: translateX(-50%) translateY(0); opacity: 1; }
+                100% { transform: translateX(-50%) translateY(-100px); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    setTimeout(() => {
+        toast.style.animation = 'progressToastOut 0.5s ease-out forwards';
+        setTimeout(() => toast.remove(), 500);
+    }, 3000);
+}
+
+// Hook into the watched badge system
+function onVideoWatched(videoId) {
+    // Recalculate progress
+    if (cachedData && cachedData.length > 0) {
+        updateVideoProgress(cachedData);
+    }
+}
+
+function onVideoUnwatched(videoId) {
+    if (cachedData && cachedData.length > 0) {
+        updateVideoProgress(cachedData);
+    }
+}
 checkAuth();
