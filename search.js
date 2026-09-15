@@ -1,7 +1,6 @@
 // ============================================
-// Cross-Search Feature
-// Search across videos, PDFs, images, posts
-// With auto-load pagination support
+// Cross-Search Feature - OPTIMIZED
+// Real-time with caching + smart pagination
 // ============================================
 
 class CrossSearch {
@@ -17,18 +16,24 @@ class CrossSearch {
         this.RESULTS_PER_PAGE = 8;
         this.searchStartTime = 0;
         this.listenersAttached = false;
+        
+        // ✅ NEW: Cache system
+        this.cache = new Map();           // Query cache
+        this.cacheTimeout = 5 * 60 * 1000; // 5 minutes
+        this.classesCache = null;         // User classes cache
+        
+        // ✅ NEW: Search history tracking
+        this.lastSearchQuery = '';
+        this.searchAbortController = null; // Cancel previous searches
     }
     
     initialize() {
         const existingSearch = document.getElementById('searchInput');
         if (!existingSearch) {
             this.createSearchUI();
-        } else {
-            console.log('🔍 Using existing search UI from HTML');
         }
         
         this.waitForUserReady();
-        
         console.log('🔍 Cross-Search initialized');
     }
     
@@ -45,6 +50,7 @@ class CrossSearch {
                              currentUser.allowedClasses.length > 0;
             
             if (userReady) {
+                this.classesCache = currentUser.allowedClasses;
                 console.log('✅ Search: User ready, attaching listeners');
                 this.attachListeners();
                 return;
@@ -53,7 +59,6 @@ class CrossSearch {
             if (attempts < maxAttempts) {
                 setTimeout(check, 200);
             } else {
-                console.log('⚠️ Search: User not ready after 10s, attaching anyway');
                 this.attachListeners();
             }
         };
@@ -62,10 +67,7 @@ class CrossSearch {
     }
     
     createSearchUI() {
-        if (document.getElementById('searchContainer')) {
-            console.log('Search UI already exists, skipping');
-            return;
-        }
+        if (document.getElementById('searchContainer')) return;
         
         const searchHTML = `
             <div class="search-container" id="searchContainer">
@@ -102,20 +104,14 @@ class CrossSearch {
     }
     
     attachListeners() {
-        if (this.listenersAttached) {
-            console.log('Search listeners already attached');
-            return;
-        }
+        if (this.listenersAttached) return;
         
         this.searchInput = document.getElementById('searchInput');
         this.searchResults = document.getElementById('searchResults');
         this.clearBtn = document.getElementById('searchClear');
         this.spinner = document.getElementById('searchSpinner');
         
-        if (!this.searchInput) {
-            console.error('❌ Search input not found');
-            return;
-        }
+        if (!this.searchInput) return;
         
         this.searchInput.addEventListener('input', (e) => {
             const query = e.target.value.trim();
@@ -131,7 +127,7 @@ class CrossSearch {
             clearTimeout(this.debounceTimer);
             this.debounceTimer = setTimeout(() => {
                 this.performSearch(query);
-            }, 250);
+            }, 300); // Increased to 300ms for smoother typing
         });
         
         this.searchInput.addEventListener('keydown', (e) => {
@@ -146,9 +142,7 @@ class CrossSearch {
             }
         });
         
-        this.clearBtn.addEventListener('click', () => {
-            this.clearSearch();
-        });
+        this.clearBtn.addEventListener('click', () => this.clearSearch());
         
         document.addEventListener('click', (e) => {
             if (!e.target.closest('#searchContainer')) {
@@ -160,20 +154,67 @@ class CrossSearch {
         console.log('✅ Search listeners attached');
     }
     
+    // ============================================
+    // ✅ NEW: Cache helpers
+    // ============================================
+    
+    getCachedResult(query) {
+        const cached = this.cache.get(query);
+        if (!cached) return null;
+        
+        // Check if cache is still valid
+        if (Date.now() - cached.timestamp > this.cacheTimeout) {
+            this.cache.delete(query);
+            return null;
+        }
+        
+        console.log(`⚡ Cache HIT for: "${query}"`);
+        return cached.data;
+    }
+    
+    setCachedResult(query, data) {
+        // Limit cache size to prevent memory issues
+        if (this.cache.size >= 20) {
+            const firstKey = this.cache.keys().next().value;
+            this.cache.delete(firstKey);
+        }
+        
+        this.cache.set(query, {
+            data: data,
+            timestamp: Date.now()
+        });
+        
+        console.log(`💾 Cached result for: "${query}"`);
+    }
+    
+    clearCache() {
+        this.cache.clear();
+        console.log('🗑️ Search cache cleared');
+    }
+    
+    // ============================================
+    // Get user's allowed classes (with cache)
+    // ============================================
+    
     async getAllowedClasses() {
+        // Use cached classes if available
+        if (this.classesCache && this.classesCache.length > 0) {
+            return this.classesCache;
+        }
+        
         if (typeof currentUser !== 'undefined' && currentUser && 
             currentUser.allowedClasses && currentUser.allowedClasses.length > 0) {
-            return currentUser.allowedClasses;
+            this.classesCache = currentUser.allowedClasses;
+            return this.classesCache;
         }
         
         try {
             const session = JSON.parse(localStorage.getItem('session') || '{}');
             if (session.allowedClasses && session.allowedClasses.length > 0) {
-                return session.allowedClasses;
+                this.classesCache = session.allowedClasses;
+                return this.classesCache;
             }
-        } catch (e) {
-            console.log('Session parse failed');
-        }
+        } catch (e) {}
         
         try {
             const user = auth.currentUser;
@@ -182,16 +223,21 @@ class CrossSearch {
                 if (whitelistDoc.exists) {
                     const data = whitelistDoc.data();
                     if (data.allowedClasses && data.allowedClasses.length > 0) {
-                        return data.allowedClasses;
+                        this.classesCache = data.allowedClasses;
+                        return this.classesCache;
                     }
                 }
             }
         } catch (error) {
-            console.error('Error fetching classes from Firestore:', error);
+            console.error('Error fetching classes:', error);
         }
         
         return [];
     }
+    
+    // ============================================
+    // ✅ OPTIMIZED: Perform search with caching
+    // ============================================
     
     async performSearch(query) {
         if (!query || query.length < 2) {
@@ -199,15 +245,33 @@ class CrossSearch {
             return;
         }
         
-        this.currentQuery = query.toLowerCase();
+        const lowerQuery = query.toLowerCase();
+        
+        // ✅ Prevent duplicate searches
+        if (lowerQuery === this.lastSearchQuery && this.allResults.length > 0) {
+            console.log('⏭️ Skipping duplicate search');
+            this.displayResults(this.allResults, false);
+            return;
+        }
+        
+        this.lastSearchQuery = lowerQuery;
+        this.currentQuery = lowerQuery;
         this.searchStartTime = Date.now();
         
+        // ✅ Check cache first
+        const cachedResults = this.getCachedResult(lowerQuery);
+        if (cachedResults) {
+            this.allResults = cachedResults;
+            this.displayedCount = 0;
+            this.displayResults(cachedResults, false);
+            return;
+        }
+        
+        // Show spinner
         this.spinner.classList.add('visible');
         
         try {
             const allowedClasses = await this.getAllowedClasses();
-            
-            console.log('🔍 Searching with classes:', allowedClasses);
             
             if (allowedClasses.length === 0) {
                 this.spinner.classList.remove('visible');
@@ -215,14 +279,13 @@ class CrossSearch {
                 return;
             }
             
+            // ✅ Reduced limits for faster search
             const [videos, pdfs, images, posts] = await Promise.all([
                 this.searchCollection('videos', allowedClasses),
                 this.searchCollection('pdfs', allowedClasses),
                 this.searchCollection('images', allowedClasses),
                 this.searchPosts(allowedClasses)
             ]);
-            
-            console.log(`📊 Found: ${videos.length} videos, ${pdfs.length} PDFs, ${images.length} images, ${posts.length} posts`);
             
             const allResults = [
                 ...videos.map(v => ({...v, type: 'video'})),
@@ -231,14 +294,18 @@ class CrossSearch {
                 ...posts.map(p => ({...p, type: 'post'}))
             ];
             
-            const filtered = this.filterResults(allResults, this.currentQuery);
-            const sorted = this.sortByRelevance(filtered, this.currentQuery);
+            const filtered = this.filterResults(allResults, lowerQuery);
+            const sorted = this.sortByRelevance(filtered, lowerQuery);
+            
+            // ✅ Cache the result
+            this.setCachedResult(lowerQuery, sorted);
             
             this.allResults = sorted;
             this.displayedCount = 0;
             
+            // Minimum display time for smoothness
             const elapsed = Date.now() - this.searchStartTime;
-            const minTime = 300;
+            const minTime = 200; // Reduced for snappier feel
             if (elapsed < minTime) {
                 await new Promise(resolve => setTimeout(resolve, minTime - elapsed));
             }
@@ -253,13 +320,14 @@ class CrossSearch {
         }
     }
     
+    // ✅ Reduced limit for faster loading
     async searchCollection(collectionName, allowedClasses) {
         try {
             const classesToQuery = allowedClasses.slice(0, 10);
             
             const snapshot = await db.collection(collectionName)
                 .where('class', 'in', classesToQuery)
-                .limit(50)
+                .limit(30) // ✅ Reduced from 50 to 30
                 .get();
             
             return snapshot.docs.map(doc => ({
@@ -277,7 +345,7 @@ class CrossSearch {
             const promises = allowedClasses.slice(0, 10).map(cls => 
                 db.collection('posts')
                     .where('class', 'array-contains', cls)
-                    .limit(30)
+                    .limit(20) // ✅ Reduced from 30 to 20
                     .get()
             );
             
@@ -321,12 +389,12 @@ class CrossSearch {
             const aTitle = (a.title || '').toLowerCase();
             const bTitle = (b.title || '').toLowerCase();
             
-            const aExact = aTitle === query ? 2 : 0;
-            const bExact = bTitle === query ? 2 : 0;
+            const aExact = aTitle === query ? 3 : 0;
+            const bExact = bTitle === query ? 3 : 0;
             if (aExact !== bExact) return bExact - aExact;
             
-            const aStarts = aTitle.startsWith(query) ? 1 : 0;
-            const bStarts = bTitle.startsWith(query) ? 1 : 0;
+            const aStarts = aTitle.startsWith(query) ? 2 : 0;
+            const bStarts = bTitle.startsWith(query) ? 2 : 0;
             if (aStarts !== bStarts) return bStarts - aStarts;
             
             const aContains = aTitle.includes(query) ? 1 : 0;
@@ -365,10 +433,13 @@ class CrossSearch {
             this.searchResults.appendChild(header);
         }
         
+        // ✅ Use DocumentFragment for smoother rendering
+        const fragment = document.createDocumentFragment();
         batch.forEach(item => {
             const itemEl = this.createResultElement(item);
-            this.searchResults.appendChild(itemEl);
+            fragment.appendChild(itemEl);
         });
+        this.searchResults.appendChild(fragment);
         
         this.displayedCount = end;
         
@@ -401,7 +472,6 @@ class CrossSearch {
         
         if (item.subject) metaParts.push({ icon: 'menu_book', text: item.subject });
         
-        // Handle class display (string or array)
         if (item.class) {
             const classText = Array.isArray(item.class) ? item.class.join(', ') : item.class;
             metaParts.push({ icon: 'school', text: classText });
@@ -429,10 +499,7 @@ class CrossSearch {
             </div>
         `;
         
-        el.addEventListener('click', () => {
-            this.handleResultClick(item);
-        });
-        
+        el.addEventListener('click', () => this.handleResultClick(item));
         return el;
     }
     
@@ -455,9 +522,6 @@ class CrossSearch {
         return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
     
-    // ============================================
-    // Handle result click - FIXED for posts (array class)
-    // ============================================
     async handleResultClick(item) {
         this.hideResults();
         
@@ -470,16 +534,12 @@ class CrossSearch {
         
         const targetTab = tabMap[item.type];
         
-        // Switch tab
         if (typeof switchTab === 'function') {
             switchTab(targetTab);
         }
         
         await new Promise(resolve => setTimeout(resolve, 400));
         
-        // ============================================
-        // FIX: Handle both string and array for class
-        // ============================================
         let targetClass = null;
         
         if (item.class) {
@@ -487,18 +547,13 @@ class CrossSearch {
                                   JSON.parse(localStorage.getItem('session') || '{}').allowedClasses || 
                                   [];
             
-            // If array (posts), pick first class student has access to
             if (Array.isArray(item.class)) {
                 targetClass = item.class.find(c => studentClasses.includes(c)) || item.class[0];
             } else {
-                // String (videos/pdfs/images)
                 targetClass = item.class;
             }
         }
         
-        console.log('🎯 Target class for navigation:', targetClass);
-        
-        // Ensure class is selected
         if (targetClass && typeof selectClass === 'function') {
             const classChips = document.querySelectorAll('.class-chips .chip');
             let classAlreadySelected = false;
@@ -514,31 +569,24 @@ class CrossSearch {
             });
             
             if (!classAlreadySelected && found) {
-                // Click the class chip
                 classChips.forEach(chip => {
                     if (chip.textContent === targetClass) {
                         chip.click();
                     }
                 });
             } else if (!found) {
-                console.log('❌ Class chip not found for:', targetClass);
                 this.showToast('You do not have access to this class', 'error');
                 return;
             }
         }
         
-        // Wait for content to load
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Scroll and highlight (auto-loads if needed)
         this.scrollToAndHighlight(item);
         
-        // Clear search
         this.searchInput.value = '';
         this.clearBtn.classList.remove('visible');
     }
     
-    // Scroll to and highlight item (auto-loads pages until found)
     scrollToAndHighlight(item) {
         let attempts = 0;
         const maxAttempts = 30;
@@ -563,13 +611,10 @@ class CrossSearch {
                 
                 if (loadMoreBtn) {
                     autoLoadsDone++;
-                    console.log(`📥 Auto-loading page ${autoLoadsDone}...`);
                     loadMoreBtn.click();
-                    
                     setTimeout(tryFind, 200);
                     return false;
                 } else {
-                    console.log('❌ No more pages to load');
                     this.hideLoadingToast();
                     this.showToast('Content not available', 'error');
                     return false;
@@ -577,7 +622,6 @@ class CrossSearch {
             }
             
             if (attempts >= maxAttempts) {
-                console.log('❌ Could not find item after loading all pages');
                 this.hideLoadingToast();
                 this.showToast('Content not found', 'error');
                 return false;
@@ -602,13 +646,11 @@ class CrossSearch {
         
         setTimeout(() => {
             card.classList.add('golden-highlight');
-            
             setTimeout(() => {
                 card.classList.remove('golden-highlight');
             }, 3200);
         }, 500);
         
-        console.log('✅ Highlighted:', item.title);
         this.showToast('Content found!', 'success');
     }
     
@@ -731,6 +773,7 @@ class CrossSearch {
         if (this.clearBtn) this.clearBtn.classList.remove('visible');
         this.hideResults();
         this.currentQuery = '';
+        this.lastSearchQuery = '';
         this.allResults = [];
         this.displayedCount = 0;
     }
@@ -749,9 +792,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 800);
 });
 
-// Global helper
+// Global helpers
 window.clearSearch = function() {
-    if (crossSearch) {
-        crossSearch.clearSearch();
-    }
+    if (crossSearch) crossSearch.clearSearch();
+};
+
+window.clearSearchCache = function() {
+    if (crossSearch) crossSearch.clearCache();
 };
