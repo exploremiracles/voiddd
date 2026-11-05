@@ -72,7 +72,7 @@ function resetRateLimit() {
 
 // Copy UPI ID
 function copyUPI(btn) {
-    navigator.clipboard.writeText('enlighten@upi').then(() => {
+    navigator.clipboard.writeText('exploremiracles2017@okaxis').then(() => {
         const originalText = btn.innerHTML;
         btn.innerHTML = '<span class="material-icons">check</span> Copied!';
         setTimeout(() => {
