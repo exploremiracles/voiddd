@@ -188,15 +188,41 @@
     }
 
     async getAllowedClasses() {
-      if (this.classesCache && this.classesCache.length) return this.classesCache;
-      if (typeof currentUser !== 'undefined' && currentUser &&
-          Array.isArray(currentUser.allowedClasses) && currentUser.allowedClasses.length) {
-        this.classesCache = currentUser.allowedClasses.slice();
+  // 1. Cache hit
+  if (this.classesCache && this.classesCache.length) return this.classesCache;
+
+  // 2. Primary: ask dashboard via exposed getter (IIFE-safe)
+  if (typeof window.__CU_getUser === 'function') {
+    const user = window.__CU_getUser();
+    if (user && Array.isArray(user.allowedClasses) && user.allowedClasses.length) {
+      this.classesCache = user.allowedClasses.slice();
+      return this.classesCache;
+    }
+  }
+
+  // 3. Fallback: read from localStorage session (still maintained by dashboard.js)
+  try {
+    const raw = localStorage.getItem('session');
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (s && Array.isArray(s.allowedClasses) && s.allowedClasses.length) {
+        this.classesCache = s.allowedClasses.slice();
         return this.classesCache;
       }
-      // Do NOT read whitelist here — dashboard already did and provided it
-      return [];
     }
+  } catch (_) {}
+
+  // 4. Last resort: legacy global (kept for compatibility, normally unused)
+  if (typeof window.currentUser !== 'undefined' && window.currentUser) {
+    const classes = window.currentUser.allowedClasses;
+    if (Array.isArray(classes) && classes.length) {
+      this.classesCache = classes.slice();
+      return this.classesCache;
+    }
+  }
+
+  return [];
+}
 
     async performSearch(query) {
       if (!query || query.length < 2) { this.hideResults(); return; }
