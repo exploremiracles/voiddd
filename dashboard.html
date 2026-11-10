@@ -2,98 +2,131 @@
 <html lang="en" data-theme="default">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Campus Unfolded</title>
-    <meta name="theme-color" content="#DFDDD3">
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Dashboard — Campus Unfolded</title>
+    <meta name="description" content="Your Campus Unfolded dashboard — videos, PDFs, and study material.">
+    <meta name="theme-color" content="#DFDDD3" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0d1117" media="(prefers-color-scheme: dark)">
+
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self';
+                   script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com;
+                   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+                   font-src 'self' https://fonts.gstatic.com;
+                   img-src 'self' data: blob: https:;
+                   media-src 'self' https:;
+                   connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.cloudfunctions.net https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.youtube.com;
+                   frame-src https://www.youtube.com https://www.youtube-nocookie.com;
+                   object-src 'none';
+                   base-uri 'self';">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+
     <link rel="manifest" href="/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Campus Unfolded">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Inter:wght@300;400;500;600;700&family=Dancing+Script:wght@400;500;600;700&family=Roboto:wght@300;400;500;700&family=Caveat:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
+    <!-- Inline theme — no FOUC -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('enlighten_theme') || 'default';
+          document.documentElement.setAttribute('data-theme', t);
+        } catch (e) {}
+      })();
+    </script>
+
     <link rel="stylesheet" href="dashboard.css">
     <link rel="stylesheet" href="watched-badge.css">
     <link rel="stylesheet" href="search.css">
 </head>
 <body>
+
+    <!-- ========== AUTH GATE (blocks UI until verified) ========== -->
+    <div class="page-transition active" id="authGate" aria-live="polite">
+        <div class="transition-spinner"></div>
+        <div class="transition-text">Verifying your access…</div>
+        <div class="transition-subtext">Just a moment</div>
+    </div>
+
     <!-- Campus Loader -->
     <div class="campus-loader" id="campusLoader">
-    <div class="campus-loader-content">
-        <!-- Your Logo Image -->
-        <img src="intro.png" alt="Enlighten Logo" class="campus-loader-logo">
-        
-        <div class="campus-loader-text">Campus Unfolded</div>
-        <div class="campus-loader-subtext">Refreshing your content...</div>
-        <div class="campus-loader-dots">
-            <div class="campus-loader-dot"></div>
-            <div class="campus-loader-dot"></div>
-            <div class="campus-loader-dot"></div>
+        <div class="campus-loader-content">
+            <img src="intro.png" alt="Campus Unfolded logo" class="campus-loader-logo"
+                 width="80" height="80" decoding="async">
+            <div class="campus-loader-text">Campus Unfolded</div>
+            <div class="campus-loader-subtext">Refreshing your content...</div>
+            <div class="campus-loader-dots" aria-hidden="true">
+                <div class="campus-loader-dot"></div>
+                <div class="campus-loader-dot"></div>
+                <div class="campus-loader-dot"></div>
+            </div>
         </div>
     </div>
-</div>
 
     <!-- Access Revoked Dialog -->
-    <div class="access-revoked-overlay" id="accessRevokedOverlay">
+    <div class="access-revoked-overlay" id="accessRevokedOverlay" role="alertdialog" aria-modal="true" aria-labelledby="revokedTitle">
         <div class="access-revoked-dialog">
-            <div class="access-revoked-icon">
-                <span class="material-icons">block</span>
-            </div>
-            <h2>Access Revoked</h2>
-            <p>Your access has been revoked by the administrator.</p>
-            <button class="btn btn-danger" onclick="window.location.href='index.html'">
+            <div class="access-revoked-icon"><span class="material-icons">block</span></div>
+            <h2 id="revokedTitle">Access Revoked</h2>
+            <p id="revokedMessage">Your access has been revoked by the administrator.</p>
+            <button class="btn btn-danger" onclick="window.location.replace('index.html')">
                 Go to Login
             </button>
         </div>
     </div>
 
-    <div class="dashboard">
+    <div class="dashboard" id="dashboardRoot" hidden>
         <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
-        <div class="sidebar" id="sidebar">
+        <aside class="sidebar" id="sidebar" aria-label="Main navigation">
             <div class="sidebar-header">
                 <div class="sidebar-logo">Campus Unfolded</div>
                 <button class="close-sidebar-btn" onclick="closeSidebar()" aria-label="Close menu">
                     <span class="material-icons">close</span>
                 </button>
             </div>
-            <div class="sidebar-nav">
-                <div class="sidebar-item active" onclick="handleMobileTabClick('videos')">
+            <nav class="sidebar-nav">
+                <button class="sidebar-item active" data-tab="videos" onclick="handleMobileTabClick('videos')">
                     <span class="material-icons">play_circle</span><span>Videos</span>
-                </div>
-                <div class="sidebar-item" onclick="handleMobileTabClick('pdfs')">
+                </button>
+                <button class="sidebar-item" data-tab="pdfs" onclick="handleMobileTabClick('pdfs')">
                     <span class="material-icons">picture_as_pdf</span><span>PDFs</span>
-                </div>
-                <div class="sidebar-item" onclick="handleMobileTabClick('images')">
+                </button>
+                <button class="sidebar-item" data-tab="images" onclick="handleMobileTabClick('images')">
                     <span class="material-icons">image</span><span>Images</span>
-                </div>
-                <div class="sidebar-item" onclick="handleMobileTabClick('posts')">
+                </button>
+                <button class="sidebar-item" data-tab="posts" onclick="handleMobileTabClick('posts')">
                     <span class="material-icons">article</span><span>Posts</span>
-                </div>
-            </div>
-        </div>
+                </button>
+            </nav>
+        </aside>
 
-        <div class="main-content">
-    <!-- Campus Unfolded Signature Text -->
-    <div class="campus-signature">
-        <span class="sig-letter" style="--i:0">C</span>
-        <span class="sig-letter" style="--i:1">a</span>
-        <span class="sig-letter" style="--i:2">m</span>
-        <span class="sig-letter" style="--i:3">p</span>
-        <span class="sig-letter" style="--i:4">u</span>
-        <span class="sig-letter" style="--i:5">s</span>
-        <span class="sig-space" style="--i:6"></span>
-        <span class="sig-letter" style="--i:7">U</span>
-        <span class="sig-letter" style="--i:8">n</span>
-        <span class="sig-letter" style="--i:9">f</span>
-        <span class="sig-letter" style="--i:10">o</span>
-        <span class="sig-letter" style="--i:11">l</span>
-        <span class="sig-letter" style="--i:12">d</span>
-        <span class="sig-letter" style="--i:13">e</span>
-        <span class="sig-letter" style="--i:14">d</span>
-    </div>
-    
-    <div class="mobile-top-bar">
+        <main class="main-content">
+            <div class="campus-signature" aria-hidden="true">
+                <span class="sig-letter" style="--i:0">C</span>
+                <span class="sig-letter" style="--i:1">a</span>
+                <span class="sig-letter" style="--i:2">m</span>
+                <span class="sig-letter" style="--i:3">p</span>
+                <span class="sig-letter" style="--i:4">u</span>
+                <span class="sig-letter" style="--i:5">s</span>
+                <span class="sig-space" style="--i:6"></span>
+                <span class="sig-letter" style="--i:7">U</span>
+                <span class="sig-letter" style="--i:8">n</span>
+                <span class="sig-letter" style="--i:9">f</span>
+                <span class="sig-letter" style="--i:10">o</span>
+                <span class="sig-letter" style="--i:11">l</span>
+                <span class="sig-letter" style="--i:12">d</span>
+                <span class="sig-letter" style="--i:13">e</span>
+                <span class="sig-letter" style="--i:14">d</span>
+            </div>
+
+            <div class="mobile-top-bar">
                 <button class="mobile-menu-btn" onclick="openSidebar()" aria-label="Open menu">
                     <span class="material-icons">menu</span>
                 </button>
@@ -106,54 +139,51 @@
                     <p class="welcome-subtitle" id="welcomeSubtitle">Your learning journey continues</p>
                 </div>
                 <div class="header-actions">
-    <button class="theme-btn" onclick="toggleThemeMenu()" aria-label="Change theme" title="Change Theme">
-        <span class="material-icons" id="themeIcon">light_mode</span>
-    </button>
-    <button class="preferences-btn" onclick="togglePreferencesMenu()" aria-label="Preferences" title="Preferences">
-        <span class="material-icons">settings</span>
-    </button>
-    <button class="refresh-btn" id="refreshBtn" onclick="refreshAllContent()">
-        <span class="material-icons">refresh</span>
-        Refresh
-    </button>
-    <button class="logout-btn" onclick="showLogoutDialog()">
-        <span class="material-icons">logout</span>
-        Logout
-    </button>
-</div>
+                    <button class="theme-btn" onclick="toggleThemeMenu()" aria-label="Change theme" title="Change Theme">
+                        <span class="material-icons" id="themeIcon">light_mode</span>
+                    </button>
+                    <button class="preferences-btn" onclick="togglePreferencesMenu()" aria-label="Preferences" title="Preferences">
+                        <span class="material-icons">settings</span>
+                    </button>
+                    <button class="refresh-btn" id="refreshBtn" onclick="refreshAllContent()" aria-label="Refresh content">
+                        <span class="material-icons">refresh</span>
+                        Refresh
+                    </button>
+                    <button class="logout-btn" onclick="showLogoutDialog()">
+                        <span class="material-icons">logout</span>
+                        Logout
+                    </button>
+                </div>
             </div>
 
             <div class="filters-section">
                 <div class="filter-label">Select Class:</div>
-                <div class="class-chips" id="classChips"></div>
+                <div class="class-chips" id="classChips" role="tablist"></div>
                 <div class="filter-label" id="subjectLabel" style="display:none;">Select Subject:</div>
-                <div class="subject-chips" id="subjectChips" style="display:none;"></div>
+                <div class="subject-chips" id="subjectChips" style="display:none;" role="tablist"></div>
             </div>
 
-            <!-- Video Progress Bar - Only shows in Videos tab -->
-<div class="video-progress-container" id="videoProgressContainer" style="display:none;">
-    <div class="video-progress-header">
-        <div class="video-progress-info">
-            <span class="material-icons">play_circle</span>
-            <span class="video-progress-label">Lecture Progress</span>
-        </div>
-        <div class="video-progress-count">
-            <span id="watchedCount">0</span>
-            <span class="count-divider">/</span>
-            <span id="totalCount">0</span>
-            <span class="count-label">lectures</span>
-        </div>
-    </div>
-    <div class="video-progress-bar-wrapper">
-        <div class="video-progress-bar" id="videoProgressBar">
-            <div class="video-progress-fill" id="videoProgressFill"></div>
-        </div>
-        <div class="video-progress-percentage" id="videoProgressPercentage">0%</div>
-    </div>
-    <div class="video-progress-message" id="videoProgressMessage">
-        Start watching to track your progress!
-    </div>
-</div>
+            <div class="video-progress-container" id="videoProgressContainer" style="display:none;" aria-live="polite">
+                <div class="video-progress-header">
+                    <div class="video-progress-info">
+                        <span class="material-icons">play_circle</span>
+                        <span class="video-progress-label">Lecture Progress</span>
+                    </div>
+                    <div class="video-progress-count">
+                        <span id="watchedCount">0</span>
+                        <span class="count-divider">/</span>
+                        <span id="totalCount">0</span>
+                        <span class="count-label">lectures</span>
+                    </div>
+                </div>
+                <div class="video-progress-bar-wrapper">
+                    <div class="video-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="videoProgressBar">
+                        <div class="video-progress-fill" id="videoProgressFill"></div>
+                    </div>
+                    <div class="video-progress-percentage" id="videoProgressPercentage">0%</div>
+                </div>
+                <div class="video-progress-message" id="videoProgressMessage">Start watching to track your progress!</div>
+            </div>
 
             <div id="contentArea" class="grid-view"></div>
 
@@ -171,14 +201,17 @@
                     <div class="batch-message" id="expiryMessage">Your access includes all study materials.</div>
                 </div>
             </div>
-        </div>
+        </main>
     </div>
 
     <!-- Video Modal -->
-    <div class="modal-overlay" id="videoModal">
+    <div class="modal-overlay" id="videoModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal-content">
             <div class="video-player-wrapper" id="videoPlayerContainer">
-                <iframe id="modalVideo" src="" allowfullscreen></iframe>
+                <iframe id="modalVideo" src="" allowfullscreen
+                        allow="accelerometer; encrypted-media; picture-in-picture; fullscreen"
+                        referrerpolicy="strict-origin-when-cross-origin"
+                        title="Video player"></iframe>
                 <button class="fullscreen-btn" onclick="toggleFullscreen()">
                     <span class="material-icons">fullscreen</span>
                     Fullscreen
@@ -191,12 +224,12 @@
     </div>
 
     <!-- Image Modal -->
-    <div class="modal-overlay" id="imageModal">
+    <div class="modal-overlay" id="imageModal" role="dialog" aria-modal="true" aria-labelledby="imageModalTitle">
         <div class="modal-content image-modal-content">
             <div class="image-modal-img-container">
-                <img src="" id="modalImage" class="image-modal-img" alt="Image">
-                <div class="watermark-overlay">
-                    <span class="watermark-text">ENLIGHTEN</span>
+                <img src="" id="modalImage" class="image-modal-img" alt="Content image">
+                <div class="watermark-overlay" aria-hidden="true">
+                    <span class="watermark-text">CAMPUS UNFOLDED</span>
                 </div>
             </div>
             <div class="image-modal-info">
@@ -214,12 +247,10 @@
     </div>
 
     <!-- Logout Dialog -->
-    <div class="logout-dialog-overlay" id="logoutDialogOverlay">
+    <div class="logout-dialog-overlay" id="logoutDialogOverlay" role="alertdialog" aria-modal="true" aria-labelledby="logoutTitle">
         <div class="logout-dialog">
-            <div class="logout-dialog-icon">
-                <span class="material-icons">logout</span>
-            </div>
-            <h2>Ready to Leave?</h2>
+            <div class="logout-dialog-icon"><span class="material-icons">logout</span></div>
+            <h2 id="logoutTitle">Ready to Leave?</h2>
             <p>Are you sure you want to logout?</p>
             <div class="logout-dialog-buttons">
                 <button class="logout-cancel-btn" onclick="closeLogoutDialog()">Cancel</button>
@@ -233,17 +264,24 @@
         Install App
     </button>
 
+    <noscript>
+        <div style="padding:2rem;text-align:center;font-family:sans-serif">
+            <h2>Campus Unfolded requires JavaScript</h2>
+            <p>Please enable JavaScript to access the dashboard.</p>
+        </div>
+    </noscript>
+
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    
+
     <!-- Custom Scripts -->
     <script src="firebase-config.js"></script>
     <script src="themes.js"></script>
     <script src="preferences.js"></script>
-    <script src="dashboard.js"></script>
-    <script src="watched-badge.js"></script>
-    <script src="search.js"></script>
+    <script src="dashboard.js" defer></script>
+    <script src="watched-badge.js" defer></script>
+    <script src="search.js" defer></script>
 </body>
 </html>
