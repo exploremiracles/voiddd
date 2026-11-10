@@ -1,138 +1,195 @@
-// Theme Management System
-const THEMES = {
-    default: { name: 'Enlighten Classic', icon: 'light_mode' },
-    midnight: { name: 'Midnight Blue', icon: 'dark_mode' },
-    forest: { name: 'Forest Green', icon: 'forest' },
-    sunset: { name: 'Sunset Orange', icon: 'wb_twilight' },
-    ocean: { name: 'Ocean Blue', icon: 'waves' },
-    dark: { name: 'Dark Mode', icon: 'bedtime' }
-};
+/**
+ * Campus Unfolded — Theme Management
+ * 6 themes, theme-aware meta color, no listener leaks, keyboard-navigable.
+ */
 
-// Load saved theme on page load
-function loadTheme() {
-    const savedTheme = localStorage.getItem('enlighten_theme') || 'default';
-    applyTheme(savedTheme);
-    updateThemeIcon(savedTheme);
-}
+(function () {
+  'use strict';
 
-// Apply theme to document
-function applyTheme(themeName) {
+  // ============================================
+  // CONFIG
+  // ============================================
+  const THEMES = {
+    default:  { name: 'Enlighten Classic', icon: 'light_mode',  meta: '#DFDDD3' },
+    midnight: { name: 'Midnight Blue',     icon: 'dark_mode',   meta: '#0a0d19' },
+    forest:   { name: 'Forest Green',      icon: 'forest',      meta: '#111714' },
+    sunset:   { name: 'Sunset Orange',     icon: 'wb_twilight', meta: '#140f0d' },
+    ocean:    { name: 'Ocean Blue',        icon: 'waves',       meta: '#e3f2fd' },
+    dark:     { name: 'Dark Mode',         icon: 'bedtime',     meta: '#121212' }
+  };
+
+  const STORAGE_KEY = 'enlighten_theme';
+  const MENU_ID = 'themeMenu';
+  const CLOSE_DELAY_MS = 300;
+
+  let outsideClickHandler = null;
+
+  // ============================================
+  // APPLY
+  // ============================================
+  function getActiveTheme() {
+    const attr = document.documentElement.getAttribute('data-theme');
+    if (attr && THEMES[attr]) return attr;
+    return 'default';
+  }
+
+  function loadTheme() {
+    let saved = 'default';
+    try {
+      saved = localStorage.getItem(STORAGE_KEY) || 'default';
+    } catch (_) {}
+    if (!THEMES[saved]) saved = 'default';
+    applyTheme(saved);
+  }
+
+  function applyTheme(themeName) {
     if (!THEMES[themeName]) return;
+
     document.documentElement.setAttribute('data-theme', themeName);
-    localStorage.setItem('enlighten_theme', themeName);
+
+    try {
+      localStorage.setItem(STORAGE_KEY, themeName);
+    } catch (_) {}
+
     updateThemeIcon(themeName);
+    updateMetaThemeColor(themeName);
+  }
 
-    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-    if (metaThemeColor) {
-        // Sync — no setTimeout, no FOUC
-        const bgColor = getComputedStyle(document.body).backgroundColor;
-        metaThemeColor.setAttribute('content', bgColor);
+  function updateThemeIcon(themeName) {
+    const icon = document.getElementById('themeIcon');
+    if (icon && THEMES[themeName]) {
+      icon.textContent = THEMES[themeName].icon;
     }
-}
+  }
 
-// Update theme icon in button
-function updateThemeIcon(themeName) {
-    const themeIcon = document.getElementById('themeIcon');
-    if (themeIcon && THEMES[themeName]) {
-        themeIcon.textContent = THEMES[themeName].icon;
-    }
-}
+  function updateMetaThemeColor(themeName) {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) return;
+    // Use the pre-defined meta color per theme — reliable across gradient backgrounds
+    meta.setAttribute('content', THEMES[themeName].meta);
+  }
 
-// Toggle theme menu
-function toggleThemeMenu() {
-    let menu = document.getElementById('themeMenu');
-    
-    if (!menu) {
-        menu = createThemeMenu();
-    }
-    
-    if (menu.classList.contains('show')) {
-        menu.classList.remove('show');
-        document.removeEventListener('click', closeThemeMenuOutside);
-    } else {
-        menu.classList.add('show');
-        setTimeout(() => {
-            document.addEventListener('click', closeThemeMenuOutside);
-        }, 100);
-    }
-}
+  // ============================================
+  // MENU
+  // ============================================
+  function toggleThemeMenu() {
+    let menu = document.getElementById(MENU_ID);
 
-// Create theme menu
-function createThemeMenu() {
-    // Remove existing menu
-    const existingMenu = document.getElementById('themeMenu');
-    if (existingMenu) {
-        existingMenu.remove();
-    }
-    
+    // Rebuild every time — checkmarks always match current theme
+    if (menu) menu.remove();
+    menu = createThemeMenu();
+
+    menu.classList.add('show');
+
+    // Focus first item for keyboard users
+    const firstItem = menu.querySelector('.theme-option');
+    firstItem?.focus({ preventScroll: true });
+
+    // Defer outside-click attach so this click doesn't close it immediately
+    setTimeout(() => {
+      outsideClickHandler = (e) => {
+        const btn = document.querySelector('.theme-btn');
+        if (
+          menu && !menu.contains(e.target) &&
+          btn && !btn.contains(e.target)
+        ) {
+          closeThemeMenu();
+        }
+      };
+      document.addEventListener('click', outsideClickHandler);
+    }, 100);
+  }
+
+  function createThemeMenu() {
     const menu = document.createElement('div');
-    menu.id = 'themeMenu';
+    menu.id = MENU_ID;
     menu.className = 'theme-menu';
-    
-    const currentTheme = localStorage.getItem('enlighten_theme') || 'default';
-    
+    menu.setAttribute('role', 'menu');
+    menu.setAttribute('aria-label', 'Theme selector');
+
+    const currentTheme = getActiveTheme();
+
     let html = '<div class="theme-menu-header">Choose Theme</div>';
-    
-    Object.keys(THEMES).forEach(themeKey => {
-        const theme = THEMES[themeKey];
-        const isActive = currentTheme === themeKey;
-        
-        html += `
-            <div class="theme-option" onclick="selectTheme('${themeKey}', this)">
-                <span class="material-icons theme-option-icon">${theme.icon}</span>
-                <span class="theme-option-text">${theme.name}</span>
-                ${isActive ? '<span class="material-icons theme-check">check</span>' : ''}
-            </div>
-        `;
+
+    Object.keys(THEMES).forEach((key) => {
+      const theme = THEMES[key];
+      const isActive = currentTheme === key;
+      html += `
+        <div class="theme-option" role="menuitem"
+             data-theme-key="${key}"
+             tabindex="${isActive ? '0' : '-1'}">
+          <span class="material-icons theme-option-icon" aria-hidden="true">${theme.icon}</span>
+          <span class="theme-option-text">${theme.name}</span>
+          ${isActive ? '<span class="material-icons theme-check" aria-hidden="true">check</span>' : ''}
+        </div>
+      `;
     });
-    
+
     menu.innerHTML = html;
     document.body.appendChild(menu);
+
+    // Event delegation — works for dynamically-built rows, one listener
+    menu.addEventListener('click', onThemeClick);
+    menu.addEventListener('keydown', onThemeKeydown);
+
     return menu;
-}
+  }
 
-// Select theme
-function selectTheme(themeName, element) {
-    if (!THEMES[themeName]) return;
-    
-    applyTheme(themeName);
-    
-    const menu = document.getElementById('themeMenu');
+  function onThemeClick(e) {
+    const row = e.target.closest('.theme-option');
+    if (!row) return;
+    applyThemeFromRow(row);
+  }
+
+  function onThemeKeydown(e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const row = e.target.closest('.theme-option');
+    if (!row) return;
+    e.preventDefault();
+    applyThemeFromRow(row);
+  }
+
+  function applyThemeFromRow(row) {
+    const key = row.dataset.themeKey;
+    if (!key || !THEMES[key]) return;
+
+    applyTheme(key);
+
+    // Update checkmarks in-place — no menu rebuild
+    const menu = document.getElementById(MENU_ID);
     if (menu) {
-        // Remove all checkmarks
-        menu.querySelectorAll('.theme-check').forEach(icon => icon.remove());
-        
-        // Add checkmark to selected
-        if (element) {
-            const checkIcon = document.createElement('span');
-            checkIcon.className = 'material-icons theme-check';
-            checkIcon.textContent = 'check';
-            element.appendChild(checkIcon);
-        }
+      menu.querySelectorAll('.theme-option').forEach((el) => {
+        el.querySelector('.theme-check')?.remove();
+      });
+      const check = document.createElement('span');
+      check.className = 'material-icons theme-check';
+      check.setAttribute('aria-hidden', 'true');
+      check.textContent = 'check';
+      row.appendChild(check);
     }
-    
-    // Close menu after delay
-    setTimeout(() => {
-        const menu = document.getElementById('themeMenu');
-        if (menu) {
-            menu.classList.remove('show');
-            document.removeEventListener('click', closeThemeMenuOutside);
-        }
-    }, 300);
-    
-    console.log('Theme changed to:', THEMES[themeName].name);
-}
 
-// Close menu when clicking outside
-function closeThemeMenuOutside(e) {
-    const menu = document.getElementById('themeMenu');
-    const themeBtn = document.querySelector('.theme-btn');
-    
-    if (menu && themeBtn && !menu.contains(e.target) && !themeBtn.contains(e.target)) {
-        menu.classList.remove('show');
-        document.removeEventListener('click', closeThemeMenuOutside);
+    // Small delay so the checkmark is visible before closing
+    setTimeout(closeThemeMenu, CLOSE_DELAY_MS);
+  }
+
+  function closeThemeMenu() {
+    const menu = document.getElementById(MENU_ID);
+    if (menu) menu.classList.remove('show');
+    if (outsideClickHandler) {
+      document.removeEventListener('click', outsideClickHandler);
+      outsideClickHandler = null;
     }
-}
+  }
 
-// Initialize
-document.addEventListener('DOMContentLoaded', loadTheme);
+  // ============================================
+  // BOOT
+  // ============================================
+  document.addEventListener('DOMContentLoaded', loadTheme);
+
+  // ============================================
+  // GLOBAL HANDLES (used from HTML inline)
+  // ============================================
+  window.toggleThemeMenu = toggleThemeMenu;
+  window.closeThemeMenu = closeThemeMenu;
+  window.applyTheme = applyTheme;
+})();
