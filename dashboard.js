@@ -1,6 +1,12 @@
 /**
  * Campus Unfolded — Dashboard
- * Hardened: server-verified session, live whitelist listener, cached subjects.
+ *
+ * Security model:
+ * - Auth state is verified via Firebase onAuthStateChanged (never trusted from localStorage)
+ * - Whitelist is re-read from Firestore on every page load
+ * - Live onSnapshot listener detects revocation in real time
+ * - Permission-denied errors on any read = fail closed, show revoked dialog
+ * - LocalStorage session is DISPLAY ONLY. It is never a security boundary.
  */
 
 (function () {
@@ -19,12 +25,15 @@
     },
     STORAGE: {
       THEME: 'enlighten_theme',
-      SESSION: 'session'
+      SESSION: 'session',
+      SW_RELOADED: 'cu_sw_reloaded'
     },
     ROUTES: { LOGIN: 'index.html' },
     PAGE_SIZE: 5,
-    SESSION_MAX_AGE_MS: 2 * 60 * 60 * 1000, // 2h
-    STATUS_LISTENER_DEBOUNCE_MS: 400
+    // NOTE: The session in localStorage is display-only. It is NOT used to
+    // authorize access. Firestore rules + Firebase auth are the source of truth.
+    // This value is informational (used only to show "you've been here 1h" etc).
+    DISPLAY_SESSION_HINT_MS: 2 * 60 * 60 * 1000
   });
 
   const TABS = ['videos', 'pdfs', 'images', 'posts'];
@@ -42,9 +51,12 @@
   let currentImageTitle = '';
   let deferredPrompt = null;
   let whitelistUnsubscribe = null;
+  let listenerEmail = null;
   let subjectCache = {}; // { class => [subjects] }
   let isUserReady = false;
   const readyCallbacks = [];
+  let classLoadToken = 0; // Incremented on every class selection to invalidate in-flight loads
+  let contentLoadToken = 0; // Same for content loads
 
   // ============================================
   // UTIL
@@ -81,9 +93,10 @@
   }
 
   function failClosed(message, reason) {
-    if (message) alert(message); // fallback dialog; user is likely being kicked out
+    if (message) {
+      try { alert(message); } catch (_) {}
+    }
     try { localStorage.removeItem(CONFIG.STORAGE.SESSION); } catch (_) {}
-    // Do not await signOut on critical path; navigate away regardless
     auth.signOut().catch(() => {}).finally(() => {
       window.location.replace(CONFIG.ROUTES.LOGIN);
     });
@@ -91,18 +104,8 @@
   }
 
   // ============================================
-  // SESSION (do not trust contents — only used for display)
+  // SESSION (DISPLAY ONLY — never trusted for auth)
   // ============================================
-  function getLocalSession() {
-    try {
-      const raw = localStorage.getItem(CONFIG.STORAGE.SESSION);
-      if (!raw) return null;
-      const s = JSON.parse(raw);
-      if (!s || !s.email || !s.uid) return null;
-      return s;
-    } catch (_) { return null; }
-  }
-
   function saveSession(data) {
     try { localStorage.setItem(CONFIG.STORAGE.SESSION, JSON.stringify(data)); } catch (_) {}
   }
@@ -134,7 +137,15 @@
   // LIVE STATUS LISTENER (1 read per change, not per 5s)
   // ============================================
   function startWhitelistListener(email) {
-    if (whitelistUnsubscribe) whitelistUnsubscribe();
+    // Idempotent: if already listening to this email, don't restart
+    if (listenerEmail === email && whitelistUnsubscribe) return;
+
+    if (whitelistUnsubscribe) {
+      try { whitelistUnsubscribe(); } catch (_) {}
+      whitelistUnsubscribe = null;
+    }
+    listenerEmail = email;
+
     whitelistUnsubscribe = db.collection(CONFIG.COLLECTIONS.WHITELIST).doc(email)
       .onSnapshot((doc) => {
         if (!doc.exists) return showAccessRevoked('Your access has been removed.');
@@ -146,7 +157,6 @@
           }
         }
       }, (err) => {
-        // Permission errors mean revoked while connected — treat as fail-closed
         if (err.code === 'permission-denied') return showAccessRevoked('Access revoked.');
         console.warn('Whitelist listener error:', err.code);
       });
@@ -156,7 +166,8 @@
   // REVOKED DIALOG
   // ============================================
   function showAccessRevoked(message) {
-    if (whitelistUnsubscribe) { whitelistUnsubscribe(); whitelistUnsubscribe = null; }
+    if (whitelistUnsubscribe) { try { whitelistUnsubscribe(); } catch (_) {} whitelistUnsubscribe = null; }
+    listenerEmail = null;
     const overlay = $('accessRevokedOverlay');
     const msg = $('revokedMessage');
     if (msg && message) msg.textContent = message;
@@ -191,7 +202,6 @@
       a.remove();
       URL.revokeObjectURL(url);
     } catch (_) {
-      // Fallback: new tab (CORS-blocked CDN)
       window.open(currentImageUrl, '_blank', 'noopener,noreferrer');
     } finally {
       btn.innerHTML = original;
@@ -213,9 +223,12 @@
       subjectCache = {};
       cachedData = [];
       displayedCount = 0;
+      classLoadToken++;
+      contentLoadToken++;
       if (selectedClass) {
-        await loadAvailableSubjects(selectedClass);
-        await loadContent();
+        const cls = selectedClass;
+        await loadAvailableSubjects(cls);
+        if (selectedClass === cls) await loadContent();
       }
     } catch (err) {
       console.warn('Refresh error:', err);
@@ -239,7 +252,9 @@
   }
   async function confirmLogout() {
     try {
-      if (whitelistUnsubscribe) whitelistUnsubscribe();
+      if (whitelistUnsubscribe) { try { whitelistUnsubscribe(); } catch (_) {} }
+      whitelistUnsubscribe = null;
+      listenerEmail = null;
       localStorage.removeItem(CONFIG.STORAGE.SESSION);
       await auth.signOut();
     } catch (_) {}
@@ -265,7 +280,7 @@
   }
 
   // ============================================
-  // PWA
+  // PWA + SERVICE WORKER UPDATE FLOW
   // ============================================
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
@@ -278,19 +293,46 @@
     deferredPrompt.prompt();
     await deferredPrompt.userChoice;
     deferredPrompt = null;
-    $('installBtn').style.display = 'none';
+    const btn = $('installBtn');
+    if (btn) btn.style.display = 'none';
   }
   window.addEventListener('appinstalled', () => {
     deferredPrompt = null;
-    $('installBtn').style.display = 'none';
+    const btn = $('installBtn');
+    if (btn) btn.style.display = 'none';
   });
   if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
     const btn = $('installBtn');
     if (btn) btn.style.display = 'none';
   }
+
+  // Service Worker registration + update handler
   if ('serviceWorker' in navigator) {
+    // Auto-reload when a new SW takes control (once per session)
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!sessionStorage.getItem(CONFIG.STORAGE.SW_RELOADED)) {
+        sessionStorage.setItem(CONFIG.STORAGE.SW_RELOADED, '1');
+        window.location.reload();
+      }
+    });
+
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
+      navigator.serviceWorker.register('/sw.js').then((reg) => {
+        // Check for updates every 30 minutes
+        setInterval(() => reg.update().catch(() => {}), 30 * 60 * 1000);
+
+        // If a new SW is installed and waiting, activate it
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          newWorker?.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              newWorker.postMessage('SKIP_WAITING');
+            }
+          });
+        });
+      }).catch((err) => {
+        console.warn('[SW] Register failed:', err?.message);
+      });
     });
   }
 
@@ -305,7 +347,6 @@
         return;
       }
 
-      // 1) Verify against Firestore (authoritative)
       let verification;
       try {
         verification = await verifyWhitelist(user);
@@ -320,7 +361,6 @@
         return;
       }
 
-      // 2) Build display session
       const data = verification.data;
       const email = (user.email || '').toLowerCase();
       const displayName = formatDisplayName(data, user);
@@ -339,7 +379,6 @@
       saveSession(sessionData);
       currentUser = sessionData;
 
-      // 3) Hydrate UI
       hydrateUI();
       startWhitelistListener(email);
       hideAuthGate();
@@ -400,9 +439,10 @@
   }
 
   // ============================================
-  // CLASS SELECT
+  // CLASS SELECT (race-safe)
   // ============================================
   async function selectClass(cls) {
+    const token = ++classLoadToken;
     selectedClass = cls;
     selectedSubject = null;
     cachedData = [];
@@ -423,32 +463,33 @@
     const progress = $('videoProgressContainer');
     if (progress) progress.style.display = currentTab === 'videos' ? 'block' : 'none';
 
-    await loadAvailableSubjects(cls);
-    await loadContent();
+    await loadAvailableSubjects(cls, token);
+    if (token !== classLoadToken) return; // superseded by a newer class click
+    await loadContent(token);
   }
 
   // ============================================
-  // SUBJECTS (cached per class)
+  // SUBJECTS (cached per class, race-safe)
   // ============================================
-  async function loadAvailableSubjects(cls) {
+  async function loadAvailableSubjects(cls, token) {
     const chipsDiv = $('subjectChips');
     if (!chipsDiv) return;
 
     if (subjectCache[cls]) {
+      if (token !== undefined && token !== classLoadToken) return;
       renderSubjectChips(subjectCache[cls]);
       return;
     }
 
     try {
-      // Only fetch subject names via each collection — we still read docs,
-      // but this runs once per class per session. Consider a server-side
-      // 'subjects' aggregate collection later for scale.
       const [videos, pdfs, images, posts] = await Promise.all([
         db.collection(CONFIG.COLLECTIONS.VIDEOS).where('class', '==', cls).get(),
         db.collection(CONFIG.COLLECTIONS.PDFS).where('class', '==', cls).get(),
         db.collection(CONFIG.COLLECTIONS.IMAGES).where('class', '==', cls).get(),
         db.collection(CONFIG.COLLECTIONS.POSTS).where('class', 'array-contains', cls).get()
       ]);
+
+      if (token !== undefined && token !== classLoadToken) return;
 
       const set = new Set();
       [videos, pdfs, images, posts].forEach((snap) => {
@@ -462,6 +503,7 @@
       subjectCache[cls] = subjects;
       renderSubjectChips(subjects);
     } catch (err) {
+      if (token !== undefined && token !== classLoadToken) return;
       console.warn('Subjects load failed:', err.code);
       chipsDiv.innerHTML = '<p style="color:var(--text-secondary);font-size:0.8rem;">Could not load subjects.</p>';
     }
@@ -494,23 +536,36 @@
   }
 
   // ============================================
-  // CONTENT
+  // CONTENT (race-safe)
   // ============================================
-  async function loadContent() {
+  async function loadContent(token) {
     if (!selectedClass) return;
     const area = $('contentArea');
     if (!area) return;
+
+    const myToken = token !== undefined ? token : ++contentLoadToken;
+    const tabAtStart = currentTab;
+    const classAtStart = selectedClass;
+    const subjectAtStart = selectedSubject;
+
     area.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text);">Loading...</div>';
 
     try {
       let data = [];
-      switch (currentTab) {
-        case 'videos': data = await fetchCollection(CONFIG.COLLECTIONS.VIDEOS, 'class', selectedClass); break;
-        case 'pdfs':   data = await fetchCollection(CONFIG.COLLECTIONS.PDFS,   'class', selectedClass); break;
-        case 'images': data = await fetchCollection(CONFIG.COLLECTIONS.IMAGES, 'class', selectedClass); break;
-        case 'posts':  data = await fetchPosts(selectedClass); break;
+      switch (tabAtStart) {
+        case 'videos': data = await fetchCollection(CONFIG.COLLECTIONS.VIDEOS, 'class', classAtStart); break;
+        case 'pdfs':   data = await fetchCollection(CONFIG.COLLECTIONS.PDFS,   'class', classAtStart); break;
+        case 'images': data = await fetchCollection(CONFIG.COLLECTIONS.IMAGES, 'class', classAtStart); break;
+        case 'posts':  data = await fetchPosts(classAtStart); break;
       }
-      if (selectedSubject) data = data.filter((d) => d.subject === selectedSubject);
+
+      // Bail if state changed while awaiting
+      if (tabAtStart !== currentTab) return;
+      if (classAtStart !== selectedClass) return;
+      if (subjectAtStart !== selectedSubject) return;
+      if (token === undefined && myToken !== contentLoadToken) return;
+
+      if (subjectAtStart) data = data.filter((d) => d.subject === subjectAtStart);
 
       data.sort((a, b) => {
         const ta = a.uploadedAt?.toMillis?.() || a.createdAt?.toMillis?.() || 0;
@@ -524,6 +579,7 @@
       appendContent();
       updateVideoProgress(data);
     } catch (err) {
+      if (tabAtStart !== currentTab || classAtStart !== selectedClass) return;
       console.warn('Content load failed:', err.code);
       if (err.code === 'permission-denied') {
         return showAccessRevoked('Access revoked. Redirecting…');
@@ -548,7 +604,7 @@
   }
 
   // ============================================
-  // CARD RENDER
+  // CARD RENDER (unchanged)
   // ============================================
   function generateCardHtml(item) {
     const title = escapeHtml(item.title || '');
@@ -621,7 +677,7 @@
   }
 
   // ============================================
-  // APPEND (paginated)
+  // APPEND (paginated, unchanged)
   // ============================================
   function appendContent() {
     const area = $('contentArea');
@@ -704,7 +760,6 @@
   }
   function getEmbedUrl(url) {
     const id = extractYouTubeId(url);
-    // youtube-nocookie for privacy
     return id ? `https://www.youtube-nocookie.com/embed/${id}?rel=0&modestbranding=1` : url;
   }
 
@@ -748,13 +803,14 @@
   }
 
   // ============================================
-  // TAB SWITCH
+  // TAB SWITCH (race-safe)
   // ============================================
   function switchTab(tab) {
     if (!TABS.includes(tab)) return;
     currentTab = tab;
     cachedData = [];
     displayedCount = 0;
+    contentLoadToken++;
     document.querySelectorAll('.sidebar-item').forEach((el) => {
       el.classList.toggle('active', el.dataset.tab === tab);
     });
@@ -781,10 +837,10 @@
     const watched = allVideos.filter((v) => typeof isVideoWatched === 'function' && isVideoWatched(v.id)).length;
     const pct = total > 0 ? Math.round((watched / total) * 100) : 0;
 
-    $('watchedCount').textContent = watched;
-    $('totalCount').textContent = total;
-    $('videoProgressFill').style.width = pct + '%';
-    $('videoProgressPercentage').textContent = pct + '%';
+    const wc = $('watchedCount'); if (wc) wc.textContent = watched;
+    const tc = $('totalCount'); if (tc) tc.textContent = total;
+    const fill = $('videoProgressFill'); if (fill) fill.style.width = pct + '%';
+    const pctEl = $('videoProgressPercentage'); if (pctEl) pctEl.textContent = pct + '%';
     const bar = $('videoProgressBar');
     if (bar) bar.setAttribute('aria-valuenow', String(pct));
 
@@ -824,8 +880,8 @@
     toast.style.cssText = `
       position: fixed; top: 100px; left: 50%;
       transform: translateX(-50%) translateY(-100px);
-      background: linear-gradient(135deg, #059669, #10b981);
-      color: white; padding: 14px 28px; border-radius: 25px;
+      background: linear-gradient(135deg, var(--success, #059669), var(--success, #10b981));
+      color: var(--accent-contrast, #fff); padding: 14px 28px; border-radius: 25px;
       font-weight: 600; font-size: 0.9rem;
       box-shadow: 0 10px 30px rgba(5,150,105,0.4);
       z-index: 99999;
@@ -852,7 +908,7 @@
   function onVideoUnwatched() { if (cachedData.length) updateVideoProgress(cachedData); }
 
   // ============================================
-  // GLOBAL HANDLERS (used from HTML inline)
+  // GLOBAL HANDLERS
   // ============================================
   window.openSidebar = openSidebar;
   window.closeSidebar = closeSidebar;
@@ -871,6 +927,7 @@
   window.onUserReady = onUserReady;
   window.onVideoWatched = onVideoWatched;
   window.onVideoUnwatched = onVideoUnwatched;
+  window.showAccessRevoked = showAccessRevoked;
 
   // ============================================
   // MODAL CLOSE ON OUTSIDE CLICK + ESC
