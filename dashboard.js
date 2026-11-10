@@ -1,929 +1,901 @@
-// Global flag for user readiness
-let isUserReady = false;
+/**
+ * Campus Unfolded — Dashboard
+ * Hardened: server-verified session, live whitelist listener, cached subjects.
+ */
 
-// Add this function to check when user is ready
-function onUserReady(callback) {
-    if (isUserReady) {
-        callback();
-        return;
-    }
-    
-    const checkInterval = setInterval(() => {
-        if (isUserReady) {
-            clearInterval(checkInterval);
-            callback();
-        }
-    }, 100);
-    
-    setTimeout(() => clearInterval(checkInterval), 10000);
-}
+(function () {
+  'use strict';
 
-let currentUser = null;
-let currentTab = 'videos';
-let selectedClass = null;
-let selectedSubject = null;
-let cachedData = [];
-let displayedCount = 0;
-const PAGE_SIZE = 5;
-let currentImageUrl = '';
-let currentImageTitle = '';
-let statusCheckInterval = null;
-let deferredPrompt = null;
+  // ============================================
+  // CONFIG
+  // ============================================
+  const CONFIG = Object.freeze({
+    COLLECTIONS: {
+      WHITELIST: 'whitelist',
+      VIDEOS: 'videos',
+      PDFS: 'pdfs',
+      IMAGES: 'images',
+      POSTS: 'posts'
+    },
+    STORAGE: {
+      THEME: 'enlighten_theme',
+      SESSION: 'session'
+    },
+    ROUTES: { LOGIN: 'index.html' },
+    PAGE_SIZE: 5,
+    SESSION_MAX_AGE_MS: 2 * 60 * 60 * 1000, // 2h
+    STATUS_LISTENER_DEBOUNCE_MS: 400
+  });
 
-// Utility Functions
-function escapeHtml(text) {
-    if (!text) return '';
+  const TABS = ['videos', 'pdfs', 'images', 'posts'];
+
+  // ============================================
+  // STATE
+  // ============================================
+  let currentUser = null;
+  let currentTab = 'videos';
+  let selectedClass = null;
+  let selectedSubject = null;
+  let cachedData = [];
+  let displayedCount = 0;
+  let currentImageUrl = '';
+  let currentImageTitle = '';
+  let deferredPrompt = null;
+  let whitelistUnsubscribe = null;
+  let subjectCache = {}; // { class => [subjects] }
+  let isUserReady = false;
+  const readyCallbacks = [];
+
+  // ============================================
+  // UTIL
+  // ============================================
+  const $ = (id) => document.getElementById(id);
+
+  function escapeHtml(text) {
+    if (text == null) return '';
     const div = document.createElement('div');
-    div.textContent = text;
+    div.textContent = String(text);
     return div.innerHTML;
-}
+  }
 
-// Screenshot Protection
-function preventScreenshot() {
-    document.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        showScreenshotWarning();
-        return false;
+  function onUserReady(callback) {
+    if (isUserReady) return callback();
+    readyCallbacks.push(callback);
+  }
+
+  function markUserReady() {
+    isUserReady = true;
+    readyCallbacks.splice(0).forEach((cb) => {
+      try { cb(); } catch (err) { console.warn('ready cb error', err); }
     });
+  }
 
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'PrintScreen' || 
-            (e.ctrlKey && e.key === 'p') || 
-            (e.ctrlKey && e.key === 's') || 
-            (e.ctrlKey && e.shiftKey && e.key === 'I') || 
-            e.key === 'F12') {
-            e.preventDefault();
-            showScreenshotWarning();
-            return false;
-        }
+  // ============================================
+  // AUTH GATE
+  // ============================================
+  function hideAuthGate() {
+    const gate = $('authGate');
+    if (!gate) return;
+    gate.classList.remove('active');
+    $('dashboardRoot')?.removeAttribute('hidden');
+  }
+
+  function failClosed(message, reason) {
+    if (message) alert(message); // fallback dialog; user is likely being kicked out
+    try { localStorage.removeItem(CONFIG.STORAGE.SESSION); } catch (_) {}
+    // Do not await signOut on critical path; navigate away regardless
+    auth.signOut().catch(() => {}).finally(() => {
+      window.location.replace(CONFIG.ROUTES.LOGIN);
     });
-}
+    if (reason) console.warn('[Gate]', reason);
+  }
 
-function showScreenshotWarning() {
-    const warning = document.createElement('div');
-    warning.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: #DC2626;
-        color: white;
-        padding: 15px 25px;
-        border-radius: 12px;
-        font-weight: 600;
-        font-size: 0.9rem;
-        z-index: 99999;
-        box-shadow: 0 10px 30px rgba(220,38,38,0.4);
-        text-align: center;
-    `;
-    warning.innerHTML = `
-        <span class="material-icons" style="font-size:2rem;display:block;margin-bottom:0.5rem;">block</span>
-        Screenshots are not allowed on this page
-    `;
-    document.body.appendChild(warning);
-    setTimeout(() => { warning.remove(); }, 2000);
-}
-
-// Image Download
-async function downloadCurrentImage() {
-    if (!currentImageUrl) return;
-    
-    const downloadBtn = document.getElementById('imageDownloadBtn');
-    const originalText = downloadBtn.innerHTML;
-    
+  // ============================================
+  // SESSION (do not trust contents — only used for display)
+  // ============================================
+  function getLocalSession() {
     try {
-        downloadBtn.innerHTML = '<span class="material-icons">hourglass_empty</span> Downloading...';
-        downloadBtn.disabled = true;
-        
-        const response = await fetch(currentImageUrl);
-        const blob = await response.blob();
-        const blobUrl = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = (currentImageTitle || 'image') + '.jpg';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(blobUrl);
-        
-        downloadBtn.innerHTML = originalText;
-        downloadBtn.disabled = false;
-        
-    } catch (error) {
-        console.error('Download error:', error);
-        window.open(currentImageUrl, '_blank');
-        downloadBtn.innerHTML = originalText;
-        downloadBtn.disabled = false;
+      const raw = localStorage.getItem(CONFIG.STORAGE.SESSION);
+      if (!raw) return null;
+      const s = JSON.parse(raw);
+      if (!s || !s.email || !s.uid) return null;
+      return s;
+    } catch (_) { return null; }
+  }
+
+  function saveSession(data) {
+    try { localStorage.setItem(CONFIG.STORAGE.SESSION, JSON.stringify(data)); } catch (_) {}
+  }
+
+  function formatDisplayName(data, user) {
+    let name = data.studentName || user.displayName || '';
+    if (!name || name === 'undefined' || name === 'null') {
+      name = (user.email || '').split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
     }
-}
+    return name || 'Student';
+  }
 
-// Status Monitoring
-function startStatusMonitoring() {
-    if (statusCheckInterval) clearInterval(statusCheckInterval);
-    
-    statusCheckInterval = setInterval(async () => {
-        const user = auth.currentUser;
-        if (!user) return;
-        
-        try {
-            const whitelistRef = db.collection('whitelist').doc(user.email.toLowerCase());
-            const doc = await whitelistRef.get();
-            
-            if (!doc.exists || doc.data().active !== true) {
-                clearInterval(statusCheckInterval);
-                showAccessRevoked();
-            }
-        } catch (error) {
-            console.error('Status check error:', error);
+  // ============================================
+  // AUTHORITATIVE WHITELIST CHECK (runs on every load)
+  // ============================================
+  async function verifyWhitelist(user) {
+    const email = (user.email || '').toLowerCase();
+    const doc = await db.collection(CONFIG.COLLECTIONS.WHITELIST).doc(email).get();
+    if (!doc.exists) return { ok: false, reason: 'not-whitelisted' };
+    const data = doc.data();
+    if (data.active !== true) return { ok: false, reason: 'inactive' };
+    if (data.expiresAt && typeof data.expiresAt.toDate === 'function') {
+      if (data.expiresAt.toDate() < new Date()) return { ok: false, reason: 'expired' };
+    }
+    return { ok: true, data };
+  }
+
+  // ============================================
+  // LIVE STATUS LISTENER (1 read per change, not per 5s)
+  // ============================================
+  function startWhitelistListener(email) {
+    if (whitelistUnsubscribe) whitelistUnsubscribe();
+    whitelistUnsubscribe = db.collection(CONFIG.COLLECTIONS.WHITELIST).doc(email)
+      .onSnapshot((doc) => {
+        if (!doc.exists) return showAccessRevoked('Your access has been removed.');
+        const data = doc.data();
+        if (data.active !== true) return showAccessRevoked('Your access has been deactivated.');
+        if (data.expiresAt && typeof data.expiresAt.toDate === 'function') {
+          if (data.expiresAt.toDate() < new Date()) {
+            return showAccessRevoked('Your access has expired.');
+          }
         }
-    }, 5000);
-}
+      }, (err) => {
+        // Permission errors mean revoked while connected — treat as fail-closed
+        if (err.code === 'permission-denied') return showAccessRevoked('Access revoked.');
+        console.warn('Whitelist listener error:', err.code);
+      });
+  }
 
-function showAccessRevoked() {
-    document.getElementById('accessRevokedOverlay').classList.add('active');
+  // ============================================
+  // REVOKED DIALOG
+  // ============================================
+  function showAccessRevoked(message) {
+    if (whitelistUnsubscribe) { whitelistUnsubscribe(); whitelistUnsubscribe = null; }
+    const overlay = $('accessRevokedOverlay');
+    const msg = $('revokedMessage');
+    if (msg && message) msg.textContent = message;
+    overlay?.classList.add('active');
     document.body.style.overflow = 'hidden';
-    
     setTimeout(async () => {
-        localStorage.removeItem('session');
-        await auth.signOut();
-        window.location.replace('index.html');
+      try { localStorage.removeItem(CONFIG.STORAGE.SESSION); } catch (_) {}
+      await auth.signOut();
+      window.location.replace(CONFIG.ROUTES.LOGIN);
     }, 3000);
-}
+  }
 
-// Refresh Content
-async function refreshAllContent() {
-    const refreshBtn = document.getElementById('refreshBtn');
-    const campusLoader = document.getElementById('campusLoader');
-    
-    refreshBtn.disabled = true;
-    refreshBtn.classList.add('spinning');
-    campusLoader.classList.add('active');
-    
+  // ============================================
+  // DOWNLOAD IMAGE (with graceful fallback)
+  // ============================================
+  async function downloadCurrentImage() {
+    if (!currentImageUrl) return;
+    const btn = $('imageDownloadBtn');
+    const original = btn.innerHTML;
     try {
-        cachedData = [];
-        displayedCount = 0;
-        
-        if (selectedClass) {
-            await loadAvailableSubjects(selectedClass);
-            await loadContent();
-        }
-        
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-    } catch (error) {
-        console.error('Refresh error:', error);
+      btn.innerHTML = '<span class="material-icons">hourglass_empty</span> Downloading...';
+      btn.disabled = true;
+      const res = await fetch(currentImageUrl, { mode: 'cors' });
+      if (!res.ok) throw new Error('fetch failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = (currentImageTitle || 'image').replace(/[^\w\-]+/g, '_') + '.jpg';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (_) {
+      // Fallback: new tab (CORS-blocked CDN)
+      window.open(currentImageUrl, '_blank', 'noopener,noreferrer');
     } finally {
-        campusLoader.classList.remove('active');
-        refreshBtn.disabled = false;
-        refreshBtn.classList.remove('spinning');
+      btn.innerHTML = original;
+      btn.disabled = false;
     }
-}
+  }
 
-// Logout Functions
-function showLogoutDialog() {
-    document.getElementById('logoutDialogOverlay').classList.add('active');
-    document.body.style.overflow = 'hidden';
-}
-
-function closeLogoutDialog() {
-    document.getElementById('logoutDialogOverlay').classList.remove('active');
-    document.body.style.overflow = 'auto';
-}
-
-async function confirmLogout() {
+  // ============================================
+  // REFRESH
+  // ============================================
+  async function refreshAllContent() {
+    const btn = $('refreshBtn');
+    const loader = $('campusLoader');
+    if (!btn || btn.disabled) return;
+    btn.disabled = true;
+    btn.classList.add('spinning');
+    loader?.classList.add('active');
     try {
-        if (statusCheckInterval) clearInterval(statusCheckInterval);
-        localStorage.removeItem('session');
-        await auth.signOut();
-        window.location.replace('index.html');
-        history.pushState(null, null, 'index.html');
-    } catch (error) {
-        console.error('Logout error:', error);
-        closeLogoutDialog();
+      subjectCache = {};
+      cachedData = [];
+      displayedCount = 0;
+      if (selectedClass) {
+        await loadAvailableSubjects(selectedClass);
+        await loadContent();
+      }
+    } catch (err) {
+      console.warn('Refresh error:', err);
+    } finally {
+      loader?.classList.remove('active');
+      btn.disabled = false;
+      btn.classList.remove('spinning');
     }
-}
+  }
 
-// Sidebar Functions
-function openSidebar() {
-    document.getElementById('sidebar').classList.add('open');
-    document.getElementById('sidebarOverlay').classList.add('active');
+  // ============================================
+  // LOGOUT
+  // ============================================
+  function showLogoutDialog() {
+    $('logoutDialogOverlay')?.classList.add('active');
     document.body.style.overflow = 'hidden';
-}
-
-function closeSidebar() {
-    document.getElementById('sidebar').classList.remove('open');
-    document.getElementById('sidebarOverlay').classList.remove('active');
+  }
+  function closeLogoutDialog() {
+    $('logoutDialogOverlay')?.classList.remove('active');
     document.body.style.overflow = 'auto';
-}
+  }
+  async function confirmLogout() {
+    try {
+      if (whitelistUnsubscribe) whitelistUnsubscribe();
+      localStorage.removeItem(CONFIG.STORAGE.SESSION);
+      await auth.signOut();
+    } catch (_) {}
+    window.location.replace(CONFIG.ROUTES.LOGIN);
+  }
 
-function handleMobileTabClick(tab) {
+  // ============================================
+  // SIDEBAR
+  // ============================================
+  function openSidebar() {
+    $('sidebar')?.classList.add('open');
+    $('sidebarOverlay')?.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeSidebar() {
+    $('sidebar')?.classList.remove('open');
+    $('sidebarOverlay')?.classList.remove('active');
+    document.body.style.overflow = 'auto';
+  }
+  function handleMobileTabClick(tab) {
     if (window.innerWidth <= 768) closeSidebar();
     switchTab(tab);
-}
+  }
 
-// PWA Install
-window.addEventListener('beforeinstallprompt', (e) => {
+  // ============================================
+  // PWA
+  // ============================================
+  window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    document.getElementById('installBtn').style.display = 'flex';
-});
-
-async function installApp() {
-    if (!deferredPrompt) {
-        alert('To install: Use browser menu → Install App');
-        return;
-    }
+    const btn = $('installBtn');
+    if (btn) btn.style.display = 'flex';
+  });
+  async function installApp() {
+    if (!deferredPrompt) { alert('Open browser menu → Install App'); return; }
     deferredPrompt.prompt();
     await deferredPrompt.userChoice;
     deferredPrompt = null;
-    document.getElementById('installBtn').style.display = 'none';
-}
-
-window.addEventListener('appinstalled', () => {
+    $('installBtn').style.display = 'none';
+  }
+  window.addEventListener('appinstalled', () => {
     deferredPrompt = null;
-    document.getElementById('installBtn').style.display = 'none';
-});
-
-if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
-    document.getElementById('installBtn').style.display = 'none';
-}
-
-if ('serviceWorker' in navigator) {
+    $('installBtn').style.display = 'none';
+  });
+  if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+    const btn = $('installBtn');
+    if (btn) btn.style.display = 'none';
+  }
+  if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
     });
-}
+  }
 
-// Auth Check
-function checkAuth() {
+  // ============================================
+  // AUTH BOOTSTRAP
+  // ============================================
+  function bootstrapAuth() {
     auth.onAuthStateChanged(async (user) => {
-        if (!user) {
-            localStorage.removeItem('session');
-            window.location.replace('index.html');
-            return;
-        }
-        
-        let session = localStorage.getItem('session');
-        
-        if (!session) {
-            console.log('No session in localStorage, fetching from Firestore...');
-            try {
-                const whitelistDoc = await db.collection('whitelist').doc(user.email.toLowerCase()).get();
-                
-                if (!whitelistDoc.exists || whitelistDoc.data().active !== true) {
-                    await auth.signOut();
-                    window.location.replace('index.html');
-                    return;
-                }
-                
-                const whitelistData = whitelistDoc.data();
-                
-                const newSession = {
-                    uid: user.uid,
-                    email: user.email.toLowerCase(),
-                    displayName: whitelistData.studentName || user.displayName || 'Student',
-                    photoURL: user.photoURL || '',
-                    allowedClasses: whitelistData.allowedClasses || [],
-                    expiresAt: whitelistData.expiresAt ? whitelistData.expiresAt.toDate().toISOString() : null,
-                    loginTime: Date.now()
-                };
-                
-                localStorage.setItem('session', JSON.stringify(newSession));
-                session = JSON.stringify(newSession);
-                
-            } catch (error) {
-                console.error('Error fetching session:', error);
-                window.location.replace('index.html');
-                return;
-            }
-        }
-        
-        try {
-            currentUser = JSON.parse(session);
-            
-            if (currentUser.email !== user.email.toLowerCase()) {
-                localStorage.removeItem('session');
-                auth.signOut();
-                window.location.replace('index.html');
-                return;
-            }
-            
-            if (currentUser.loginTime) {
-                const elapsedTime = Date.now() - currentUser.loginTime;
-                const twoHours = 2 * 60 * 60 * 1000;
-                if (elapsedTime > twoHours) {
-                    localStorage.removeItem('session');
-                    auth.signOut();
-                    window.location.replace('index.html');
-                    return;
-                }
-            }
-            
-            let studentName = currentUser.displayName || 'Student';
-            if (studentName === 'undefined' || studentName === 'null' || !studentName) {
-                studentName = currentUser.email.split('@')[0].replace(/[._]/g, ' ');
-                studentName = studentName.replace(/\b\w/g, c => c.toUpperCase());
-            }
-            
-            console.log('👤 Student:', studentName);
-            console.log('📚 Classes:', currentUser.allowedClasses);
-            
-            const welcomeNameEl = document.getElementById('welcomeName');
-            const welcomeSubtitleEl = document.getElementById('welcomeSubtitle');
-            
-            if (welcomeNameEl) {
-                welcomeNameEl.textContent = `Welcome, ${studentName}!`;
-            }
-            if (welcomeSubtitleEl) {
-                welcomeSubtitleEl.textContent = currentUser.email || '';
-            }
-            
-            if (currentUser.expiresAt) {
-                const expiry = new Date(currentUser.expiresAt);
-                const expiryDateValueEl = document.getElementById('expiryDateValue');
-                if (expiryDateValueEl) {
-                    expiryDateValueEl.textContent = 
-                        expiry.toLocaleDateString('en-IN', {day:'numeric', month:'long', year:'numeric'});
-                }
-            }
-            
-            loadClassChips();
-            showClassSelectionPrompt();
-            startStatusMonitoring();
-            
-            // SET USER READY FLAG
-            isUserReady = true;
-            console.log('✅ User ready flag set');
-            
-        } catch (error) {
-            console.error('Session parse error:', error);
-            localStorage.removeItem('session');
-            window.location.replace('index.html');
-        }
-    });
-}
-
-// Load Class Chips
-function loadClassChips() {
-    const chipsDiv = document.getElementById('classChips');
-    const classes = currentUser.allowedClasses || [];
-    
-    if (!classes.length) {
-        chipsDiv.innerHTML = '<p style="color:var(--text-secondary);">No classes assigned.</p>';
+      if (!user) {
+        try { localStorage.removeItem(CONFIG.STORAGE.SESSION); } catch (_) {}
+        window.location.replace(CONFIG.ROUTES.LOGIN);
         return;
-    }
-    
-    let html = '';
-    classes.forEach(cls => {
-        html += `<div class="chip" onclick="selectClass('${escapeHtml(cls)}')">${escapeHtml(cls)}</div>`;
+      }
+
+      // 1) Verify against Firestore (authoritative)
+      let verification;
+      try {
+        verification = await verifyWhitelist(user);
+      } catch (err) {
+        console.warn('Whitelist read failed:', err.code);
+        failClosed('Could not verify access. Please sign in again.', err.code);
+        return;
+      }
+
+      if (!verification.ok) {
+        failClosed('Your access is not active. Please contact support.', verification.reason);
+        return;
+      }
+
+      // 2) Build display session
+      const data = verification.data;
+      const email = (user.email || '').toLowerCase();
+      const displayName = formatDisplayName(data, user);
+
+      const sessionData = {
+        uid: user.uid,
+        email,
+        displayName,
+        photoURL: user.photoURL || '',
+        allowedClasses: Array.isArray(data.allowedClasses) ? data.allowedClasses : [],
+        expiresAt: data.expiresAt && typeof data.expiresAt.toDate === 'function'
+          ? data.expiresAt.toDate().toISOString()
+          : null,
+        loginTime: Date.now()
+      };
+      saveSession(sessionData);
+      currentUser = sessionData;
+
+      // 3) Hydrate UI
+      hydrateUI();
+      startWhitelistListener(email);
+      hideAuthGate();
+      markUserReady();
+    }, (err) => {
+      console.warn('Auth state error:', err);
+      failClosed('Authentication error. Please sign in again.');
     });
-    chipsDiv.innerHTML = html;
-}
+  }
 
-function showClassSelectionPrompt() {
-    document.getElementById('contentArea').innerHTML = `
-        <div class="empty-state">
-            <span class="material-icons">touch_app</span>
-            <h3>Select Your Class</h3>
-            <p>Choose a class above to view content</p>
-        </div>
+  function hydrateUI() {
+    const nameEl = $('welcomeName');
+    const subEl = $('welcomeSubtitle');
+    if (nameEl) nameEl.textContent = `Welcome, ${currentUser.displayName}!`;
+    if (subEl) subEl.textContent = currentUser.email || '';
+
+    if (currentUser.expiresAt) {
+      const expiry = new Date(currentUser.expiresAt);
+      const el = $('expiryDateValue');
+      if (el && !isNaN(expiry)) {
+        el.textContent = expiry.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+      }
+    }
+
+    loadClassChips();
+    showClassSelectionPrompt();
+  }
+
+  // ============================================
+  // CLASS CHIPS
+  // ============================================
+  function loadClassChips() {
+    const chipsDiv = $('classChips');
+    if (!chipsDiv) return;
+    const classes = (currentUser && currentUser.allowedClasses) || [];
+    if (!classes.length) {
+      chipsDiv.innerHTML = '<p style="color:var(--text-secondary);">No classes assigned.</p>';
+      return;
+    }
+    chipsDiv.innerHTML = classes
+      .map((c) => `<button class="chip" role="tab" data-class="${escapeHtml(c)}">${escapeHtml(c)}</button>`)
+      .join('');
+    chipsDiv.querySelectorAll('.chip').forEach((btn) => {
+      btn.addEventListener('click', () => selectClass(btn.dataset.class));
+    });
+  }
+
+  function showClassSelectionPrompt() {
+    const area = $('contentArea');
+    if (!area) return;
+    area.innerHTML = `
+      <div class="empty-state">
+        <span class="material-icons">touch_app</span>
+        <h3>Select Your Class</h3>
+        <p>Choose a class above to view content</p>
+      </div>
     `;
-}
+  }
 
-// Select Class
-async function selectClass(cls) {
+  // ============================================
+  // CLASS SELECT
+  // ============================================
+  async function selectClass(cls) {
     selectedClass = cls;
     selectedSubject = null;
     cachedData = [];
     displayedCount = 0;
-    
-    document.querySelectorAll('.class-chips .chip').forEach(chip => {
-        chip.classList.remove('active');
-        if (chip.textContent === cls) chip.classList.add('active');
+
+    document.querySelectorAll('.class-chips .chip').forEach((chip) => {
+      chip.classList.toggle('active', chip.dataset.class === cls);
     });
-    
-    document.getElementById('subjectLabel').style.display = 'block';
-    const subjectChipsDiv = document.getElementById('subjectChips');
-    subjectChipsDiv.style.display = 'flex';
-    subjectChipsDiv.innerHTML = '<span style="color:var(--text-secondary);font-size:0.8rem;">Loading...</span>';
-    
-    const progressContainer = document.getElementById('videoProgressContainer');
-    if (progressContainer) {
-        progressContainer.style.display = currentTab === 'videos' ? 'block' : 'none';
+
+    const subjLabel = $('subjectLabel');
+    const subjChips = $('subjectChips');
+    if (subjLabel) subjLabel.style.display = 'block';
+    if (subjChips) {
+      subjChips.style.display = 'flex';
+      subjChips.innerHTML = '<span style="color:var(--text-secondary);font-size:0.8rem;">Loading...</span>';
     }
-    
+
+    const progress = $('videoProgressContainer');
+    if (progress) progress.style.display = currentTab === 'videos' ? 'block' : 'none';
+
     await loadAvailableSubjects(cls);
-    loadContent();
-}
+    await loadContent();
+  }
 
-// Load Subjects
-async function loadAvailableSubjects(cls) {
-    const subjectChipsDiv = document.getElementById('subjectChips');
-    try {
-        const [videosSnap, pdfsSnap, imagesSnap, postsSnap] = await Promise.all([
-            db.collection('videos').where('class','==',cls).get(),
-            db.collection('pdfs').where('class','==',cls).get(),
-            db.collection('images').where('class','==',cls).get(),
-            db.collection('posts').where('class','array-contains',cls).get()
-        ]);
-        
-        const subjectsSet = new Set();
-        videosSnap.forEach(d => { if(d.data().subject) subjectsSet.add(d.data().subject); });
-        pdfsSnap.forEach(d => { if(d.data().subject) subjectsSet.add(d.data().subject); });
-        imagesSnap.forEach(d => { if(d.data().subject) subjectsSet.add(d.data().subject); });
-        postsSnap.forEach(d => { if(d.data().subject) subjectsSet.add(d.data().subject); });
-        
-        const subjects = Array.from(subjectsSet).sort();
-        if (subjects.length === 0) {
-            subjectChipsDiv.innerHTML = '<p style="color:var(--text-secondary);font-size:0.8rem;">No subjects yet.</p>';
-            return;
-        }
-        
-        let html = `<div class="chip active" onclick="selectSubject(null)">All (${subjects.length})</div>`;
-        subjects.forEach(s => { 
-            html += `<div class="chip" onclick="selectSubject('${escapeHtml(s)}')">${escapeHtml(s)}</div>`; 
-        });
-        subjectChipsDiv.innerHTML = html;
-    } catch (error) {
-        console.error('Error loading subjects:', error);
-        subjectChipsDiv.innerHTML = '<p style="color:var(--text-secondary);font-size:0.8rem;">Error loading subjects.</p>';
+  // ============================================
+  // SUBJECTS (cached per class)
+  // ============================================
+  async function loadAvailableSubjects(cls) {
+    const chipsDiv = $('subjectChips');
+    if (!chipsDiv) return;
+
+    if (subjectCache[cls]) {
+      renderSubjectChips(subjectCache[cls]);
+      return;
     }
-}
 
-// Select Subject
-function selectSubject(subject) {
+    try {
+      // Only fetch subject names via each collection — we still read docs,
+      // but this runs once per class per session. Consider a server-side
+      // 'subjects' aggregate collection later for scale.
+      const [videos, pdfs, images, posts] = await Promise.all([
+        db.collection(CONFIG.COLLECTIONS.VIDEOS).where('class', '==', cls).get(),
+        db.collection(CONFIG.COLLECTIONS.PDFS).where('class', '==', cls).get(),
+        db.collection(CONFIG.COLLECTIONS.IMAGES).where('class', '==', cls).get(),
+        db.collection(CONFIG.COLLECTIONS.POSTS).where('class', 'array-contains', cls).get()
+      ]);
+
+      const set = new Set();
+      [videos, pdfs, images, posts].forEach((snap) => {
+        snap.forEach((d) => {
+          const s = d.data().subject;
+          if (s) set.add(s);
+        });
+      });
+
+      const subjects = Array.from(set).sort();
+      subjectCache[cls] = subjects;
+      renderSubjectChips(subjects);
+    } catch (err) {
+      console.warn('Subjects load failed:', err.code);
+      chipsDiv.innerHTML = '<p style="color:var(--text-secondary);font-size:0.8rem;">Could not load subjects.</p>';
+    }
+  }
+
+  function renderSubjectChips(subjects) {
+    const chipsDiv = $('subjectChips');
+    if (!chipsDiv) return;
+    if (!subjects.length) {
+      chipsDiv.innerHTML = '<p style="color:var(--text-secondary);font-size:0.8rem;">No subjects yet.</p>';
+      return;
+    }
+    let html = `<button class="chip active" data-subject="">All (${subjects.length})</button>`;
+    subjects.forEach((s) => {
+      html += `<button class="chip" data-subject="${escapeHtml(s)}">${escapeHtml(s)}</button>`;
+    });
+    chipsDiv.innerHTML = html;
+    chipsDiv.querySelectorAll('.chip').forEach((btn) => {
+      btn.addEventListener('click', () => selectSubject(btn.dataset.subject || null, btn));
+    });
+  }
+
+  function selectSubject(subject, btnEl) {
     selectedSubject = subject;
     cachedData = [];
     displayedCount = 0;
-    document.querySelectorAll('.subject-chips .chip').forEach(chip => {
-        chip.classList.remove('active');
-        if ((subject === null && chip.textContent.startsWith('All')) || 
-            (subject !== null && chip.textContent === subject)) {
-            chip.classList.add('active');
-        }
-    });
+    document.querySelectorAll('.subject-chips .chip').forEach((c) => c.classList.remove('active'));
+    if (btnEl) btnEl.classList.add('active');
     loadContent();
-}
+  }
 
-// Load Content
-async function loadContent() {
+  // ============================================
+  // CONTENT
+  // ============================================
+  async function loadContent() {
     if (!selectedClass) return;
-    const contentArea = document.getElementById('contentArea');
-    contentArea.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text);">Loading...</div>';
-    
+    const area = $('contentArea');
+    if (!area) return;
+    area.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text);">Loading...</div>';
+
     try {
-        let allData = [];
-        
-        switch(currentTab) {
-            case 'videos': allData = await fetchCollection('videos', 'class', selectedClass); break;
-            case 'pdfs': allData = await fetchCollection('pdfs', 'class', selectedClass); break;
-            case 'images': allData = await fetchCollection('images', 'class', selectedClass); break;
-            case 'posts': allData = await fetchPosts(selectedClass); break;
-        }
-        
-        if (selectedSubject) {
-            allData = allData.filter(item => item.subject === selectedSubject);
-        }
-        
-        allData.sort((a, b) => {
-            const timeA = a.uploadedAt?.toMillis?.() || a.createdAt?.toMillis?.() || 0;
-            const timeB = b.uploadedAt?.toMillis?.() || b.createdAt?.toMillis?.() || 0;
-            return timeB - timeA;
-        });
-        
-        cachedData = allData;
-        displayedCount = 0;
-        contentArea.innerHTML = '';
-        appendContent();
-        
-        updateVideoProgress(allData);
-        
-    } catch (error) {
-        console.error('Error loading content:', error);
-        contentArea.innerHTML = `
-            <div class="empty-state">
-                <span class="material-icons">error_outline</span>
-                <h3>Error Loading Content</h3>
-                <p>Please try again.</p>
-            </div>
-        `;
+      let data = [];
+      switch (currentTab) {
+        case 'videos': data = await fetchCollection(CONFIG.COLLECTIONS.VIDEOS, 'class', selectedClass); break;
+        case 'pdfs':   data = await fetchCollection(CONFIG.COLLECTIONS.PDFS,   'class', selectedClass); break;
+        case 'images': data = await fetchCollection(CONFIG.COLLECTIONS.IMAGES, 'class', selectedClass); break;
+        case 'posts':  data = await fetchPosts(selectedClass); break;
+      }
+      if (selectedSubject) data = data.filter((d) => d.subject === selectedSubject);
+
+      data.sort((a, b) => {
+        const ta = a.uploadedAt?.toMillis?.() || a.createdAt?.toMillis?.() || 0;
+        const tb = b.uploadedAt?.toMillis?.() || b.createdAt?.toMillis?.() || 0;
+        return tb - ta;
+      });
+
+      cachedData = data;
+      displayedCount = 0;
+      area.innerHTML = '';
+      appendContent();
+      updateVideoProgress(data);
+    } catch (err) {
+      console.warn('Content load failed:', err.code);
+      if (err.code === 'permission-denied') {
+        return showAccessRevoked('Access revoked. Redirecting…');
+      }
+      area.innerHTML = `
+        <div class="empty-state">
+          <span class="material-icons">error_outline</span>
+          <h3>Error Loading Content</h3>
+          <p>Please try again.</p>
+        </div>
+      `;
     }
-}
+  }
 
-// Fetch Functions
-async function fetchCollection(collectionName, field, value) {
-    const snapshot = await db.collection(collectionName).where(field, '==', value).get();
-    return snapshot.docs.map(d => ({id: d.id, ...d.data()}));
-}
+  async function fetchCollection(name, field, value) {
+    const snap = await db.collection(name).where(field, '==', value).get();
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  }
+  async function fetchPosts(cls) {
+    const snap = await db.collection(CONFIG.COLLECTIONS.POSTS).where('class', 'array-contains', cls).get();
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  }
 
-async function fetchPosts(cls) {
-    const snapshot = await db.collection('posts').where('class', 'array-contains', cls).get();
-    return snapshot.docs.map(d => ({id: d.id, ...d.data()}));
-}
-
-// Generate Card HTML
-function generateCardHtml(item) {
+  // ============================================
+  // CARD RENDER
+  // ============================================
+  function generateCardHtml(item) {
     const title = escapeHtml(item.title || '');
     const subject = escapeHtml(item.subject || '');
     const description = escapeHtml(item.description || '');
-    
+
     if (currentTab === 'videos') {
-        const vid = extractYouTubeId(item.videoUrl);
-        const thumb = vid ? `https://img.youtube.com/vi/${vid}/hqdefault.jpg` : '';
-        const duration = escapeHtml(item.duration || '');
-        const videoUrl = escapeHtml(item.videoUrl || '');
-        const isItemWatched = typeof isVideoWatched === 'function' ? isVideoWatched(item.id) : false;
-        const escapedTitle = title.replace(/'/g, "\\'");
-        
-        return `
-            <div class="card ${isItemWatched ? 'watched-card' : ''}" 
-                 data-item-id="${item.id}" 
-                 data-item-title="${title}"
-                 onclick="playVideo('${videoUrl}','${escapedTitle}','${description.replace(/'/g, "\\'")}')">
-                <div class="video-thumbnail">
-                    ${thumb ? `<img src="${thumb}" style="width:100%;height:100%;object-fit:cover;">` : ''}
-                    ${duration ? `<span class="video-duration">${duration}</span>` : ''}
-                </div>
-                <div class="card-info">
-                    <div class="card-title">${title}</div>
-                    ${subject ? `<div class="card-description">${subject}</div>` : ''}
-                    
-                    <div class="watched-indicator ${isItemWatched ? 'watched' : ''}" 
-                         onclick="event.stopPropagation(); event.preventDefault(); toggleWatched('${item.id}', '${escapedTitle}', this); return false;">
-                        <span class="material-icons">${isItemWatched ? 'check_circle' : 'check_circle_outline'}</span>
-                        <span>${isItemWatched ? 'Watched' : 'Mark as watched'}</span>
-                    </div>
-                </div>
+      const vid = extractYouTubeId(item.videoUrl);
+      const thumb = vid ? `https://img.youtube.com/vi/${vid}/hqdefault.jpg` : '';
+      const duration = escapeHtml(item.duration || '');
+      const watched = typeof isVideoWatched === 'function' ? isVideoWatched(item.id) : false;
+
+      return `
+        <div class="card ${watched ? 'watched-card' : ''}"
+             data-item-id="${item.id}"
+             data-item-title="${title}"
+             onclick="playVideo('${escapeHtml(item.videoUrl || '')}','${title}','${description}')"
+             role="button" tabindex="0">
+          <div class="video-thumbnail">
+            ${thumb ? `<img src="${thumb}" loading="lazy" alt="">` : ''}
+            ${duration ? `<span class="video-duration">${duration}</span>` : ''}
+          </div>
+          <div class="card-info">
+            <div class="card-title">${title}</div>
+            ${subject ? `<div class="card-description">${subject}</div>` : ''}
+            <div class="watched-indicator ${watched ? 'watched' : ''}"
+                 onclick="event.stopPropagation(); toggleWatched('${item.id}', '${title}', this); return false;"
+                 role="button" tabindex="0">
+              <span class="material-icons">${watched ? 'check_circle' : 'check_circle_outline'}</span>
+              <span>${watched ? 'Watched' : 'Mark as watched'}</span>
             </div>
-        `;
-    } else if (currentTab === 'pdfs') {
-        const pdfUrl = escapeHtml(item.pdfUrl || '#');
-        
-        return `
-            <div class="card pdf-card" 
-                 data-item-id="${item.id}" 
-                 data-item-title="${title}">
-                <span class="material-icons pdf-icon">picture_as_pdf</span>
-                <div class="card-title">${title}</div>
-                ${subject ? `<div class="card-description">${subject}</div>` : ''}
-                <a href="${pdfUrl}" target="_blank" rel="noopener noreferrer" class="pdf-download-btn">Download PDF</a>
-            </div>
-        `;
-    } else if (currentTab === 'images') {
-        const imageUrl = escapeHtml(item.imageUrl || '');
-        
-        return `
-            <div class="card" 
-                 data-item-id="${item.id}" 
-                 data-item-title="${title}"
-                 onclick="viewImage('${imageUrl}','${title}','${description}','${subject}')">
-                <img src="${imageUrl}" class="image-thumbnail" alt="${title}" loading="lazy">
-                <div class="card-info">
-                    <div class="card-title">${title}</div>
-                    ${subject ? `<div class="card-description">${subject}</div>` : ''}
-                </div>
-            </div>
-        `;
-    } else if (currentTab === 'posts') {
-        const content = escapeHtml(item.content || '');
-        const postUrl = escapeHtml(item.url || '');
-        
-        return `
-            <div class="post-card" data-item-id="${item.id}">
-                <div class="post-title">${title}</div>
-                ${subject ? `<div class="card-description">${subject}</div>` : ''}
-                <p class="post-content">${content}</p>
-                ${item.url ? `<a href="${postUrl}" target="_blank" rel="noopener noreferrer" class="post-link">Read More →</a>` : ''}
-            </div>
-        `;
+          </div>
+        </div>
+      `;
+    }
+    if (currentTab === 'pdfs') {
+      return `
+        <div class="card pdf-card" data-item-id="${item.id}" data-item-title="${title}">
+          <span class="material-icons pdf-icon">picture_as_pdf</span>
+          <div class="card-title">${title}</div>
+          ${subject ? `<div class="card-description">${subject}</div>` : ''}
+          <a href="${escapeHtml(item.pdfUrl || '#')}" target="_blank" rel="noopener noreferrer" class="pdf-download-btn">Download PDF</a>
+        </div>
+      `;
+    }
+    if (currentTab === 'images') {
+      return `
+        <div class="card" data-item-id="${item.id}" data-item-title="${title}"
+             onclick="viewImage('${escapeHtml(item.imageUrl || '')}','${title}','${description}','${subject}')"
+             role="button" tabindex="0">
+          <img src="${escapeHtml(item.imageUrl || '')}" class="image-thumbnail" alt="${title}" loading="lazy">
+          <div class="card-info">
+            <div class="card-title">${title}</div>
+            ${subject ? `<div class="card-description">${subject}</div>` : ''}
+          </div>
+        </div>
+      `;
+    }
+    if (currentTab === 'posts') {
+      return `
+        <div class="post-card" data-item-id="${item.id}">
+          <div class="post-title">${title}</div>
+          ${subject ? `<div class="card-description">${subject}</div>` : ''}
+          <p class="post-content">${escapeHtml(item.content || '')}</p>
+          ${item.url ? `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="post-link">Read More →</a>` : ''}
+        </div>
+      `;
     }
     return '';
-}
+  }
 
-// Append Content
-function appendContent() {
-    const contentArea = document.getElementById('contentArea');
-    const allData = cachedData;
-    
-    if (!allData.length) {
-        const emptyMessages = {
-            videos: { icon: 'video_library', title: 'No Videos Yet', desc: 'New videos will appear here.' },
-            pdfs: { icon: 'picture_as_pdf', title: 'No PDFs Yet', desc: 'New PDFs will appear here.' },
-            images: { icon: 'image', title: 'No Images Yet', desc: 'New images will appear here.' },
-            posts: { icon: 'article', title: 'No Posts Yet', desc: 'Announcements will appear here.' }
-        };
-        const msg = emptyMessages[currentTab];
-        contentArea.innerHTML = `
-            <div class="empty-state">
-                <span class="material-icons">${msg.icon}</span>
-                <h3>${msg.title}</h3>
-                <p>${msg.desc}</p>
-            </div>
-        `;
-        return;
+  // ============================================
+  // APPEND (paginated)
+  // ============================================
+  function appendContent() {
+    const area = $('contentArea');
+    if (!area) return;
+    const all = cachedData;
+
+    if (!all.length) {
+      const empties = {
+        videos: { icon: 'video_library', title: 'No Videos Yet', desc: 'New videos will appear here.' },
+        pdfs:   { icon: 'picture_as_pdf', title: 'No PDFs Yet', desc: 'New PDFs will appear here.' },
+        images: { icon: 'image', title: 'No Images Yet', desc: 'New images will appear here.' },
+        posts:  { icon: 'article', title: 'No Posts Yet', desc: 'Announcements will appear here.' }
+      };
+      const m = empties[currentTab];
+      area.innerHTML = `
+        <div class="empty-state">
+          <span class="material-icons">${m.icon}</span>
+          <h3>${m.title}</h3>
+          <p>${m.desc}</p>
+        </div>
+      `;
+      return;
     }
-    
-    const existingLoadMore = contentArea.querySelector('.load-more-btn');
-    if (existingLoadMore) existingLoadMore.remove();
-    
+
+    area.querySelector('.load-more-btn:not(.modal-content .load-more-btn)')?.remove();
+
     let container;
     if (currentTab === 'posts') {
-        container = contentArea.querySelector('.posts-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.className = 'posts-container';
-            contentArea.appendChild(container);
-        }
+      container = area.querySelector('.posts-container');
+      if (!container) {
+        container = document.createElement('div');
+        container.className = 'posts-container';
+        area.appendChild(container);
+      }
     } else {
-        container = contentArea.querySelector('.content-grid');
-        if (!container) {
-            container = document.createElement('div');
-            container.className = 'content-grid';
-            contentArea.appendChild(container);
-        }
+      container = area.querySelector('.content-grid');
+      if (!container) {
+        container = document.createElement('div');
+        container.className = 'content-grid';
+        area.appendChild(container);
+      }
     }
-    
-    const startIndex = displayedCount;
-    const endIndex = Math.min(startIndex + PAGE_SIZE, allData.length);
-    const batchData = allData.slice(startIndex, endIndex);
-    
-    const fragment = document.createDocumentFragment();
-    const tempDiv = document.createElement('div');
-    
-    batchData.forEach(item => {
-        tempDiv.innerHTML = generateCardHtml(item);
-        while (tempDiv.firstChild) {
-            fragment.appendChild(tempDiv.firstChild);
-        }
+
+    const start = displayedCount;
+    const end = Math.min(start + CONFIG.PAGE_SIZE, all.length);
+    const batch = all.slice(start, end);
+    const frag = document.createDocumentFragment();
+    const temp = document.createElement('div');
+
+    batch.forEach((item) => {
+      temp.innerHTML = generateCardHtml(item);
+      while (temp.firstChild) frag.appendChild(temp.firstChild);
     });
-    
-    container.appendChild(fragment);
-    displayedCount = endIndex;
-    
-    if (displayedCount < allData.length) {
-        const loadMoreBtn = document.createElement('button');
-        loadMoreBtn.className = 'load-more-btn';
-        loadMoreBtn.textContent = `Load More (${allData.length - displayedCount} remaining)`;
-        loadMoreBtn.onclick = appendContent;
-        contentArea.appendChild(loadMoreBtn);
+    container.appendChild(frag);
+    displayedCount = end;
+
+    if (displayedCount < all.length) {
+      const btn = document.createElement('button');
+      btn.className = 'load-more-btn';
+      btn.textContent = `Load More (${all.length - displayedCount} remaining)`;
+      btn.onclick = appendContent;
+      area.appendChild(btn);
     }
-    
+
     if (typeof refreshWatchedBadges === 'function') {
-        setTimeout(refreshWatchedBadges, 100);
+      setTimeout(refreshWatchedBadges, 100);
     }
-}
+  }
 
-// YouTube Functions
-function extractYouTubeId(url) {
+  // ============================================
+  // YOUTUBE
+  // ============================================
+  function extractYouTubeId(url) {
     if (!url) return null;
-    let id = null;
-    if (url.includes('youtu.be/')) id = url.split('youtu.be/')[1].split('?')[0];
-    else if (url.includes('youtube.com/watch')) id = url.split('v=')[1]?.split('&')[0];
-    else if (url.includes('youtube.com/embed/')) id = url.split('embed/')[1].split('?')[0];
-    else if (url.includes('youtube.com/shorts/')) id = url.split('shorts/')[1].split('?')[0];
-    return id;
-}
-
-function getEmbedUrl(url) {
+    if (url.includes('youtu.be/')) return url.split('youtu.be/')[1].split(/[?&]/)[0];
+    if (url.includes('/watch')) return url.split('v=')[1]?.split('&')[0];
+    if (url.includes('/embed/')) return url.split('/embed/')[1].split(/[?&]/)[0];
+    if (url.includes('/shorts/')) return url.split('/shorts/')[1].split(/[?&]/)[0];
+    return null;
+  }
+  function getEmbedUrl(url) {
     const id = extractYouTubeId(url);
-    return id ? `https://www.youtube.com/embed/${id}?rel=0` : url;
-}
+    // youtube-nocookie for privacy
+    return id ? `https://www.youtube-nocookie.com/embed/${id}?rel=0&modestbranding=1` : url;
+  }
 
-// Video Functions
-function playVideo(url, title, desc) {
-    document.getElementById('modalVideo').src = getEmbedUrl(url);
-    document.getElementById('modalTitle').textContent = title;
-    document.getElementById('modalDescription').textContent = desc;
-    document.getElementById('videoModal').style.display = 'flex';
+  // ============================================
+  // MODALS
+  // ============================================
+  function playVideo(url, title, desc) {
+    $('modalVideo').src = getEmbedUrl(url);
+    $('modalTitle').textContent = title;
+    $('modalDescription').textContent = desc;
+    $('videoModal').style.display = 'flex';
     document.body.style.overflow = 'hidden';
-}
-
-function toggleFullscreen() {
-    const container = document.getElementById('videoPlayerContainer');
-    if (!document.fullscreenElement) {
-        container.requestFullscreen().catch(() => {});
-    } else {
-        document.exitFullscreen();
-    }
-}
-
-function closeVideoModal() {
+  }
+  function toggleFullscreen() {
+    const c = $('videoPlayerContainer');
+    if (!document.fullscreenElement) c?.requestFullscreen?.().catch(() => {});
+    else document.exitFullscreen();
+  }
+  function closeVideoModal() {
     if (document.fullscreenElement) document.exitFullscreen();
-    document.getElementById('videoModal').style.display = 'none';
-    document.getElementById('modalVideo').src = '';
+    $('videoModal').style.display = 'none';
+    $('modalVideo').src = '';
     document.body.style.overflow = 'auto';
-}
+  }
 
-// Image Functions
-function viewImage(url, title, desc, subject) {
+  function viewImage(url, title, desc, subject) {
     currentImageUrl = url;
     currentImageTitle = title;
-    document.getElementById('modalImage').src = url;
-    document.getElementById('imageModalTitle').textContent = title;
-    document.getElementById('imageModalDescription').textContent = `${subject ? subject : ''}${desc ? ' • ' + desc : ''}`;
-    document.getElementById('imageModal').style.display = 'flex';
+    $('modalImage').src = url;
+    $('imageModalTitle').textContent = title;
+    $('imageModalDescription').textContent = `${subject || ''}${desc ? ' • ' + desc : ''}`;
+    $('imageModal').style.display = 'flex';
     document.body.style.overflow = 'hidden';
-}
-
-function closeImageModal() {
-    document.getElementById('imageModal').style.display = 'none';
-    document.getElementById('modalImage').src = '';
+  }
+  function closeImageModal() {
+    $('imageModal').style.display = 'none';
+    $('modalImage').src = '';
     currentImageUrl = '';
     currentImageTitle = '';
     document.body.style.overflow = 'auto';
-}
+  }
 
-// Tab Switching
-function switchTab(tab) {
+  // ============================================
+  // TAB SWITCH
+  // ============================================
+  function switchTab(tab) {
+    if (!TABS.includes(tab)) return;
     currentTab = tab;
     cachedData = [];
     displayedCount = 0;
-    document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
-    const tabs = ['videos','pdfs','images','posts'];
-    const index = tabs.indexOf(tab);
-    if (index !== -1) document.querySelectorAll('.sidebar-item')[index].classList.add('active');
-    
-    const progressContainer = document.getElementById('videoProgressContainer');
-    if (progressContainer && tab !== 'videos') {
-        progressContainer.style.display = 'none';
-    }
-    
-    if (selectedClass) {
-        loadContent();
-    }
-}
+    document.querySelectorAll('.sidebar-item').forEach((el) => {
+      el.classList.toggle('active', el.dataset.tab === tab);
+    });
 
-// Event Listeners
-document.getElementById('videoModal').addEventListener('click', function(e) {
-    if (e.target === this) closeVideoModal();
-});
+    const progress = $('videoProgressContainer');
+    if (progress) progress.style.display = tab === 'videos' && selectedClass ? 'block' : 'none';
 
-document.getElementById('imageModal').addEventListener('click', function(e) {
-    if (e.target === this) closeImageModal();
-});
+    if (selectedClass) loadContent();
+  }
 
-document.getElementById('logoutDialogOverlay').addEventListener('click', function(e) {
-    if (e.target === this) closeLogoutDialog();
-});
-
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closeLogoutDialog();
-        closeVideoModal();
-        closeImageModal();
-    }
-});
-
-// Back button prevention
-window.addEventListener('pageshow', function(event) {
-    if (event.persisted) {
-        const session = localStorage.getItem('session');
-        if (!session) {
-            window.location.replace('index.html');
-        }
-    }
-});
-
-window.addEventListener('popstate', function() {
-    const session = localStorage.getItem('session');
-    if (!session) {
-        window.location.replace('index.html');
-    }
-});
-
-history.pushState(null, null, location.href);
-
-// Initialize
-preventScreenshot();
-
-// ============================================
-// Video Progress Tracker
-// ============================================
-
-let totalVideos = 0;
-let watchedCount = 0;
-
-function updateVideoProgress(allVideos) {
-    const progressContainer = document.getElementById('videoProgressContainer');
-    
+  // ============================================
+  // VIDEO PROGRESS
+  // ============================================
+  function updateVideoProgress(allVideos) {
+    const wrap = $('videoProgressContainer');
+    if (!wrap) return;
     if (currentTab !== 'videos' || !allVideos || allVideos.length === 0) {
-        if (progressContainer) progressContainer.style.display = 'none';
-        return;
+      wrap.style.display = 'none';
+      return;
     }
-    
-    if (progressContainer) progressContainer.style.display = 'block';
-    
-    totalVideos = allVideos.length;
-    watchedCount = allVideos.filter(video => isVideoWatched(video.id)).length;
-    
-    const percentage = totalVideos > 0 ? Math.round((watchedCount / totalVideos) * 100) : 0;
-    
-    document.getElementById('watchedCount').textContent = watchedCount;
-    document.getElementById('totalCount').textContent = totalVideos;
-    document.getElementById('videoProgressFill').style.width = percentage + '%';
-    document.getElementById('videoProgressPercentage').textContent = percentage + '%';
-    
-    updateProgressMessage(watchedCount, totalVideos, percentage);
-    
-    if (percentage === 25 || percentage === 50 || percentage === 75 || percentage === 100) {
-        celebrateMilestone(percentage);
-    }
-}
+    wrap.style.display = 'block';
 
-function updateProgressMessage(watched, total, percentage) {
-    const messageEl = document.getElementById('videoProgressMessage');
-    if (!messageEl) return;
-    
-    let message = '';
-    
-    if (watched === 0) {
-        message = '🎬 Start watching to track your progress!';
-    } else if (percentage < 25) {
-        message = `🎯 Great start! ${total - watched} more lectures to go!`;
-    } else if (percentage < 50) {
-        message = `🚀 You're ${percentage}% done. Keep going!`;
-    } else if (percentage < 75) {
-        message = `💪 Halfway there! ${total - watched} lectures remaining.`;
-    } else if (percentage < 100) {
-        message = `🔥 Almost there! Just ${total - watched} left!`;
-    } else {
-        message = '🏆 Congratulations! You completed all lectures!';
-    }
-    
-    messageEl.textContent = message;
-}
+    const total = allVideos.length;
+    const watched = allVideos.filter((v) => typeof isVideoWatched === 'function' && isVideoWatched(v.id)).length;
+    const pct = total > 0 ? Math.round((watched / total) * 100) : 0;
 
-function celebrateMilestone(percentage) {
-    const container = document.getElementById('videoProgressContainer');
-    if (!container) return;
-    
-    container.classList.add('milestone');
-    setTimeout(() => container.classList.remove('milestone'), 600);
-    
-    const messages = {
-        25: '🎯 25% Complete! Great progress!',
-        50: '🚀 Halfway there! Amazing!',
-        75: '🔥 75% Done! Almost finished!',
-        100: '🏆 All lectures completed! Legendary!'
+    $('watchedCount').textContent = watched;
+    $('totalCount').textContent = total;
+    $('videoProgressFill').style.width = pct + '%';
+    $('videoProgressPercentage').textContent = pct + '%';
+    const bar = $('videoProgressBar');
+    if (bar) bar.setAttribute('aria-valuenow', String(pct));
+
+    updateProgressMessage(watched, total, pct);
+    if ([25, 50, 75, 100].includes(pct)) celebrateMilestone(pct);
+  }
+
+  function updateProgressMessage(watched, total, pct) {
+    const el = $('videoProgressMessage');
+    if (!el) return;
+    let m = '';
+    if (watched === 0) m = '🎬 Start watching to track your progress!';
+    else if (pct < 25) m = `🎯 Great start! ${total - watched} more lectures to go!`;
+    else if (pct < 50) m = `🚀 You're ${pct}% done. Keep going!`;
+    else if (pct < 75) m = `💪 Halfway there! ${total - watched} lectures remaining.`;
+    else if (pct < 100) m = `🔥 Almost there! Just ${total - watched} left!`;
+    else m = '🏆 Congratulations! You completed all lectures!';
+    el.textContent = m;
+  }
+
+  function celebrateMilestone(pct) {
+    const wrap = $('videoProgressContainer');
+    if (!wrap) return;
+    wrap.classList.add('milestone');
+    setTimeout(() => wrap.classList.remove('milestone'), 600);
+    const msgs = {
+      25: '🎯 25% Complete! Great progress!',
+      50: '🚀 Halfway there! Amazing!',
+      75: '🔥 75% Done! Almost finished!',
+      100: '🏆 All lectures completed! Legendary!'
     };
-    
-    if (messages[percentage]) {
-        showProgressToast(messages[percentage]);
-    }
-}
+    if (msgs[pct]) showProgressToast(msgs[pct]);
+  }
 
-function showProgressToast(message) {
+  function showProgressToast(message) {
     const toast = document.createElement('div');
     toast.style.cssText = `
-        position: fixed;
-        top: 100px;
-        left: 50%;
-        transform: translateX(-50%) translateY(-100px);
-        background: linear-gradient(135deg, #059669, #10b981);
-        color: white;
-        padding: 14px 28px;
-        border-radius: 25px;
-        font-weight: 600;
-        font-size: 0.9rem;
-        box-shadow: 0 10px 30px rgba(5, 150, 105, 0.4);
-        z-index: 99999;
-        animation: progressToastIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+      position: fixed; top: 100px; left: 50%;
+      transform: translateX(-50%) translateY(-100px);
+      background: linear-gradient(135deg, #059669, #10b981);
+      color: white; padding: 14px 28px; border-radius: 25px;
+      font-weight: 600; font-size: 0.9rem;
+      box-shadow: 0 10px 30px rgba(5,150,105,0.4);
+      z-index: 99999;
+      animation: progressToastIn 0.5s cubic-bezier(0.68,-0.55,0.265,1.55) forwards;
     `;
     toast.textContent = message;
     document.body.appendChild(toast);
-    
-    if (!document.getElementById('progressToastStyles')) {
-        const style = document.createElement('style');
-        style.id = 'progressToastStyles';
-        style.textContent = `
-            @keyframes progressToastIn {
-                0% { transform: translateX(-50%) translateY(-100px); opacity: 0; }
-                100% { transform: translateX(-50%) translateY(0); opacity: 1; }
-            }
-            @keyframes progressToastOut {
-                0% { transform: translateX(-50%) translateY(0); opacity: 1; }
-                100% { transform: translateX(-50%) translateY(-100px); opacity: 0; }
-            }
-        `;
-        document.head.appendChild(style);
+    if (!$('progressToastStyles')) {
+      const s = document.createElement('style');
+      s.id = 'progressToastStyles';
+      s.textContent = `
+        @keyframes progressToastIn { 0%{transform:translateX(-50%) translateY(-100px);opacity:0} 100%{transform:translateX(-50%) translateY(0);opacity:1} }
+        @keyframes progressToastOut { 0%{transform:translateX(-50%) translateY(0);opacity:1} 100%{transform:translateX(-50%) translateY(-100px);opacity:0} }
+      `;
+      document.head.appendChild(s);
     }
-    
     setTimeout(() => {
-        toast.style.animation = 'progressToastOut 0.5s ease-out forwards';
-        setTimeout(() => toast.remove(), 500);
+      toast.style.animation = 'progressToastOut 0.5s ease-out forwards';
+      setTimeout(() => toast.remove(), 500);
     }, 3000);
-}
+  }
 
-function onVideoWatched(videoId) {
-    if (cachedData && cachedData.length > 0) {
-        updateVideoProgress(cachedData);
+  function onVideoWatched() { if (cachedData.length) updateVideoProgress(cachedData); }
+  function onVideoUnwatched() { if (cachedData.length) updateVideoProgress(cachedData); }
+
+  // ============================================
+  // GLOBAL HANDLERS (used from HTML inline)
+  // ============================================
+  window.openSidebar = openSidebar;
+  window.closeSidebar = closeSidebar;
+  window.handleMobileTabClick = handleMobileTabClick;
+  window.showLogoutDialog = showLogoutDialog;
+  window.closeLogoutDialog = closeLogoutDialog;
+  window.confirmLogout = confirmLogout;
+  window.refreshAllContent = refreshAllContent;
+  window.installApp = installApp;
+  window.playVideo = playVideo;
+  window.toggleFullscreen = toggleFullscreen;
+  window.closeVideoModal = closeVideoModal;
+  window.viewImage = viewImage;
+  window.closeImageModal = closeImageModal;
+  window.downloadCurrentImage = downloadCurrentImage;
+  window.onUserReady = onUserReady;
+  window.onVideoWatched = onVideoWatched;
+  window.onVideoUnwatched = onVideoUnwatched;
+
+  // ============================================
+  // MODAL CLOSE ON OUTSIDE CLICK + ESC
+  // ============================================
+  document.getElementById('videoModal')?.addEventListener('click', function (e) {
+    if (e.target === this) closeVideoModal();
+  });
+  document.getElementById('imageModal')?.addEventListener('click', function (e) {
+    if (e.target === this) closeImageModal();
+  });
+  document.getElementById('logoutDialogOverlay')?.addEventListener('click', function (e) {
+    if (e.target === this) closeLogoutDialog();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeLogoutDialog();
+      closeVideoModal();
+      closeImageModal();
     }
-}
+  });
 
-function onVideoUnwatched(videoId) {
-    if (cachedData && cachedData.length > 0) {
-        updateVideoProgress(cachedData);
-    }
-}
-
-checkAuth();
+  // ============================================
+  // BOOT
+  // ============================================
+  document.addEventListener('DOMContentLoaded', () => {
+    bootstrapAuth();
+  });
+})();
