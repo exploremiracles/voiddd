@@ -1,197 +1,233 @@
-// User Preferences Management System
+/**
+ * Campus Unfolded — User Preferences
+ * Font family + card layout.
+ * Theme-aware menu, single source of truth, no inline styles.
+ */
 
-const FONT_FAMILIES = {
-    inter: { name: 'Inter', fontFamily: "'Inter', sans-serif", icon: 'text_fields' },
-    playfair: { name: 'Playfair', fontFamily: "'Playfair Display', serif", icon: 'format_quote' },
-    dancing: { name: 'Dancing Script', fontFamily: "'Dancing Script', cursive", icon: 'brush' },
-    roboto: { name: 'Roboto', fontFamily: "'Roboto', sans-serif", icon: 'article' },
-    caveat: { name: 'Caveat', fontFamily: "'Caveat', cursive", icon: 'edit' }
-};
+(function () {
+  'use strict';
 
-const LAYOUTS = {
+  // ============================================
+  // CONFIG
+  // ============================================
+  const FONT_FAMILIES = {
+    inter:    { name: 'Inter',          fontFamily: "'Inter', sans-serif",           icon: 'text_fields' },
+    playfair: { name: 'Playfair',       fontFamily: "'Playfair Display', serif",     icon: 'format_quote' },
+    dancing:  { name: 'Dancing Script', fontFamily: "'Dancing Script', cursive",     icon: 'brush' },
+    roboto:   { name: 'Roboto',         fontFamily: "'Roboto', sans-serif",          icon: 'article' },
+    caveat:   { name: 'Caveat',         fontFamily: "'Caveat', cursive",             icon: 'edit' }
+  };
+
+  const LAYOUTS = {
     grid: { name: 'Grid View', icon: 'grid_view' },
     list: { name: 'List View', icon: 'view_list' }
-};
+  };
 
-function loadPreferences() {
-    const savedFont = localStorage.getItem('enlighten_font_family') || 'inter';
-    const savedLayout = localStorage.getItem('enlighten_layout') || 'grid';
-    
-    applyFontFamily(savedFont);
-    applyLayout(savedLayout);
-}
+  const STORAGE_KEYS = {
+    FONT: 'enlighten_font_family',
+    LAYOUT: 'enlighten_layout'
+  };
 
-function applyFontFamily(fontName) {
+  const MENU_ID = 'preferencesMenu';
+  const CLOSE_DELAY_MS = 300;
+
+  let outsideClickHandler = null;
+
+  // ============================================
+  // APPLY
+  // ============================================
+  function loadPreferences() {
+    let font = 'inter';
+    let layout = 'grid';
+    try {
+      font = localStorage.getItem(STORAGE_KEYS.FONT) || 'inter';
+      layout = localStorage.getItem(STORAGE_KEYS.LAYOUT) || 'grid';
+    } catch (_) {}
+    applyFontFamily(font);
+    applyLayout(layout);
+  }
+
+  function applyFontFamily(fontName) {
     if (!FONT_FAMILIES[fontName]) return;
-    
     document.body.style.fontFamily = FONT_FAMILIES[fontName].fontFamily;
-    localStorage.setItem('enlighten_font_family', fontName);
-}
+    try {
+      localStorage.setItem(STORAGE_KEYS.FONT, fontName);
+    } catch (_) {}
+  }
 
-function applyLayout(layoutName) {
+  function applyLayout(layoutName) {
     if (!LAYOUTS[layoutName]) return;
-    
-    localStorage.setItem('enlighten_layout', layoutName);
-    
+    try {
+      localStorage.setItem(STORAGE_KEYS.LAYOUT, layoutName);
+    } catch (_) {}
+
     const contentArea = document.getElementById('contentArea');
-    if (contentArea) {
-        contentArea.classList.remove('grid-view', 'list-view');
-        contentArea.classList.add(layoutName === 'grid' ? 'grid-view' : 'list-view');
-        
-        if (typeof cachedData !== 'undefined' && cachedData && cachedData.length > 0) {
-            displayedCount = 0;
-            contentArea.innerHTML = '';
-            appendContent();
+    if (!contentArea) return;
+
+    contentArea.classList.remove('grid-view', 'list-view');
+    contentArea.classList.add(layoutName === 'grid' ? 'grid-view' : 'list-view');
+
+    // Re-render current cards using dashboard.js's exposed helper.
+    // Falls back to a no-op if dashboard hasn't finished loading.
+    if (typeof window.__CU_rerenderContent === 'function') {
+      window.__CU_rerenderContent();
+    }
+  }
+
+  // ============================================
+  // MENU
+  // ============================================
+  function togglePreferencesMenu() {
+    let menu = document.getElementById(MENU_ID);
+
+    // Rebuild every time — guarantees checkmarks match current state
+    if (menu) menu.remove();
+    menu = createPreferencesMenu();
+
+    menu.classList.add('show');
+
+    // Defer attaching the outside-click so this click doesn't close it
+    setTimeout(() => {
+      outsideClickHandler = (e) => {
+        const btn = document.querySelector('.preferences-btn');
+        if (
+          menu && !menu.contains(e.target) &&
+          btn && !btn.contains(e.target)
+        ) {
+          closePreferencesMenu();
         }
-    }
-}
+      };
+      document.addEventListener('click', outsideClickHandler);
+    }, 100);
+  }
 
-function togglePreferencesMenu() {
-    let menu = document.getElementById('preferencesMenu');
-    
-    if (!menu) {
-        menu = createPreferencesMenu();
-    }
-    
-    if (menu.style.display === 'block') {
-        menu.style.display = 'none';
-        document.removeEventListener('click', closePreferencesOutside);
-    } else {
-        menu.style.display = 'block';
-        setTimeout(() => {
-            document.addEventListener('click', closePreferencesOutside);
-        }, 100);
-    }
-}
-
-function createPreferencesMenu() {
-    const existingMenu = document.getElementById('preferencesMenu');
-    if (existingMenu) existingMenu.remove();
-    
+  function createPreferencesMenu() {
     const menu = document.createElement('div');
-    menu.id = 'preferencesMenu';
-    
-    menu.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        background: #FFFFFF;
-        border: 1px solid #C5C3B8;
-        border-radius: 12px;
-        box-shadow: 0 16px 32px rgba(0,0,0,0.2);
-        z-index: 6000;
-        min-width: 240px;
-        overflow: hidden;
-        display: none;
-    `;
-    
-    const currentFont = localStorage.getItem('enlighten_font_family') || 'inter';
-    const currentLayout = localStorage.getItem('enlighten_layout') || 'grid';
-    
+    menu.id = MENU_ID;
+    menu.className = 'preferences-menu';
+    menu.setAttribute('role', 'menu');
+    menu.setAttribute('aria-label', 'Preferences');
+
+    const currentFont = (() => {
+      try { return localStorage.getItem(STORAGE_KEYS.FONT) || 'inter'; }
+      catch (_) { return 'inter'; }
+    })();
+    const currentLayout = (() => {
+      try { return localStorage.getItem(STORAGE_KEYS.LAYOUT) || 'grid'; }
+      catch (_) { return 'grid'; }
+    })();
+
     let html = '';
-    
-    html += '<div style="padding:12px 16px;font-weight:700;border-bottom:2px solid #233130;color:#233130;font-size:1rem;background:#FFFFFF;">Preferences</div>';
-    html += '<div style="padding:10px 16px 5px;font-weight:600;color:#5a745f;font-size:0.75rem;text-transform:uppercase;letter-spacing:1px;background:#FFFFFF;">Font Family</div>';
-    
-    Object.keys(FONT_FAMILIES).forEach(fontKey => {
-        const font = FONT_FAMILIES[fontKey];
-        const isActive = currentFont === fontKey;
-        
-        html += `
-            <div onclick="selectFontFamily('${fontKey}', this)" style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;background:#FFFFFF;color:#233130;font-size:0.85rem;border-bottom:1px solid #F0F0F0;transition:background-color 0.2s ease;" onmouseover="this.style.backgroundColor='#DFDDD3'" onmouseout="this.style.backgroundColor='#FFFFFF'">
-                <span class="material-icons" style="color:#5a745f;font-size:20px;">${font.icon}</span>
-                <span style="color:#233130;">${font.name}</span>
-                ${isActive ? '<span class="material-icons check-mark" style="margin-left:auto;color:#059669;font-size:18px;">check</span>' : ''}
-            </div>
-        `;
+    html += '<div class="preferences-menu-header">Preferences</div>';
+    html += '<div class="preferences-section-label">Font Family</div>';
+
+    Object.keys(FONT_FAMILIES).forEach((key) => {
+      const font = FONT_FAMILIES[key];
+      const isActive = currentFont === key;
+      html += `
+        <div class="preference-option" role="menuitem"
+             data-pref-type="font" data-pref-value="${key}"
+             tabindex="0">
+          <span class="material-icons preference-icon" aria-hidden="true">${font.icon}</span>
+          <span class="preference-text">${font.name}</span>
+          ${isActive ? '<span class="material-icons preference-check" aria-hidden="true">check</span>' : ''}
+        </div>
+      `;
     });
-    
-    html += '<div style="height:1px;background:#C5C3B8;margin:5px 0;"></div>';
-    html += '<div style="padding:10px 16px 5px;font-weight:600;color:#5a745f;font-size:0.75rem;text-transform:uppercase;letter-spacing:1px;background:#FFFFFF;">Card Layout</div>';
-    
-    Object.keys(LAYOUTS).forEach(layoutKey => {
-        const layout = LAYOUTS[layoutKey];
-        const isActive = currentLayout === layoutKey;
-        
-        html += `
-            <div onclick="selectLayout('${layoutKey}', this)" style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;background:#FFFFFF;color:#233130;font-size:0.85rem;border-bottom:1px solid #F0F0F0;transition:background-color 0.2s ease;" onmouseover="this.style.backgroundColor='#DFDDD3'" onmouseout="this.style.backgroundColor='#FFFFFF'">
-                <span class="material-icons" style="color:#5a745f;font-size:20px;">${layout.icon}</span>
-                <span style="color:#233130;">${layout.name}</span>
-                ${isActive ? '<span class="material-icons check-mark" style="margin-left:auto;color:#059669;font-size:18px;">check</span>' : ''}
-            </div>
-        `;
+
+    html += '<div class="preferences-divider"></div>';
+    html += '<div class="preferences-section-label">Card Layout</div>';
+
+    Object.keys(LAYOUTS).forEach((key) => {
+      const layout = LAYOUTS[key];
+      const isActive = currentLayout === key;
+      html += `
+        <div class="preference-option" role="menuitem"
+             data-pref-type="layout" data-pref-value="${key}"
+             tabindex="0">
+          <span class="material-icons preference-icon" aria-hidden="true">${layout.icon}</span>
+          <span class="preference-text">${layout.name}</span>
+          ${isActive ? '<span class="material-icons preference-check" aria-hidden="true">check</span>' : ''}
+        </div>
+      `;
     });
-    
+
     menu.innerHTML = html;
     document.body.appendChild(menu);
+
+    // Delegate clicks — one listener, works for dynamically-built rows
+    menu.addEventListener('click', onPreferenceClick);
+    menu.addEventListener('keydown', onPreferenceKeydown);
+
     return menu;
-}
+  }
 
-// FIXED: Select Font Family - Removes ALL old checkmarks first
-function selectFontFamily(fontName, element) {
-    if (!FONT_FAMILIES[fontName]) return;
-    
-    applyFontFamily(fontName);
-    
-    const menu = document.getElementById('preferencesMenu');
+  function onPreferenceClick(e) {
+    const row = e.target.closest('.preference-option');
+    if (!row) return;
+    applyPreference(row);
+  }
+
+  function onPreferenceKeydown(e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const row = e.target.closest('.preference-option');
+    if (!row) return;
+    e.preventDefault();
+    applyPreference(row);
+  }
+
+  function applyPreference(row) {
+    const type = row.dataset.prefType;
+    const value = row.dataset.prefValue;
+    if (!type || !value) return;
+
+    if (type === 'font') applyFontFamily(value);
+    if (type === 'layout') applyLayout(value);
+
+    // Update checkmarks in-place — no menu rebuild needed
+    const menu = document.getElementById(MENU_ID);
     if (menu) {
-        // Remove ALL checkmarks using class
-        menu.querySelectorAll('.check-mark').forEach(icon => icon.remove());
-        
-        // Add checkmark to clicked element
-        if (element) {
-            const checkIcon = document.createElement('span');
-            checkIcon.className = 'material-icons check-mark';
-            checkIcon.textContent = 'check';
-            checkIcon.style.cssText = 'margin-left:auto;color:#059669;font-size:18px;';
-            element.appendChild(checkIcon);
+      menu.querySelectorAll('.preference-option').forEach((el) => {
+        if (el.dataset.prefType === type) {
+          el.querySelector('.preference-check')?.remove();
         }
+      });
+      const check = document.createElement('span');
+      check.className = 'material-icons preference-check';
+      check.setAttribute('aria-hidden', 'true');
+      check.textContent = 'check';
+      row.appendChild(check);
     }
-    
-    setTimeout(() => closePreferencesMenu(), 300);
-}
 
-// FIXED: Select Layout - Removes ALL old checkmarks first
-function selectLayout(layoutName, element) {
-    if (!LAYOUTS[layoutName]) return;
-    
-    applyLayout(layoutName);
-    
-    const menu = document.getElementById('preferencesMenu');
-    if (menu) {
-        // Remove ALL checkmarks using class
-        menu.querySelectorAll('.check-mark').forEach(icon => icon.remove());
-        
-        // Add checkmark to clicked element
-        if (element) {
-            const checkIcon = document.createElement('span');
-            checkIcon.className = 'material-icons check-mark';
-            checkIcon.textContent = 'check';
-            checkIcon.style.cssText = 'margin-left:auto;color:#059669;font-size:18px;';
-            element.appendChild(checkIcon);
-        }
+    // Small delay so the checkmark is visible before closing
+    setTimeout(closePreferencesMenu, CLOSE_DELAY_MS);
+  }
+
+  function closePreferencesMenu() {
+    const menu = document.getElementById(MENU_ID);
+    if (menu) menu.classList.remove('show');
+    if (outsideClickHandler) {
+      document.removeEventListener('click', outsideClickHandler);
+      outsideClickHandler = null;
     }
-    
-    setTimeout(() => closePreferencesMenu(), 300);
-}
+  }
 
-function closePreferencesMenu() {
-    const menu = document.getElementById('preferencesMenu');
-    if (menu) {
-        menu.style.display = 'none';
-        document.removeEventListener('click', closePreferencesOutside);
-    }
-}
+  // ============================================
+  // BOOT
+  // ============================================
+  document.addEventListener('DOMContentLoaded', loadPreferences);
 
-function closePreferencesOutside(e) {
-    const menu = document.getElementById('preferencesMenu');
-    const prefsBtn = document.querySelector('.preferences-btn');
-    
-    if (menu && prefsBtn && !menu.contains(e.target) && !prefsBtn.contains(e.target)) {
-        closePreferencesMenu();
-    }
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    loadPreferences();
-});
+  // ============================================
+  // GLOBAL HANDLES (used from HTML inline)
+  // ============================================
+  window.togglePreferencesMenu = togglePreferencesMenu;
+  window.closePreferencesMenu = closePreferencesMenu;
+  window.selectFontFamily = (value) => {
+    applyFontFamily(value);
+    setTimeout(closePreferencesMenu, CLOSE_DELAY_MS);
+  };
+  window.selectLayout = (value) => {
+    applyLayout(value);
+    setTimeout(closePreferencesMenu, CLOSE_DELAY_MS);
+  };
+})();
