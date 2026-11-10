@@ -929,6 +929,25 @@
   window.onVideoUnwatched = onVideoUnwatched;
   window.showAccessRevoked = showAccessRevoked;
 
+
+  // ── Cross-file getters (used by search.js, watched-badge.js) ──
+window.__CU_getUser = function () {
+  if (!currentUser) return null;
+  return {
+    uid: currentUser.uid,
+    email: currentUser.email,
+    displayName: currentUser.displayName,
+    allowedClasses: (currentUser.allowedClasses || []).slice()
+  };
+};
+
+window.__CU_rerenderContent = function () {
+  const area = $('contentArea');
+  if (!area || !cachedData || cachedData.length === 0) return;
+  displayedCount = 0;
+  area.innerHTML = '';
+  appendContent();
+};
   // ============================================
   // MODAL CLOSE ON OUTSIDE CLICK + ESC
   // ============================================
