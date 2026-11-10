@@ -2,101 +2,133 @@
 <html lang="en" data-theme="default">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Campus Unfolded | Authentication</title>
-    <meta name="description" content="Premium learning platform for academic excellence">
-    <meta name="theme-color" content="#DFDDD3">
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Campus Unfolded | Student Login</title>
+    <meta name="description" content="Premium learning platform for academic excellence — Class 6 to University Entrance.">
+    <meta name="theme-color" content="#DFDDD3" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0d1117" media="(prefers-color-scheme: dark)">
+
+    <!-- Security Headers (also set at server/CDN level) -->
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self';
+                   script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/;
+                   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+                   font-src 'self' https://fonts.gstatic.com;
+                   img-src 'self' data: https:;
+                   connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.cloudfunctions.net https://www.google.com/recaptcha/ https://identitytoolkit.googleapis.com https://securetoken.googleapis.com;
+                   frame-src https://*.firebaseapp.com https://accounts.google.com https://www.google.com/recaptcha/;
+                   object-src 'none';
+                   base-uri 'self';
+                   form-action 'self';">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+
     <link rel="manifest" href="/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Inter:wght@300;400;500;600;700&family=Dancing+Script:wght@400;600;700&display=swap" rel="stylesheet">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Campus Unfolded">
+
+    <!-- Fonts (preconnect for speed) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://www.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
-    <!-- Stylesheets -->
+
+    <!-- Inline theme — kills FOUC before CSS loads -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('enlighten_theme') || 'default';
+          document.documentElement.setAttribute('data-theme', t);
+        } catch (e) {}
+      })();
+    </script>
+
     <link rel="stylesheet" href="index.css">
 </head>
 <body>
     <!-- Animated Background -->
-    <div class="bg-animation">
+    <div class="bg-animation" aria-hidden="true">
         <div class="bg-blob bg-blob-1"></div>
         <div class="bg-blob bg-blob-2"></div>
         <div class="bg-blob bg-blob-3"></div>
         <div class="bg-grid"></div>
     </div>
 
+    <noscript>
+        <div style="padding:2rem;text-align:center;font-family:sans-serif">
+            <h2>Campus Unfolded requires JavaScript</h2>
+            <p>Please enable JavaScript in your browser to access the platform.</p>
+        </div>
+    </noscript>
+
     <!-- Navbar -->
-    <nav class="navbar">
+    <nav class="navbar" role="navigation">
         <div class="logo">
-    <img src="intro.png" alt="Enlighten Logo" class="logo-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-    <span class="logo-icon" style="display:none;">
-        <span class="material-icons">lightbulb</span>
-    </span>
-    <span class="logo-text">Campus Unfolded</span>
-</div>
+            <img src="intro.png" alt="Campus Unfolded logo" class="logo-image"
+                 width="55" height="55" loading="eager" decoding="async"
+                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+            <span class="logo-icon" style="display:none;">
+                <span class="material-icons">lightbulb</span>
+            </span>
+            <span class="logo-text">Campus Unfolded</span>
+        </div>
         <div class="nav-actions">
-            <button class="theme-toggle" onclick="toggleLoginTheme()" title="Change Theme">
+            <button class="theme-toggle" onclick="toggleLoginTheme()"
+                    aria-label="Toggle dark mode" title="Change theme">
                 <span class="material-icons" id="loginThemeIcon">light_mode</span>
             </button>
         </div>
     </nav>
 
-    <!-- Hero Section -->
-    <section class="hero">
+    <!-- Hero -->
+    <main class="hero">
         <div class="hero-content">
-            <!-- Left Side -->
+            <!-- Left -->
             <div class="hero-left">
                 <div class="hero-badge">
-                    <span class="material-icons">star</span>
+                    <span class="material-icons" aria-hidden="true">star</span>
                     Premium Learning Platform
                 </div>
-                
+
                 <h1 class="hero-title">
-                    where world learns
-                    <span class="hero-title-accent">affordably...</span>
+                    Where the world learns,
+                    <span class="hero-title-accent">affordably.</span>
                 </h1>
-                
+
                 <p class="hero-subtitle">
-                    Unlock your potential with curated courses from Class 6 to University Entrance. Learn from expert faculty in a distraction-free environment.
+                    Unlock your potential with curated courses from Class 6 to University Entrance.
+                    Learn from expert faculty in a distraction-free environment.
                 </p>
-                
+
                 <div class="hero-features">
                     <div class="hero-feature-item">
-                        <div class="feature-icon">
-                            <span class="material-icons">school</span>
-                        </div>
+                        <div class="feature-icon"><span class="material-icons">school</span></div>
                         <div class="feature-content">
                             <div class="feature-title">Curated Courses</div>
                             <div class="feature-desc">Class 6 to Entrance</div>
                         </div>
                     </div>
-                    
                     <div class="hero-feature-item">
-                        <div class="feature-icon">
-                            <span class="material-icons">groups</span>
-                        </div>
+                        <div class="feature-icon"><span class="material-icons">groups</span></div>
                         <div class="feature-content">
                             <div class="feature-title">Expert Faculty</div>
                             <div class="feature-desc">Learn from the best</div>
                         </div>
                     </div>
-                    
                     <div class="hero-feature-item">
-                        <div class="feature-icon">
-                            <span class="material-icons">security</span>
-                        </div>
+                        <div class="feature-icon"><span class="material-icons">security</span></div>
                         <div class="feature-content">
                             <div class="feature-title">Secure Access</div>
                             <div class="feature-desc">Google Authentication</div>
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="hero-stats">
                     <div class="stat-item">
-                        <div class="stat-number">50+</div>
-                        <div class="stat-label">Students</div>
+                        <div class="stat-number">4.9★</div>
+                        <div class="stat-label">Rating</div>
                     </div>
                     <div class="stat-divider"></div>
                     <div class="stat-item">
@@ -111,7 +143,7 @@
                 </div>
             </div>
 
-            <!-- Right Side - Login Card -->
+            <!-- Right — Login Card -->
             <div class="login-card-wrapper">
                 <div class="login-card">
                     <div class="login-card-header">
@@ -119,102 +151,73 @@
                             <span class="material-icons">lock</span>
                         </div>
                         <h2 class="login-title">Student Login</h2>
-                        <p class="login-subtitle">Enter your Gmail to verify access</p>
+                        <p class="login-subtitle">Sign in with the Gmail you registered</p>
                     </div>
 
-                    <div class="message error-message" id="errorMessage">
-                        <span class="material-icons">error_outline</span>
+                    <div class="message error-message" id="errorMessage" role="alert" aria-live="polite">
+                        <span class="material-icons" aria-hidden="true">error_outline</span>
                         <span id="errorText"></span>
                     </div>
 
-                    <div class="message success-message" id="successMessage">
-                        <span class="material-icons">check_circle</span>
+                    <div class="message success-message" id="successMessage" role="alert" aria-live="polite">
+                        <span class="material-icons" aria-hidden="true">check_circle</span>
                         <span id="successText"></span>
                     </div>
 
-                    <div id="emailStep">
-                        <div class="form-group">
-                            <label class="form-label">Your Gmail Address</label>
-                            <div class="input-wrapper">
-                                <span class="material-icons input-icon">email</span>
-                                <input type="email" class="form-input" id="emailInput" placeholder="Enter your Gmail address" required autocomplete="email">
-                            </div>
-                        </div>
-                        <button class="btn btn-primary" id="checkEmailBtn" onclick="checkEmail()">
-                            <span class="material-icons">verified_user</span>
-                            <span id="checkEmailText">Verify Email</span>
-                            <div class="spinner" id="checkEmailSpinner" style="display:none;"></div>
-                        </button>
-                    </div>
-
-                    <div id="googleStep" style="display:none;">
-                        <div class="verified-badge">
-                            <span class="material-icons">check_circle</span>
-                            <span>Email verified! Sign in with Google to continue.</span>
-                        </div>
-                        <button class="btn btn-google" id="googleSignInBtn" onclick="signInWithGoogle()">
-                            <svg class="google-icon" viewBox="0 0 24 24">
-                                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                            </svg>
-                            <span id="googleBtnText">Sign in with Google</span>
-                            <div class="spinner" id="googleSpinner" style="display:none;"></div>
-                        </button>
-                        <button class="btn btn-secondary" onclick="resetEmailStep()">
-                            Use different email
-                        </button>
-                    </div>
+                    <button class="btn btn-google" id="googleSignInBtn" onclick="signInWithGoogle()">
+                        <svg class="google-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                        </svg>
+                        <span id="googleBtnText">Sign in with Google</span>
+                        <div class="spinner" id="googleSpinner" style="display:none;"></div>
+                    </button>
 
                     <div class="security-notice">
-                        <span class="material-icons">verified_user</span>
+                        <span class="material-icons" aria-hidden="true">verified_user</span>
                         <span>Secure authentication by Google. We never see your password.</span>
                     </div>
 
-                    <div class="payment-section">
-                        <h3 class="payment-title">How to Get Access</h3>
-                        
-                        <div class="qr-container">
-                            <img src="qrcode.jpg" alt="QR Code" onerror="this.style.display='none'">
+                    <details class="payment-section">
+                        <summary class="payment-title">
+                            <span>Not a student yet? Get access</span>
+                            <span class="material-icons">expand_more</span>
+                        </summary>
+
+                        <div class="payment-body">
+                            <div class="qr-container">
+                                <img src="qrcode.jpg" alt="UPI QR code for payment"
+                                     width="160" height="160" loading="lazy" decoding="async"
+                                     onerror="this.outerHTML='<p class=\'qr-fallback\'>QR unavailable — use UPI ID below</p>'">
+                            </div>
+
+                            <div class="upi-info">
+                                <span class="upi-id" id="upiIdText">exploremiracles2017@okaxis</span>
+                                <button class="copy-btn" onclick="copyUPI(this)" aria-label="Copy UPI ID">
+                                    <span class="material-icons">content_copy</span>
+                                    Copy
+                                </button>
+                            </div>
+
+                            <ol class="payment-steps">
+                                <li><span class="step-number">1</span><span>Pay via UPI/QR code</span></li>
+                                <li><span class="step-number">2</span><span>Send screenshot + Gmail to WhatsApp</span></li>
+                                <li><span class="step-number">3</span><span>We'll whitelist within 24 hours</span></li>
+                                <li><span class="step-number">4</span><span>Return here and sign in with Google</span></li>
+                            </ol>
                         </div>
-                        
-                        <div class="upi-info">
-                            <span class="upi-id">exploremiracles2017@okaxis</span>
-                            <button class="copy-btn" onclick="copyUPI(this)" aria-label="Copy UPI ID">
-                                <span class="material-icons">content_copy</span>
-                                Copy
-                            </button>
-                        </div>
-                        
-                        <ol class="payment-steps">
-                            <li>
-                                <span class="step-number">1</span>
-                                <span>Pay via UPI/QR code</span>
-                            </li>
-                            <li>
-                                <span class="step-number">2</span>
-                                <span>Send screenshot + Gmail to WhatsApp</span>
-                            </li>
-                            <li>
-                                <span class="step-number">3</span>
-                                <span>We'll whitelist within 24 hours</span>
-                            </li>
-                            <li>
-                                <span class="step-number">4</span>
-                                <span>Enter Gmail and sign in</span>
-                            </li>
-                        </ol>
-                    </div>
+                    </details>
                 </div>
             </div>
         </div>
-    </section>
+    </main>
 
     <!-- Page Transition -->
-    <div class="page-transition" id="pageTransition">
+    <div class="page-transition" id="pageTransition" aria-hidden="true">
         <div class="transition-spinner"></div>
-        <div class="transition-text">Welcome to Campus Unfolded!</div>
+        <div class="transition-text" id="transitionText">Welcome to Campus Unfolded!</div>
         <div class="transition-subtext">Preparing your dashboard...</div>
     </div>
 
@@ -222,9 +225,9 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    
-    <!-- Custom Scripts -->
+
+    <!-- App -->
     <script src="firebase-config.js"></script>
-    <script src="index.js"></script>
+    <script src="index.js" defer></script>
 </body>
 </html>
