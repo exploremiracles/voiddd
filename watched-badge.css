@@ -1,8 +1,11 @@
 /* ============================================
-   Watched Badge - Videos Only
-   Minimal & Smooth
+   Campus Unfolded — Watched Badge
+   Videos only · Theme-aware · Accessible
    ============================================ */
-/* Watched Indicator Below Video Card */
+
+/* ============================================
+   WATCHED INDICATOR (button below video card)
+   ============================================ */
 .watched-indicator {
     display: flex;
     align-items: center;
@@ -17,84 +20,80 @@
     font-weight: 600;
     color: var(--text-secondary);
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: border-color 0.25s ease,
+                color 0.25s ease,
+                transform 0.25s ease,
+                box-shadow 0.25s ease,
+                background-color 0.25s ease;
     width: fit-content;
     font-family: inherit;
     user-select: none;
+    -webkit-user-select: none;
     position: relative;
-    overflow: hidden;
+    border-color: var(--border);
 }
 
 .watched-indicator:hover {
-    border-color: #10b981;
-    color: #10b981;
+    border-color: var(--success);
+    color: var(--success);
     transform: translateY(-1px);
+}
+
+.watched-indicator:active {
+    transform: translateY(0) scale(0.98);
+}
+
+.watched-indicator:focus-visible {
+    outline: 2px solid var(--success);
+    outline-offset: 2px;
+    border-color: var(--success);
+    color: var(--success);
 }
 
 .watched-indicator .material-icons {
     font-size: 14px;
-    transition: transform 0.3s ease;
+    transition: transform 0.25s ease;
 }
 
 .watched-indicator:active .material-icons {
     transform: scale(0.85);
 }
 
-/* Watched State */
+/* ============================================
+   WATCHED STATE
+   ============================================ */
 .watched-indicator.watched {
-    background: linear-gradient(135deg, #059669, #10b981);
+    background: linear-gradient(135deg, var(--success), var(--success));
     border-color: transparent;
-    color: white;
-    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+    color: var(--accent-contrast, #fff);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--success) 30%, transparent);
 }
 
 .watched-indicator.watched:hover {
-    box-shadow: 0 6px 16px rgba(5, 150, 105, 0.35);
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--success) 40%, transparent);
     transform: translateY(-1px);
+    color: var(--accent-contrast, #fff);
 }
 
-/* Smooth check animation */
+.watched-indicator.watched:focus-visible {
+    outline-color: var(--success);
+}
+
+/* Check-mark reveal — quick, satisfying, only runs when class applied */
 .watched-indicator.watched .material-icons {
-    animation: smoothCheck 0.4s ease-out;
+    animation: smoothCheck 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @keyframes smoothCheck {
-    0% {
-        transform: scale(0) rotate(-90deg);
-        opacity: 0;
-    }
-    60% {
-        transform: scale(1.15) rotate(5deg);
-        opacity: 1;
-    }
-    100% {
-        transform: scale(1) rotate(0deg);
-        opacity: 1;
-    }
+    0%   { transform: scale(0) rotate(-90deg); opacity: 0; }
+    60%  { transform: scale(1.15) rotate(5deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0deg);   opacity: 1; }
 }
 
-/* Ripple effect on click */
-.watched-indicator::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    border-radius: 50%;
-    background: rgba(16, 185, 129, 0.3);
-    transform: translate(-50%, -50%);
-    transition: width 0.6s ease, height 0.6s ease;
-    pointer-events: none;
-}
-
-.watched-indicator.ripple::after {
-    width: 200px;
-    height: 200px;
-    opacity: 0;
-}
-
-/* Green dot on watched cards */
+/* ============================================
+   WATCHED CARD — green dot indicator
+   Sits above golden-highlight ring (z 11) and sparkle (z 12)
+   ============================================ */
 .card.watched-card {
     position: relative;
 }
@@ -106,30 +105,41 @@
     left: 12px;
     width: 8px;
     height: 8px;
-    background: #10b981;
+    background: var(--success);
     border-radius: 50%;
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
-    z-index: 3;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 20%, transparent);
+    z-index: 12; /* above golden ring (11) and sparkle (12) siblings */
     animation: dotPulse 2s ease-in-out infinite;
+    pointer-events: none;
+}
+
+/* When highlighted, move dot slightly so it doesn't hug the ring */
+.golden-highlight.card.watched-card::before {
+    top: 20px;
+    left: 20px;
 }
 
 @keyframes dotPulse {
     0%, 100% {
-        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 20%, transparent);
     }
     50% {
-        box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.1);
+        box-shadow: 0 0 0 6px color-mix(in srgb, var(--success) 10%, transparent);
     }
 }
 
-/* Toast notification */
+/* ============================================
+   TOAST
+   Theme-aware success color. JS sets bg inline for error/info,
+   which override these defaults — that's intentional.
+   ============================================ */
 .watched-toast-mini {
     position: fixed;
     bottom: 30px;
     left: 50%;
     transform: translateX(-50%) translateY(100px);
-    background: linear-gradient(135deg, #059669, #10b981);
-    color: white;
+    background: linear-gradient(135deg, var(--success), var(--success));
+    color: var(--accent-contrast, #fff);
     padding: 12px 22px;
     border-radius: 25px;
     display: flex;
@@ -137,46 +147,86 @@
     gap: 10px;
     font-weight: 600;
     font-size: 0.85rem;
-    box-shadow: 0 10px 30px rgba(5, 150, 105, 0.4);
+    box-shadow: 0 10px 30px color-mix(in srgb, var(--success) 40%, transparent);
     z-index: 99998;
     animation: toastIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards,
                toastOut 0.4s ease-out 2s forwards;
+    max-width: calc(100vw - 40px);
+    white-space: normal;
+    text-align: center;
 }
 
 .watched-toast-mini .material-icons {
     font-size: 20px;
+    flex-shrink: 0;
 }
 
 @keyframes toastIn {
-    0% {
-        transform: translateX(-50%) translateY(100px);
-        opacity: 0;
-    }
-    100% {
-        transform: translateX(-50%) translateY(0);
-        opacity: 1;
-    }
+    0%   { transform: translateX(-50%) translateY(100px); opacity: 0; }
+    100% { transform: translateX(-50%) translateY(0);     opacity: 1; }
 }
 
 @keyframes toastOut {
-    0% {
-        transform: translateX(-50%) translateY(0);
-        opacity: 1;
-    }
-    100% {
-        transform: translateX(-50%) translateY(100px);
-        opacity: 0;
-    }
+    0%   { transform: translateX(-50%) translateY(0);     opacity: 1; }
+    100% { transform: translateX(-50%) translateY(100px); opacity: 0; }
 }
 
-/* Responsive */
+/* ============================================
+   RESPONSIVE
+   ============================================ */
 @media (max-width: 768px) {
     .watched-indicator {
         font-size: 0.7rem;
         padding: 5px 10px;
     }
-    
+
     .watched-indicator .material-icons {
         font-size: 13px;
+    }
+
+    .card.watched-card::before {
+        top: 10px;
+        left: 10px;
+        width: 7px;
+        height: 7px;
+    }
+
+    .golden-highlight.card.watched-card::before {
+        top: 16px;
+        left: 16px;
+    }
+
+    .watched-toast-mini {
+        bottom: 20px;
+        font-size: 0.8rem;
+        padding: 10px 18px;
+    }
+}
+
+/* ============================================
+   ACCESSIBILITY — reduced motion
+   (dashboard.css also has global reduction;
+   this is defense-in-depth for standalone loads)
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+    .watched-indicator,
+    .watched-indicator .material-icons,
+    .watched-indicator.watched .material-icons,
+    .card.watched-card::before,
+    .watched-toast-mini {
+        animation: none !important;
+        transition: none !important;
+    }
+
+    /* Keep the dot visible but static */
+    .card.watched-card::before {
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 20%, transparent);
+    }
+
+    /* Toast still appears, just doesn't slide */
+    .watched-toast-mini {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+        animation: none !important;
     }
 }
