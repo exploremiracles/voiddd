@@ -18,18 +18,15 @@ function loadTheme() {
 // Apply theme to document
 function applyTheme(themeName) {
     if (!THEMES[themeName]) return;
-    
     document.documentElement.setAttribute('data-theme', themeName);
     localStorage.setItem('enlighten_theme', themeName);
-    
     updateThemeIcon(themeName);
-    
+
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (metaThemeColor) {
-        setTimeout(() => {
-            const bgColor = getComputedStyle(document.body).backgroundColor;
-            metaThemeColor.setAttribute('content', bgColor);
-        }, 100);
+        // Sync — no setTimeout, no FOUC
+        const bgColor = getComputedStyle(document.body).backgroundColor;
+        metaThemeColor.setAttribute('content', bgColor);
     }
 }
 
