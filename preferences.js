@@ -18,9 +18,10 @@
   };
 
   const LAYOUTS = {
-    grid: { name: 'Grid View', icon: 'grid_view' },
-    list: { name: 'List View', icon: 'view_list' }
-  };
+    grid:      { name: 'Grid View',      icon: 'grid_view' },
+    list:      { name: 'List View',      icon: 'view_list' },
+    coverflow: { name: 'Cover Flow',     icon: 'view_carousel' }
+};
 
   // Text size steps: 0 = smallest, 4 = largest
   const TEXT_SIZES = [
@@ -68,18 +69,29 @@
 
   function applyLayout(layoutName) {
     if (!LAYOUTS[layoutName]) return;
-    try { localStorage.setItem(STORAGE_KEYS.LAYOUT, layoutName); } catch (_) {}
+    safeSet(STORAGE_KEYS.LAYOUT, layoutName);
 
     const contentArea = document.getElementById('contentArea');
     if (!contentArea) return;
 
-    contentArea.classList.remove('grid-view', 'list-view');
-    contentArea.classList.add(layoutName === 'grid' ? 'grid-view' : 'list-view');
+    contentArea.classList.remove('grid-view', 'list-view', 'coverflow-view');
+    const classMap = {
+        grid: 'grid-view',
+        list: 'list-view',
+        coverflow: 'coverflow-view'
+    };
+    contentArea.classList.add(classMap[layoutName] || 'grid-view');
+
+    // Reset focus index when entering coverflow
+    if (layoutName === 'coverflow') {
+        contentArea.scrollLeft = 0;
+        window.__CU_setCoverflowIndex?.(0);
+    }
 
     if (typeof window.__CU_rerenderContent === 'function') {
-      window.__CU_rerenderContent();
+        window.__CU_rerenderContent();
     }
-  }
+}
 
   // ============================================
   // TEXT SIZE
