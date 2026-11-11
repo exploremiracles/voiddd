@@ -21,9 +21,8 @@
     grid:      { name: 'Grid View',      icon: 'grid_view' },
     list:      { name: 'List View',      icon: 'view_list' },
     coverflow: { name: 'Cover Flow',     icon: 'view_carousel' }
-};
+  };
 
-  // Text size steps: 0 = smallest, 4 = largest
   const TEXT_SIZES = [
     { value: 0, label: 'Small',   scale: 0.90 },
     { value: 1, label: 'Default', scale: 1.00 },
@@ -43,19 +42,28 @@
   const CLOSE_DELAY_MS = 300;
 
   let outsideClickHandler = null;
-  let currentSliderValue = DEFAULT_TEXT_SIZE;
+
+  // ============================================
+  // SAFE localStorage
+  // ============================================
+  function safeGet(key, fallback) {
+    try { return localStorage.getItem(key) || fallback; }
+    catch (_) { return fallback; }
+  }
+
+  function safeSet(key, value) {
+    try { localStorage.setItem(key, value); } catch (_) {}
+  }
 
   // ============================================
   // APPLY
   // ============================================
   function loadPreferences() {
-    let font = 'inter', layout = 'grid', textSize = DEFAULT_TEXT_SIZE;
-    try {
-      font     = localStorage.getItem(STORAGE_KEYS.FONT)      || 'inter';
-      layout   = localStorage.getItem(STORAGE_KEYS.LAYOUT)    || 'grid';
-      const ts = parseInt(localStorage.getItem(STORAGE_KEYS.TEXT_SIZE), 10);
-      if (Number.isInteger(ts) && ts >= 0 && ts <= 4) textSize = ts;
-    } catch (_) {}
+    const font = safeGet(STORAGE_KEYS.FONT, 'inter');
+    const layout = safeGet(STORAGE_KEYS.LAYOUT, 'grid');
+    const ts = parseInt(safeGet(STORAGE_KEYS.TEXT_SIZE, String(DEFAULT_TEXT_SIZE)), 10);
+    const textSize = Number.isInteger(ts) && ts >= 0 && ts <= 4 ? ts : DEFAULT_TEXT_SIZE;
+
     applyFontFamily(font);
     applyLayout(layout);
     applyTextSize(textSize);
@@ -64,7 +72,7 @@
   function applyFontFamily(fontName) {
     if (!FONT_FAMILIES[fontName]) return;
     document.body.style.fontFamily = FONT_FAMILIES[fontName].fontFamily;
-    try { localStorage.setItem(STORAGE_KEYS.FONT, fontName); } catch (_) {}
+    safeSet(STORAGE_KEYS.FONT, fontName);
   }
 
   function applyLayout(layoutName) {
@@ -76,22 +84,22 @@
 
     contentArea.classList.remove('grid-view', 'list-view', 'coverflow-view');
     const classMap = {
-        grid: 'grid-view',
-        list: 'list-view',
-        coverflow: 'coverflow-view'
+      grid: 'grid-view',
+      list: 'list-view',
+      coverflow: 'coverflow-view'
     };
     contentArea.classList.add(classMap[layoutName] || 'grid-view');
 
     // Reset focus index when entering coverflow
     if (layoutName === 'coverflow') {
-        contentArea.scrollLeft = 0;
-        window.__CU_setCoverflowIndex?.(0);
+      contentArea.scrollLeft = 0;
+      window.__CU_setCoverflowIndex?.(0);
     }
 
     if (typeof window.__CU_rerenderContent === 'function') {
-        window.__CU_rerenderContent();
+      window.__CU_rerenderContent();
     }
-}
+  }
 
   // ============================================
   // TEXT SIZE
@@ -100,15 +108,10 @@
     const step = TEXT_SIZES[index] || TEXT_SIZES[DEFAULT_TEXT_SIZE];
     const scale = step.scale;
 
-    // Apply to root so every rem/em scales proportionally
     document.documentElement.style.setProperty('--text-scale', String(scale));
-
-    // Adjust root font size for anything using rem
     document.documentElement.style.fontSize = `${16 * scale}px`;
 
-    try { localStorage.setItem(STORAGE_KEYS.TEXT_SIZE, String(index)); } catch (_) {}
-
-    currentSliderValue = index;
+    safeSet(STORAGE_KEYS.TEXT_SIZE, String(index));
     updateSliderUI(index);
   }
 
@@ -129,7 +132,6 @@
     }
     if (label) label.textContent = TEXT_SIZES[index].label;
 
-    // Update tick marks
     menu.querySelectorAll('.text-size-tick').forEach((tick, i) => {
       tick.classList.toggle('active', i === index);
       tick.classList.toggle('passed', i < index);
@@ -164,25 +166,17 @@
     menu.setAttribute('role', 'menu');
     menu.setAttribute('aria-label', 'Preferences');
 
-    const currentFont = (() => {
-      try { return localStorage.getItem(STORAGE_KEYS.FONT) || 'inter'; }
-      catch (_) { return 'inter'; }
-    })();
-    const currentLayout = (() => {
-      try { return localStorage.getItem(STORAGE_KEYS.LAYOUT) || 'grid'; }
-      catch (_) { return 'grid'; }
-    })();
+    const currentFont = safeGet(STORAGE_KEYS.FONT, 'inter');
+    const currentLayout = safeGet(STORAGE_KEYS.LAYOUT, 'grid');
     const currentSize = (() => {
-      try {
-        const v = parseInt(localStorage.getItem(STORAGE_KEYS.TEXT_SIZE), 10);
-        return Number.isInteger(v) && v >= 0 && v <= 4 ? v : DEFAULT_TEXT_SIZE;
-      } catch (_) { return DEFAULT_TEXT_SIZE; }
+      const v = parseInt(safeGet(STORAGE_KEYS.TEXT_SIZE, String(DEFAULT_TEXT_SIZE)), 10);
+      return Number.isInteger(v) && v >= 0 && v <= 4 ? v : DEFAULT_TEXT_SIZE;
     })();
 
     let html = '';
     html += '<div class="preferences-menu-header">Preferences</div>';
 
-    // ---- Text size slider (NEW) ----
+    // ---- Text size slider ----
     html += '<div class="preferences-section-label">Text Size</div>';
     html += renderTextSizeSlider(currentSize);
 
@@ -225,10 +219,8 @@
     menu.innerHTML = html;
     document.body.appendChild(menu);
 
-    // Wire up slider
     setupTextSizeSlider(menu, currentSize);
 
-    // Delegate clicks for font/layout rows
     menu.addEventListener('click', onPreferenceClick);
     menu.addEventListener('keydown', onPreferenceKeydown);
 
@@ -236,7 +228,7 @@
   }
 
   // ============================================
-  // TEXT SIZE SLIDER — UI + events
+  // TEXT SIZE SLIDER
   // ============================================
   function renderTextSizeSlider(index) {
     const pct = (index / (TEXT_SIZES.length - 1)) * 100;
@@ -296,8 +288,6 @@
     slider.addEventListener('input', onInput);
     slider.addEventListener('change', onInput);
 
-    // Click on the track moves the thumb to that position (native range input does this too,
-    // but we add smooth feedback via the fill)
     const track = menu.querySelector('.pill-slider-track');
     track?.addEventListener('click', (e) => {
       const rect = track.getBoundingClientRect();
@@ -307,12 +297,11 @@
       applyTextSize(value);
     });
 
-    // Initialize UI to current value
     updateSliderUI(initialValue);
   }
 
   // ============================================
-  // FONT / LAYOUT CLICK HANDLERS (unchanged)
+  // FONT / LAYOUT CLICK HANDLERS
   // ============================================
   function onPreferenceClick(e) {
     const row = e.target.closest('.preference-option');
@@ -349,10 +338,6 @@
       check.textContent = 'check';
       row.appendChild(check);
     }
-
-    // Don't auto-close — user may still want to adjust text size after
-    // (Previously we auto-closed after 300ms; that's now removed for font/layout
-    //  so the slider stays accessible. Close only on outside click or ESC.)
   }
 
   function closePreferencesMenu() {
@@ -382,4 +367,6 @@
     applyLayout(value);
     setTimeout(closePreferencesMenu, CLOSE_DELAY_MS);
   };
+
+  console.log('[Preferences] Loaded — togglePreferencesMenu available:', typeof window.togglePreferencesMenu);
 })();
