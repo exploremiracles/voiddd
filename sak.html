@@ -1306,41 +1306,157 @@
         // LOAD DASHBOARD
         // ============================================
         async function loadDashboard() {
-            const contentArea = $('adminContent');
-            contentArea.innerHTML = '<div class="empty-state"><div class="spinner" style="width:32px;height:32px;border-color:var(--border);border-top-color:var(--accent);"></div><p style="margin-top:0.75rem;">Loading dashboard...</p></div>';
+    const contentArea = $('adminContent');
+    contentArea.innerHTML = '<div class="empty-state"><div class="spinner" style="width:32px;height:32px;border-color:var(--border);border-top-color:var(--accent);"></div><p style="margin-top:0.75rem;">Loading dashboard...</p></div>';
 
-            try {
-                // Use count() aggregation — 1 read per collection, not 1 per doc
-                // Requires firebase-firestore-compat v9.11+. We're on 10.7.1 ✅
-                const [wlCount, vCount, pCount, iCount, poCount] = await Promise.all([
-                    db.collection('whitelist').where('active', '==', true).count().get(),
-                    db.collection('videos').count().get(),
-                    db.collection('pdfs').count().get(),
-                    db.collection('images').count().get(),
-                    db.collection('posts').count().get()
-                ]);
+    try {
+        // Fetch in parallel. Use get().size for active whitelist (needs filter),
+        // and count() for the rest (no filter → no index needed).
+        const [activeStudentsSnap, vRes, pRes, iRes, poRes] = await Promise.all([
+            db.collection('whitelist').where('active', '==', true).get(),
+            db.collection('videos').count().get(),
+            db.collection('pdfs').count().get(),
+            db.collection('images').count().get(),
+            db.collection('posts').count().get()
+        ]);
 
-                contentArea.innerHTML = `
-                    <div class="stats-grid">
-                        <div class="stat-card"><span class="material-icons" aria-hidden="true">verified_user</span><h2>${wlCount.data().count}</h2><p>Students</p></div>
-                        <div class="stat-card"><span class="material-icons" aria-hidden="true">video_library</span><h2>${vCount.data().count}</h2><p>Videos</p></div>
-                        <div class="stat-card"><span class="material-icons" aria-hidden="true">picture_as_pdf</span><h2>${pCount.data().count}</h2><p>PDFs</p></div>
-                        <div class="stat-card"><span class="material-icons" aria-hidden="true">image</span><h2>${iCount.data().count}</h2><p>Images</p></div>
-                        <div class="stat-card"><span class="material-icons" aria-hidden="true">article</span><h2>${poCount.data().count}</h2><p>Posts</p></div>
-                    </div>
-                `;
-            } catch (error) {
-                console.error('[Admin] Dashboard error:', error.code, error.message);
-                contentArea.innerHTML = `
-                    <div class="empty-state">
-                        <span class="material-icons">error_outline</span>
-                        <h3>Failed to load dashboard</h3>
-                        <p>${escapeHtml(error.code || 'Unknown error')}</p>
-                        <p style="margin-top:0.5rem;font-size:0.75rem;">If this says "permission-denied", check that your Firestore rules allow admins to read the whitelist collection.</p>
-                    </div>
-                `;
-            }
+        const students = activeStudentsSnap.size;
+        const videos   = vRes.data().count;
+        const pdfs     = pRes.data().count;
+        const images   = iRes.data().count;
+        const posts    = poRes.data().count;
+
+        contentArea.innerHTML = `
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="material-icons" aria-hidden="true">verified_user</span>
+                    <h2>${students}</h2>
+                    <p>Students</p>
+                </div>
+                <div class="stat-card">
+                    <span class="material-icons" aria-hidden="true">video_library</span>
+                    <h2>${videos}</h2>
+                    <p>Videos</p>
+                </div>
+                <div class="stat-card">
+                    <span class="material-icons" aria-hidden="true">picture_as_pdf</span>
+                    <h2>${pdfs}</h2>
+                    <p>PDFs</p>
+                </div>
+                <div class="stat-card">
+                    <span class="material-icons" aria-hidden="true">image</span>
+                    <h2>${images}</h2>
+                    <p>Images</p>
+                </div>
+                <div class="stat-card">
+                    <span class="material-icons" aria-hidden="true">article</span>
+                    <h2>${posts}</h2>
+                    <p>Posts</p>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        // Detailed error for debugging
+        console.error('[Admin] Dashboard error:', {
+            code: error.code,
+            message: error.message,
+            name: error.name,
+            stack: error.stack
+        });
+
+        // Try a fallback: count each separately so one failure doesn't block others
+        try {
+            const fallback = await loadDashboardFallback();
+            renderDashboardStats(contentArea, fallback);
+        } catch (fallbackError) {
+            console.error('[Admin] Fallback also failed:', fallbackError);
+            contentArea.innerHTML = `
+                <div class="empty-state">
+                    <span class="material-icons">error_outline</span>
+                    <h3>Failed to load dashboard</h3>
+                    <p style="font-family:monospace;font-size:0.75rem;background:var(--surface-muted);padding:8px 12px;border-radius:8px;margin-top:0.5rem;word-break:break-word;">
+                        ${escapeHtml(error.code || error.message || 'Unknown error')}
+                    </p>
+                    <p style="margin-top:0.75rem;font-size:0.78rem;color:var(--text-secondary);">
+                        Try refreshing the page. If the error persists, open DevTools Console (F12) to see the exact Firestore error.
+                    </p>
+                </div>
+            `;
         }
+    }
+}
+
+// Fallback: individual counts, tolerant of partial failures
+async function loadDashboardFallback() {
+    const tryCount = async (fn, defaultValue = 0) => {
+        try {
+            const r = await fn();
+            return r;
+        } catch (err) {
+            console.warn('[Admin] Individual count failed:', err.code || err.message);
+            return defaultValue;
+        }
+    };
+
+    const students = await tryCount(async () => {
+        const s = await db.collection('whitelist').where('active', '==', true).get();
+        return s.size;
+    });
+
+    const videos = await tryCount(async () => {
+        const r = await db.collection('videos').count().get();
+        return r.data().count;
+    });
+
+    const pdfs = await tryCount(async () => {
+        const r = await db.collection('pdfs').count().get();
+        return r.data().count;
+    });
+
+    const images = await tryCount(async () => {
+        const r = await db.collection('images').count().get();
+        return r.data().count;
+    });
+
+    const posts = await tryCount(async () => {
+        const r = await db.collection('posts').count().get();
+        return r.data().count;
+    });
+
+    return { students, videos, pdfs, images, posts };
+}
+
+function renderDashboardStats(contentArea, { students, videos, pdfs, images, posts }) {
+    contentArea.innerHTML = `
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="material-icons" aria-hidden="true">verified_user</span>
+                <h2>${students}</h2>
+                <p>Students</p>
+            </div>
+            <div class="stat-card">
+                <span class="material-icons" aria-hidden="true">video_library</span>
+                <h2>${videos}</h2>
+                <p>Videos</p>
+            </div>
+            <div class="stat-card">
+                <span class="material-icons" aria-hidden="true">picture_as_pdf</span>
+                <h2>${pdfs}</h2>
+                <p>PDFs</p>
+            </div>
+            <div class="stat-card">
+                <span class="material-icons" aria-hidden="true">image</span>
+                <h2>${images}</h2>
+                <p>Images</p>
+            </div>
+            <div class="stat-card">
+                <span class="material-icons" aria-hidden="true">article</span>
+                <h2>${posts}</h2>
+                <p>Posts</p>
+            </div>
+        </div>
+    `;
+}
 
         // ============================================
         // LOAD DATA (per collection)
