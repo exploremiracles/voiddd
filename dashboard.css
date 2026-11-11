@@ -1314,97 +1314,6 @@ img, video, iframe {
 
 .install-btn:hover { transform: translateY(-3px); }
 
-/* ============================================
-   SIGNATURE
-   ============================================ */
-.campus-signature {
-    font-family: 'Dancing Script', cursive;
-    font-size: clamp(1.4rem, 3vw, 2.8rem);
-    font-weight: 400;
-    text-align: center;
-    margin: 0.5rem 0 1.5rem 0;
-    padding: 0.5rem;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-wrap: wrap;
-    letter-spacing: 2px;
-    position: relative;
-    min-height: 60px;
-}
-
-.campus-signature .sig-letter {
-    display: inline-block;
-    color: var(--text);
-    opacity: 0;
-    animation: letterReveal 0.6s ease-out forwards;
-    animation-delay: calc(var(--i) * 0.08s);
-    transition: color 0.3s ease, transform 0.3s ease;
-    cursor: default;
-}
-
-.campus-signature .sig-letter:hover {
-    color: var(--accent);
-    transform: translateY(-3px);
-}
-
-.campus-signature .sig-space {
-    display: inline-block;
-    width: 0.4em;
-}
-
-@keyframes letterReveal {
-    0% { opacity: 0; transform: translateY(8px); filter: blur(4px); }
-    50% { opacity: 1; transform: translateY(-2px); filter: blur(0); }
-    100% { opacity: 1; transform: translateY(0); filter: blur(0); }
-}
-
-.campus-signature::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%) scaleX(0);
-    width: 60%;
-    height: 2px;
-    background: linear-gradient(90deg,
-        transparent 0%,
-        var(--text-secondary) 20%,
-        var(--accent) 50%,
-        var(--text-secondary) 80%,
-        transparent 100%);
-    border-radius: 2px;
-    animation: underlineFlourish 8s ease-in-out infinite;
-    transform-origin: center;
-}
-
-@keyframes underlineFlourish {
-    0%   { transform: translateX(-50%) scaleX(0); opacity: 0; }
-    15%  { transform: translateX(-50%) scaleX(1); opacity: 0.6; }
-    50%  { transform: translateX(-50%) scaleX(0.9); opacity: 0.4; }
-    85%  { transform: translateX(-50%) scaleX(1); opacity: 0.6; }
-    100% { transform: translateX(-50%) scaleX(0); opacity: 0; }
-}
-
-.campus-signature::before {
-    content: '';
-    position: absolute;
-    bottom: -6px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 4px;
-    height: 4px;
-    background: var(--accent);
-    border-radius: 50%;
-    opacity: 0;
-    animation: dotPulse 8s ease-in-out infinite;
-}
-
-@keyframes dotPulse {
-    0%, 40%  { opacity: 0; transform: translateX(-50%) scale(0); }
-    50%      { opacity: 1; transform: translateX(-50%) scale(1.5); }
-    60%, 100%{ opacity: 0; transform: translateX(-50%) scale(0); }
-}
 
 /* ============================================
    VIDEO PROGRESS BAR
@@ -2698,9 +2607,7 @@ img, video, iframe {
     .image-modal-img { max-height: 55vh; max-height: 55dvh; }
     .video-progress-bar { height: 6px; }
     .video-progress-percentage { min-width: 42px; }
-    .campus-signature { margin: 0.25rem 0 1rem 0; letter-spacing: 1px; }
-    .campus-signature::after { width: 70%; }
-
+   
     /* Presence mobile */
     .presence-widget { margin-bottom: 0.5rem; }
     .presence-pill { padding: 4px 10px 4px 4px; gap: 8px; min-height: 40px; }
@@ -2759,8 +2666,6 @@ img, video, iframe {
         padding-top: calc(var(--page-padding) + env(safe-area-inset-top, 0));
     }
 
-    .campus-signature { font-size: 1.5rem; letter-spacing: 0.5px; }
-    .campus-signature::after { width: 80%; height: 1.5px; }
 
     .header-actions { gap: 0.25rem; }
 
@@ -2864,7 +2769,6 @@ img, video, iframe {
     }
     .welcome-name { font-size: 1.4rem; }
     .welcome-header { margin-bottom: 0.75rem; }
-    .campus-signature { margin: 0 0 0.5rem 0; min-height: 40px; }
     .filters-section { margin-bottom: 0.75rem; }
     .theme-menu,
     .preferences-menu {
@@ -2926,7 +2830,6 @@ img, video, iframe {
     .header-actions,
     .mobile-top-bar,
     .install-btn,
-    .campus-signature,
     .video-progress-container,
     .batch-cards,
     .modal-overlay,
