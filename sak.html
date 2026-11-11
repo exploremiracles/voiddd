@@ -44,6 +44,7 @@
             --danger: #DC2626;
             --danger-hover: #B91C1C;
             --success: #059669;
+            --warning: #D97706;
             --radius: 20px;
             --radius-sm: 12px;
             --transition: all 0.25s ease;
@@ -332,6 +333,12 @@
         .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-danger { background: var(--danger); color: white; }
         .btn-danger:hover { background: var(--danger-hover); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover { filter: brightness(0.9); }
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-warning:hover { filter: brightness(0.9); }
+        .btn-secondary { background: var(--surface-muted); color: var(--text); border: 2px solid var(--border); }
+        .btn-secondary:hover { background: var(--border); }
         .btn-sm { padding: 6px 12px; font-size: 0.75rem; min-height: 36px; }
 
         /* ============ FORMS ============ */
@@ -354,6 +361,14 @@
             box-shadow: 0 0 0 4px rgba(90,116,95,0.12);
         }
         .form-textarea { resize: vertical; min-height: 80px; }
+
+        .form-label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.4rem;
+            font-size: 0.85rem;
+            color: var(--text);
+        }
 
         .class-checkboxes {
             display: grid;
@@ -381,6 +396,76 @@
             width: 16px;
             height: 16px;
             flex-shrink: 0;
+        }
+
+        /* Toggle switch for active/inactive */
+        .toggle-switch {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            background: var(--surface-muted);
+            border-radius: var(--radius-sm);
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .toggle-switch input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .toggle-track {
+            position: relative;
+            width: 48px;
+            height: 26px;
+            background: var(--border);
+            border-radius: 999px;
+            transition: background 0.25s ease;
+            flex-shrink: 0;
+        }
+
+        .toggle-track::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+            transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .toggle-switch input:checked ~ .toggle-track {
+            background: var(--success);
+        }
+
+        .toggle-switch input:checked ~ .toggle-track::after {
+            transform: translateX(22px);
+        }
+
+        .toggle-label {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .toggle-label-title {
+            font-weight: 600;
+            font-size: 0.88rem;
+            color: var(--text);
+        }
+
+        .toggle-label-desc {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
         }
 
         /* ============ MODAL ============ */
@@ -458,7 +543,7 @@
             width: 100%;
             border-collapse: collapse;
             background: var(--surface);
-            min-width: 600px;
+            min-width: 700px;
         }
         .data-table th {
             padding: 12px;
@@ -478,6 +563,13 @@
             vertical-align: middle;
         }
         .data-table tr:last-child td { border-bottom: none; }
+
+        /* Action buttons */
+        .row-actions {
+            display: flex;
+            gap: 0.35rem;
+            flex-wrap: wrap;
+        }
 
         /* ============ STATS ============ */
         .stats-grid {
@@ -648,6 +740,7 @@
             .modal-content { animation: none; }
             .login-box::before { animation: none; }
             .spinner { animation-duration: 2s; }
+            .toggle-track::after { transition: none; }
         }
     </style>
 </head>
@@ -753,7 +846,7 @@
         </main>
     </div>
 
-    <!-- Modal (add forms) -->
+    <!-- Modal (add / edit forms) -->
     <div class="modal-overlay" id="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal-content">
             <div class="modal-header">
@@ -764,14 +857,14 @@
         </div>
     </div>
 
-    <!-- Confirm dialog (replaces window.confirm) -->
+    <!-- Confirm dialog -->
     <div class="modal-overlay" id="confirmOverlay" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle">
         <div class="modal-content" style="max-width: 400px;">
             <h2 class="modal-title" id="confirmTitle" style="margin-bottom: 0.75rem;">Confirm</h2>
             <p id="confirmMessage" style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.25rem; line-height: 1.5;"></p>
             <div style="display:flex; gap:0.5rem; justify-content:flex-end; flex-wrap:wrap;">
-                <button class="btn" id="confirmCancelBtn" style="background:var(--surface-muted); color:var(--text); border:2px solid var(--border);">Cancel</button>
-                <button class="btn btn-danger" id="confirmOkBtn">Delete</button>
+                <button class="btn btn-secondary" id="confirmCancelBtn">Cancel</button>
+                <button class="btn btn-danger" id="confirmOkBtn">Confirm</button>
             </div>
         </div>
     </div>
@@ -799,7 +892,6 @@
             appId: "1:1071823452533:web:ff7a7dd592249a6ea1fb3c"
         };
 
-        // UX gate only. Firestore rules are the real security boundary.
         const ADMIN_EMAILS = ['khanshoib82@gmail.com'];
 
         const CONFIG = Object.freeze({
@@ -837,6 +929,7 @@
         let loadToken = 0;
         let wasAuthenticated = false;
         let confirmCallback = null;
+        let editingStudentId = null;
 
         // ============================================
         // UTIL
@@ -848,6 +941,16 @@
             const div = document.createElement('div');
             div.textContent = String(text);
             return div.innerHTML;
+        }
+
+        function escapeAttr(text) {
+            if (text == null) return '';
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
         }
 
         function isAdminEmail(email) {
@@ -866,8 +969,10 @@
             }, 3000);
         }
 
-        function showConfirm(message, onConfirm) {
+        function showConfirm(message, onConfirm, opts = {}) {
             $('confirmMessage').textContent = message;
+            $('confirmOkBtn').textContent = opts.okText || 'Confirm';
+            $('confirmOkBtn').className = 'btn ' + (opts.okClass || 'btn-danger');
             confirmCallback = onConfirm;
             $('confirmOverlay').style.display = 'flex';
             document.body.style.overflow = 'hidden';
@@ -884,6 +989,31 @@
                 <div class="spinner spinner-lg"></div>
                 <p style="margin-top:0.75rem;">${escapeHtml(label)}</p>
             </div>`;
+        }
+
+        // Convert Firestore Timestamp → <input type="date"> value (YYYY-MM-DD)
+        function toDateInputValue(ts) {
+            if (!ts) return '';
+            let date;
+            if (typeof ts.toDate === 'function') date = ts.toDate();
+            else if (ts instanceof Date) date = ts;
+            else if (typeof ts === 'number') date = new Date(ts);
+            else return '';
+            if (isNaN(date.getTime())) return '';
+            const yyyy = date.getFullYear();
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+
+        function formatDateDisplay(ts) {
+            if (!ts) return '—';
+            let date;
+            if (typeof ts.toDate === 'function') date = ts.toDate();
+            else if (ts instanceof Date) date = ts;
+            else return '—';
+            if (isNaN(date.getTime())) return '—';
+            return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
         }
 
         // ============================================
@@ -935,13 +1065,11 @@
                 } catch (error) {
                     console.error('[Admin] Logout error:', error);
                 }
-            });
+            }, { okText: 'Logout', okClass: 'btn-danger' });
         }
 
-        // Watch auth state — show/hide UI based on real signed-in user
         auth.onAuthStateChanged(async (user) => {
             if (user && isAdminEmail(user.email)) {
-                // Verify Firestore rules recognize this user as admin
                 try {
                     await db.collection('whitelist').limit(1).get();
                 } catch (err) {
@@ -963,7 +1091,7 @@
                     switchTab('dashboard');
                 }
             } else {
-                if (user) await auth.signOut(); // signed in but not admin
+                if (user) await auth.signOut();
                 $('loginScreen').style.display = 'flex';
                 $('adminContainer').classList.remove('active');
                 wasAuthenticated = false;
@@ -1021,7 +1149,7 @@
         }
 
         // ============================================
-        // DASHBOARD — reliable get().size for everything
+        // DASHBOARD
         // ============================================
         async function loadDashboard() {
             const contentArea = $('adminContent');
@@ -1112,7 +1240,7 @@
                 const limit = CONFIG.PAGE_SIZE * 3;
                 const snapshot = await db.collection(collection).limit(limit).get();
 
-                if (myToken !== loadToken) return; // stale
+                if (myToken !== loadToken) return;
 
                 cachedData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
 
@@ -1172,7 +1300,7 @@
                 let headerRow = '';
 
                 if (currentTab === 'whitelist') {
-                    headerRow = '<tr><th>Name</th><th>Email</th><th>Classes</th><th>Status</th><th>Actions</th></tr>';
+                    headerRow = '<tr><th>Name</th><th>Email</th><th>Classes</th><th>Status</th><th>Expires</th><th>Actions</th></tr>';
                 } else if (currentTab === 'videos' || currentTab === 'pdfs' || currentTab === 'images') {
                     headerRow = '<tr><th>Title</th><th>Class</th><th>Subject</th><th>Actions</th></tr>';
                 } else if (currentTab === 'posts') {
@@ -1200,27 +1328,46 @@
                     const statusBadge = item.active
                         ? '<span class="email-badge active">Active</span>'
                         : '<span class="email-badge inactive">Inactive</span>';
+                    const expiryDisplay = formatDateDisplay(item.expiresAt);
 
                     tr.innerHTML = `
                         <td>${escapeHtml(item.studentName || 'N/A')}</td>
                         <td>${escapeHtml(item.email || '')}</td>
                         <td>${escapeHtml((item.allowedClasses || []).join(', '))}</td>
                         <td>${statusBadge}</td>
-                        <td><button class="btn btn-danger btn-sm" data-delete-id="${escapeHtml(item.id)}" data-delete-name="${escapeHtml(item.studentName || item.email)}">Remove</button></td>
+                        <td>${escapeHtml(expiryDisplay)}</td>
+                        <td>
+                            <div class="row-actions">
+                                <button class="btn btn-primary btn-sm"
+                                        data-edit-student="${escapeAttr(item.id)}">
+                                    Edit
+                                </button>
+                                <button class="btn ${item.active ? 'btn-warning' : 'btn-success'} btn-sm"
+                                        data-toggle-active="${escapeAttr(item.id)}"
+                                        data-toggle-current="${item.active ? 'true' : 'false'}">
+                                    ${item.active ? 'Revoke' : 'Activate'}
+                                </button>
+                                <button class="btn btn-danger btn-sm"
+                                        data-delete-id="${escapeAttr(item.id)}"
+                                        data-delete-name="${escapeAttr(item.studentName || item.email)}">
+                                    Remove
+                                </button>
+                            </div>
+                        </td>
                     `;
                 } else if (currentTab === 'videos' || currentTab === 'pdfs' || currentTab === 'images') {
                     tr.innerHTML = `
                         <td>${escapeHtml(item.title || '')}</td>
                         <td>${escapeHtml(item.class || '-')}</td>
                         <td>${escapeHtml(item.subject || '-')}</td>
-                        <td><button class="btn btn-danger btn-sm" data-delete-id="${escapeHtml(item.id)}" data-delete-name="${escapeHtml(item.title || '')}">Delete</button></td>
+                        <td><button class="btn btn-danger btn-sm" data-delete-id="${escapeAttr(item.id)}" data-delete-name="${escapeAttr(item.title || '')}">Delete</button></td>
                     `;
                 } else if (currentTab === 'posts') {
                     tr.innerHTML = `
                         <td>${escapeHtml(item.title || '')}</td>
                         <td>${escapeHtml((item.class || []).join(', '))}</td>
                         <td>${escapeHtml(item.subject || '-')}</td>
-                        <td><button class="btn btn-danger btn-sm" data-delete-id="${escapeHtml(item.id)}" data-delete-name="${escapeHtml(item.title || '')}">Delete</button></td>
+                        <td><button class="btn btn-danger btn-sm" data-delete-id="${escapeAttr(item.id)}" data-delete-name="${escapeAttr(item.title || '')}">Delete</button></td>
                     `;
                 }
 
@@ -1242,6 +1389,7 @@
         // ADD FORMS
         // ============================================
         function showAddForm() {
+            editingStudentId = null;
             const modalBody = $('modalBody');
             $('modalTitle').textContent = 'Add New';
 
@@ -1250,7 +1398,7 @@
                 modalBody.innerHTML = `
                     <input type="text" id="studentName" class="form-input" placeholder="Student Full Name" maxlength="50" required>
                     <input type="email" id="studentEmail" class="form-input" placeholder="Student Gmail Address" required autocomplete="off">
-                    <label style="font-weight:500;margin-bottom:0.4rem;display:block;font-size:0.85rem;">Assign Classes:</label>
+                    <label class="form-label">Assign Classes:</label>
                     <div class="class-checkboxes">
                         ${allClasses.map((cls) => `
                             <label class="class-checkbox">
@@ -1310,7 +1458,7 @@
                     <input type="text" id="postTitle" class="form-input" placeholder="Post Title" maxlength="100">
                     <textarea id="postContent" class="form-textarea" placeholder="Content" rows="4" maxlength="2000"></textarea>
                     <input type="url" id="postUrl" class="form-input" placeholder="URL (Optional)" maxlength="500">
-                    <label style="font-weight:500;margin-bottom:0.4rem;display:block;font-size:0.85rem;">Target Classes:</label>
+                    <label class="form-label">Target Classes:</label>
                     <div class="class-checkboxes">
                         ${allClasses.map((cls) => `
                             <label class="class-checkbox">
@@ -1333,10 +1481,164 @@
             firstInput?.focus();
         }
 
+        // ============================================
+        // EDIT STUDENT FORM
+        // ============================================
+        function showEditStudentForm(studentId) {
+            const student = cachedData.find((s) => s.id === studentId);
+            if (!student) {
+                showToast('Student not found — try refreshing', 'error');
+                return;
+            }
+
+            editingStudentId = studentId;
+            const modalBody = $('modalBody');
+            $('modalTitle').textContent = 'Edit Student';
+
+            const currentClasses = Array.isArray(student.allowedClasses) ? student.allowedClasses : [];
+            const isActive = student.active === true;
+            const expiryValue = toDateInputValue(student.expiresAt);
+
+            modalBody.innerHTML = `
+                <input type="text" id="editName" class="form-input" placeholder="Student Full Name" maxlength="50" value="${escapeAttr(student.studentName || '')}">
+                <input type="email" id="editEmail" class="form-input" value="${escapeAttr(student.email || '')}" disabled style="opacity:0.6;cursor:not-allowed;" title="Email cannot be changed (it's the document ID)">
+
+                <label class="toggle-switch" for="editActiveToggle">
+                    <input type="checkbox" id="editActiveToggle" ${isActive ? 'checked' : ''}>
+                    <span class="toggle-track"></span>
+                    <span class="toggle-label">
+                        <span class="toggle-label-title">Account Active</span>
+                        <span class="toggle-label-desc">When OFF, this student is kicked out of the platform immediately.</span>
+                    </span>
+                </label>
+
+                <label class="form-label" for="editExpiry">Access Valid Until:</label>
+                <input type="date" id="editExpiry" class="form-input" value="${escapeAttr(expiryValue)}">
+                <p style="font-size:0.72rem;color:var(--text-secondary);margin-top:-0.5rem;margin-bottom:0.75rem;line-height:1.4;">
+                    Student loses access after this date. Leave empty to remove expiry.
+                </p>
+
+                <label class="form-label">Assign Classes:</label>
+                <div class="class-checkboxes">
+                    ${allClasses.map((cls) => {
+                        const checked = currentClasses.includes(cls) ? 'checked' : '';
+                        return `
+                            <label class="class-checkbox">
+                                <input type="checkbox" value="${escapeHtml(cls)}" class="edit-class-check" ${checked}> ${escapeHtml(cls)}
+                            </label>
+                        `;
+                    }).join('')}
+                </div>
+
+                <div style="display:flex; gap:0.5rem; margin-top:0.25rem;">
+                    <button class="btn btn-secondary" onclick="closeModal()" style="flex:1;">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveStudentEdits()" id="submitBtn" style="flex:2;">Save Changes</button>
+                </div>
+            `;
+
+            $('modalOverlay').style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        async function saveStudentEdits() {
+            if (isSubmitting || !editingStudentId) return;
+
+            const studentId = editingStudentId;
+            const newName = $('editName').value.trim();
+            const isActive = $('editActiveToggle').checked;
+            const expiryValue = $('editExpiry').value;
+            const selectedClasses = Array.from(document.querySelectorAll('.edit-class-check:checked')).map((cb) => cb.value);
+
+            if (!newName) {
+                showToast('Name cannot be empty', 'error');
+                return;
+            }
+            if (!selectedClasses.length) {
+                showToast('Please assign at least one class', 'error');
+                return;
+            }
+
+            let expiresAtValue = null;
+            if (expiryValue) {
+                const dt = new Date(expiryValue + 'T23:59:59');
+                if (isNaN(dt.getTime())) {
+                    showToast('Invalid expiry date', 'error');
+                    return;
+                }
+                expiresAtValue = firebase.firestore.Timestamp.fromDate(dt);
+            }
+
+            isSubmitting = true;
+            const submitBtn = $('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving...';
+
+            try {
+                const updateData = {
+                    studentName: newName,
+                    allowedClasses: selectedClasses,
+                    active: isActive,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                if (expiresAtValue) {
+                    updateData.expiresAt = expiresAtValue;
+                } else {
+                    updateData.expiresAt = firebase.firestore.FieldValue.delete();
+                }
+
+                await db.collection('whitelist').doc(studentId).update(updateData);
+
+                showToast('Student updated');
+                closeModal();
+                editingStudentId = null;
+                switchTab('whitelist');
+            } catch (error) {
+                console.error('[Admin] Update student error:', error.code);
+                showToast('Failed to update: ' + (error.code || 'unknown error'), 'error');
+            } finally {
+                isSubmitting = false;
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Save Changes';
+            }
+        }
+
+        // ============================================
+        // TOGGLE ACTIVE (quick action — no modal)
+        // ============================================
+        async function toggleStudentActive(studentId, currentlyActive) {
+            const student = cachedData.find((s) => s.id === studentId);
+            const name = student?.studentName || student?.email || studentId;
+            const newActive = !currentlyActive;
+
+            const message = newActive
+                ? `Restore access for "${name}"? They'll be able to log in immediately.`
+                : `Revoke access for "${name}"? They'll be kicked out of the platform within seconds.`;
+
+            showConfirm(message, async () => {
+                try {
+                    await db.collection('whitelist').doc(studentId).update({
+                        active: newActive,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    showToast(newActive ? 'Access restored' : 'Access revoked');
+                    closeConfirm();
+                    switchTab('whitelist');
+                } catch (error) {
+                    console.error('[Admin] Toggle active error:', error.code);
+                    showToast('Failed: ' + (error.code || 'unknown error'), 'error');
+                }
+            }, {
+                okText: newActive ? 'Activate' : 'Revoke',
+                okClass: newActive ? 'btn-success' : 'btn-danger'
+            });
+        }
+
         function closeModal() {
             $('modalOverlay').style.display = 'none';
             document.body.style.overflow = 'auto';
             isSubmitting = false;
+            editingStudentId = null;
         }
 
         // ============================================
@@ -1539,14 +1841,32 @@
         }
 
         // ============================================
-        // DELETE — delegated, no inline onclick with user data
+        // DELEGATED CLICK HANDLER
         // ============================================
         document.addEventListener('click', (e) => {
-            const btn = e.target.closest('[data-delete-id]');
-            if (!btn) return;
-            const id = btn.dataset.deleteId;
-            const name = btn.dataset.deleteName || id;
-            requestDelete(currentTab, id, name);
+            // Edit student
+            const editBtn = e.target.closest('[data-edit-student]');
+            if (editBtn) {
+                showEditStudentForm(editBtn.dataset.editStudent);
+                return;
+            }
+
+            // Toggle active
+            const toggleBtn = e.target.closest('[data-toggle-active]');
+            if (toggleBtn) {
+                toggleStudentActive(
+                    toggleBtn.dataset.toggleActive,
+                    toggleBtn.dataset.toggleCurrent === 'true'
+                );
+                return;
+            }
+
+            // Delete
+            const deleteBtn = e.target.closest('[data-delete-id]');
+            if (deleteBtn) {
+                requestDelete(currentTab, deleteBtn.dataset.deleteId, deleteBtn.dataset.deleteName || deleteBtn.dataset.deleteId);
+                return;
+            }
         });
 
         function requestDelete(collection, id, name) {
@@ -1560,7 +1880,7 @@
                     console.error('[Admin] Delete error:', error.code);
                     showToast('Failed to delete: ' + (error.code || 'unknown error'), 'error');
                 }
-            });
+            }, { okText: 'Delete', okClass: 'btn-danger' });
         }
 
         // ============================================
@@ -1588,7 +1908,7 @@
         });
 
         // ============================================
-        // EXPOSE GLOBALS (needed by inline onclick in generated forms)
+        // EXPOSE GLOBALS
         // ============================================
         window.adminLogin = adminLogin;
         window.adminLogout = adminLogout;
@@ -1596,6 +1916,9 @@
         window.closeSidebar = closeSidebar;
         window.handleMobileTabClick = handleMobileTabClick;
         window.showAddForm = showAddForm;
+        window.showEditStudentForm = showEditStudentForm;
+        window.saveStudentEdits = saveStudentEdits;
+        window.toggleStudentActive = toggleStudentActive;
         window.closeModal = closeModal;
         window.addToWhitelist = addToWhitelist;
         window.addVideo = addVideo;
