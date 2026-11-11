@@ -2690,8 +2690,14 @@ img, video, iframe {
     }
 }
 
+
+    /* ============================================
+   Campus Unfolded — Presence Widget
+   "Studying right now" · Live pill + dropdown
+   ============================================ */
+
 /* ============================================
-   PRESENCE — "Studying right now" widget
+   WIDGET WRAPPER — right-aligned pill
    ============================================ */
 .presence-widget {
     position: relative;
@@ -2701,6 +2707,9 @@ img, video, iframe {
     z-index: 100;
 }
 
+/* ============================================
+   PILL
+   ============================================ */
 .presence-pill {
     display: flex;
     align-items: center;
@@ -2729,7 +2738,14 @@ img, video, iframe {
     background: color-mix(in srgb, var(--accent) 6%, var(--surface));
 }
 
-/* Overlapping avatar stack */
+.presence-pill:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+}
+
+/* ============================================
+   AVATAR STACK — overlapping coloured circles
+   ============================================ */
 .presence-avatars {
     display: flex;
     align-items: center;
@@ -2753,6 +2769,8 @@ img, video, iframe {
     transition: transform 0.2s ease;
     text-transform: uppercase;
     user-select: none;
+    -webkit-user-select: none;
+    letter-spacing: 0.02em;
 }
 
 .presence-avatar:first-child {
@@ -2767,15 +2785,18 @@ img, video, iframe {
     transform: translateX(0);
 }
 
-/* When more than 4, show "+N" avatar */
+/* "+N" overflow avatar */
 .presence-avatar.presence-avatar-more {
     background: var(--surface-muted);
     color: var(--text-secondary);
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     font-weight: 700;
+    border-color: var(--surface);
 }
 
-/* Meta text */
+/* ============================================
+   META (pulse dot + count)
+   ============================================ */
 .presence-meta {
     display: flex;
     align-items: center;
@@ -2807,7 +2828,9 @@ img, video, iframe {
     font-variant-numeric: tabular-nums;
 }
 
-/* Dropdown */
+/* ============================================
+   DROPDOWN
+   ============================================ */
 .presence-dropdown {
     position: absolute;
     top: calc(100% + 8px);
@@ -2824,6 +2847,7 @@ img, video, iframe {
     transform: translateY(-6px) scale(0.98);
     pointer-events: none;
     transition: opacity 0.2s ease, transform 0.2s ease;
+    transform-origin: top right;
 }
 
 .presence-dropdown.open {
@@ -2832,6 +2856,7 @@ img, video, iframe {
     pointer-events: all;
 }
 
+/* Dropdown header */
 .presence-dropdown-header {
     display: flex;
     align-items: center;
@@ -2851,22 +2876,66 @@ img, video, iframe {
     height: 8px;
     border-radius: 50%;
     background: #10b981;
+    flex-shrink: 0;
     box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
     animation: presencePulse 2s infinite;
 }
 
+/* ============================================
+   LIST — scroll-optimized
+   ============================================ */
 .presence-list {
-    max-height: 320px;
+    max-height: 340px;
     overflow-y: auto;
     padding: 4px 0;
+    scroll-behavior: smooth;                /* JS-triggered smooth scroll */
+    overscroll-behavior: contain;           /* stop parent scroll at edges */
+    -webkit-overflow-scrolling: touch;      /* iOS momentum scroll */
+    position: relative;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
 }
 
+/* Slim custom scrollbar (WebKit) */
+.presence-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.presence-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.presence-list::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--border) 80%, transparent);
+    border-radius: 3px;
+    transition: background 0.2s ease;
+}
+
+.presence-list::-webkit-scrollbar-thumb:hover {
+    background: var(--border);
+}
+
+/* ============================================
+   LIST ITEM — staggered entry animation
+   ============================================ */
 .presence-list-item {
     display: flex;
     align-items: center;
     gap: 10px;
     padding: 10px 16px;
     transition: background-color 0.15s ease;
+    animation: presenceItemIn 0.25s ease-out both;
+}
+
+@keyframes presenceItemIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .presence-list-item:hover {
@@ -2885,6 +2954,7 @@ img, video, iframe {
     color: white;
     flex-shrink: 0;
     text-transform: uppercase;
+    letter-spacing: 0.02em;
 }
 
 .presence-list-info {
@@ -2899,6 +2969,9 @@ img, video, iframe {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .presence-list-time {
@@ -2907,6 +2980,7 @@ img, video, iframe {
     margin-top: 1px;
 }
 
+/* "You" badge */
 .presence-list-you {
     display: inline-block;
     padding: 1px 6px;
@@ -2919,13 +2993,34 @@ img, video, iframe {
     text-transform: uppercase;
     letter-spacing: 0.3px;
     vertical-align: middle;
+    flex-shrink: 0;
 }
 
+/* ============================================
+   FOOTER COUNTER (when list > 6)
+   ============================================ */
+.presence-list-footer {
+    padding: 10px 16px;
+    text-align: center;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    border-top: 1px solid var(--border);
+    background: var(--surface-muted);
+    font-weight: 500;
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+}
+
+/* ============================================
+   EMPTY STATE
+   ============================================ */
 .presence-empty {
     padding: 24px 16px;
     text-align: center;
     color: var(--text-secondary);
     font-size: 0.82rem;
+    line-height: 1.5;
 }
 
 .presence-empty .material-icons {
@@ -2935,7 +3030,9 @@ img, video, iframe {
     margin-bottom: 6px;
 }
 
-/* Mobile */
+/* ============================================
+   RESPONSIVE — tablet
+   ============================================ */
 @media (max-width: 768px) {
     .presence-widget {
         margin-bottom: 0.5rem;
@@ -2952,6 +3049,7 @@ img, video, iframe {
         height: 26px;
         font-size: 0.68rem;
         margin-left: -7px;
+        border-width: 1.5px;
     }
 
     .presence-meta {
@@ -2962,9 +3060,17 @@ img, video, iframe {
         right: 0;
         left: auto;
         min-width: 260px;
+        max-width: calc(100vw - 24px);
+    }
+
+    .presence-list {
+        max-height: 60vh;
     }
 }
 
+/* ============================================
+   RESPONSIVE — small phone
+   ============================================ */
 @media (max-width: 400px) {
     .presence-avatar {
         width: 24px;
@@ -2973,24 +3079,105 @@ img, video, iframe {
         margin-left: -6px;
     }
 
+    .presence-avatar.presence-avatar-more {
+        font-size: 0.6rem;
+    }
+
     .presence-meta {
         font-size: 0.68rem;
     }
 
+    .presence-count {
+        /* If space is tight on tiny screens, keep count visible */
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
     .presence-dropdown {
         min-width: 220px;
+        left: auto;
+        right: 0;
+    }
+
+    .presence-dropdown-header {
+        font-size: 0.72rem;
+        padding: 10px 14px;
+    }
+
+    .presence-list-item {
+        padding: 8px 14px;
+        gap: 8px;
+    }
+
+    .presence-list-avatar {
+        width: 30px;
+        height: 30px;
+        font-size: 0.78rem;
+    }
+
+    .presence-list-name {
+        font-size: 0.8rem;
+    }
+
+    .presence-list-time {
+        font-size: 0.68rem;
     }
 }
 
-/* Reduced motion */
+/* ============================================
+   LANDSCAPE PHONE — compact
+   ============================================ */
+@media (max-height: 500px) and (orientation: landscape) {
+    .presence-list {
+        max-height: 55vh;
+    }
+
+    .presence-dropdown {
+        max-height: 70vh;
+        max-height: 70dvh;
+    }
+}
+
+/* ============================================
+   DARK THEMES — avatar border contrast
+   ============================================ */
+[data-theme="dark"] .presence-avatar,
+[data-theme="midnight"] .presence-avatar,
+[data-theme="forest"] .presence-avatar,
+[data-theme="sunset"] .presence-avatar {
+    border-color: var(--surface);
+}
+
+/* ============================================
+   REDUCED MOTION
+   ============================================ */
 @media (prefers-reduced-motion: reduce) {
     .presence-dot,
     .presence-live-dot {
         animation: none !important;
     }
+
     .presence-dropdown,
     .presence-pill,
-    .presence-avatar {
+    .presence-avatar,
+    .presence-list-item,
+    .presence-list-footer {
         transition: none !important;
+        animation: none !important;
+    }
+
+    .presence-list {
+        scroll-behavior: auto;
     }
 }
+
+/* ============================================
+   PRINT — hide presence
+   ============================================ */
+@media print {
+    .presence-widget {
+        display: none !important;
+    }
+}
+
