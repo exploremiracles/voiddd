@@ -3724,7 +3724,29 @@ img, video, iframe {
 .story-section {
     scroll-margin-top: 24px;
 }
+/* Coverflow note button — has-note state */
+.coverflow-action[data-note-id].has-note {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-contrast);
+}
 
+.coverflow-action[data-note-id].has-note:hover {
+    background: var(--accent-hover);
+    filter: brightness(1.1);
+}
+
+/* Story note button — has-note state */
+.story-action-btn[data-note-id].has-note {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-contrast);
+}
+
+.story-action-btn[data-note-id].has-note:hover {
+    background: var(--accent-hover);
+    filter: brightness(1.1);
+}
 /* Hide fullscreen button on iOS where the API is unsupported */
 @supports (-webkit-touch-callout: none) {
     .fullscreen-btn {
