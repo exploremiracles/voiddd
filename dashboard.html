@@ -134,27 +134,27 @@
             </div>
 
             <div class="welcome-header">
-                <div class="welcome-left">
-                    <h1 class="welcome-name" id="welcomeName">Welcome!</h1>
-                    <p class="welcome-subtitle" id="welcomeSubtitle">Your learning journey continues</p>
-                </div>
-                <div class="header-actions">
-                    <button class="theme-btn" onclick="toggleThemeMenu()" aria-label="Change theme" title="Change Theme">
-                        <span class="material-icons" id="themeIcon">light_mode</span>
-                    </button>
-                    <button class="preferences-btn" onclick="togglePreferencesMenu()" aria-label="Preferences" title="Preferences">
-                        <span class="material-icons">settings</span>
-                    </button>
-                    <button class="refresh-btn" id="refreshBtn" onclick="refreshAllContent()" aria-label="Refresh content">
-                        <span class="material-icons">refresh</span>
-                        Refresh
-                    </button>
-                    <button class="logout-btn" onclick="showLogoutDialog()">
-                        <span class="material-icons">logout</span>
-                        Logout
-                    </button>
-                </div>
-            </div>
+    <div class="welcome-left">
+        <h1 class="welcome-name" id="welcomeName">Welcome!</h1>
+        <p class="welcome-subtitle" id="welcomeSubtitle">Your learning journey continues</p>
+    </div>
+    <div class="header-actions">
+        <button class="theme-btn" onclick="toggleThemeMenu()" aria-label="Change theme" title="Change Theme">
+            <span class="material-icons" id="themeIcon">light_mode</span>
+        </button>
+        <button class="preferences-btn" onclick="togglePreferencesMenu()" aria-label="Preferences" title="Preferences">
+            <span class="material-icons">settings</span>
+        </button>
+        <button class="refresh-btn" id="refreshBtn" onclick="refreshAllContent()" aria-label="Refresh content">
+            <span class="material-icons">refresh</span>
+            <span>Refresh</span>
+        </button>
+        <button class="logout-btn" onclick="showLogoutDialog()" aria-label="Logout">
+            <span class="material-icons">logout</span>
+            <span>Logout</span>
+        </button>
+    </div>
+</div>
 
             <!-- ========== PRESENCE WIDGET — "Studying right now" ========== -->
             <div id="presenceWidget" class="presence-widget" hidden>
