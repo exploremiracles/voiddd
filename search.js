@@ -3,11 +3,12 @@
  * Search across videos, PDFs, images, and posts.
  *
  * Fixes applied:
- * - currentUser is read via window.__CU_getUser() (IIFE-safe)
+ * - currentUser via window.__CU_getUser() (IIFE-safe)
  * - Class comparisons normalized to trimmed strings
  * - Access verified AFTER class chip click, before highlighting
  * - sessionStorage cache survives navigation
  * - array-contains-any for posts (1 query, not N)
+ * - Layout-aware scroll/highlight for Grid, List, Cover Flow, Story
  */
 
 (function () {
@@ -139,15 +140,7 @@
       this.attachListeners();
     }
 
-    // ----------------------------------------------------
-    // SINGLE SOURCE OF TRUTH for allowed classes.
-    // Tries (in order):
-    //   1. Dashboard's window.__CU_getUser() (IIFE-safe, fresh)
-    //   2. localStorage session (fallback)
-    //   3. Legacy window.currentUser (compatibility)
-    // ----------------------------------------------------
     _getStudentClasses() {
-      // 1. Preferred: dashboard getter
       if (typeof window.__CU_getUser === 'function') {
         try {
           const user = window.__CU_getUser();
@@ -157,7 +150,6 @@
         } catch (_) {}
       }
 
-      // 2. Fallback: localStorage session
       try {
         const raw = localStorage.getItem('session');
         if (raw) {
@@ -168,7 +160,6 @@
         }
       } catch (_) {}
 
-      // 3. Legacy global (never used with new dashboard, harmless)
       if (typeof window.currentUser !== 'undefined' && window.currentUser &&
           Array.isArray(window.currentUser.allowedClasses) &&
           window.currentUser.allowedClasses.length) {
@@ -185,9 +176,6 @@
       return this.classesCache || [];
     }
 
-    // ----------------------------------------------------
-    // UI
-    // ----------------------------------------------------
     createSearchUI() {
       if (document.getElementById('searchContainer')) return;
       const html = `
@@ -247,9 +235,6 @@
       this.listenersAttached = true;
     }
 
-    // ----------------------------------------------------
-    // SEARCH
-    // ----------------------------------------------------
     async performSearch(query) {
       if (!query || query.length < 2) { this.hideResults(); return; }
 
@@ -270,7 +255,6 @@
         return;
       }
 
-      // Prefix-match reuse
       for (const [key] of this.cache.map) {
         if (key.length >= 2 && lower.startsWith(key)) {
           const parent = this.cache.get(key);
@@ -405,9 +389,6 @@
       });
     }
 
-    // ----------------------------------------------------
-    // RENDER
-    // ----------------------------------------------------
     displayResults(results, append = false) {
       if (!this.searchResults) return;
 
@@ -506,14 +487,13 @@
     }
 
     // ----------------------------------------------------
-    // CLICK HANDLER — main fix is here
+    // CLICK HANDLER
     // ----------------------------------------------------
     async handleResultClick(item) {
       this.hideResults();
       const cfg = TYPE_CONFIG[item.type];
       if (!cfg) return;
 
-      // ── Resolve student's allowed classes (normalized) ──
       const studentClasses = this._getStudentClasses();
 
       if (!studentClasses.length) {
@@ -521,7 +501,6 @@
         return;
       }
 
-      // ── Find a class the student has that matches the item ──
       let targetClass = null;
       if (item.class) {
         if (Array.isArray(item.class)) {
@@ -541,7 +520,7 @@
         return;
       }
 
-      // ── Switch tab first ──
+      // Switch tab first
       if (typeof window.handleMobileTabClick === 'function') {
         window.handleMobileTabClick(cfg.tab);
       } else if (typeof switchTab === 'function') {
@@ -550,7 +529,7 @@
 
       await new Promise((r) => setTimeout(r, 350));
 
-      // ── Click the matching class chip ──
+      // Click the matching class chip
       const chips = document.querySelectorAll('.class-chips .chip');
       let chipToClick = null;
       let alreadyActive = false;
@@ -573,7 +552,7 @@
         await new Promise((r) => setTimeout(r, 900));
       }
 
-      // ── Verify the class switch actually happened ──
+      // Verify class switch
       let currentClass = null;
       if (typeof window.__CU_getSelectedClass === 'function') {
         currentClass = window.__CU_getSelectedClass();
@@ -590,7 +569,7 @@
         return;
       }
 
-      // ── Optional: switch subject if the item has one ──
+      // Switch subject if applicable
       if (item.subject) {
         const subjectChips = document.querySelectorAll('.subject-chips .chip');
         const normalizedSubject = String(item.subject).trim();
@@ -610,7 +589,77 @@
       this.clearBtn.classList.remove('visible');
     }
 
+    // ----------------------------------------------------
+    // LAYOUT-AWARE SCROLL & HIGHLIGHT
+    // ----------------------------------------------------
     scrollToAndHighlight(item) {
+      const contentArea = document.getElementById('contentArea');
+      if (!contentArea) {
+        this.showToast('Content area not found', 'error');
+        return;
+      }
+
+      const isCoverflow = contentArea.classList.contains('coverflow-view');
+      const isStory = contentArea.classList.contains('story-view');
+
+      // ---- COVER FLOW ----
+      if (isCoverflow) {
+        const idx = typeof cachedData !== 'undefined' && Array.isArray(cachedData)
+          ? cachedData.findIndex((d) => d.id === item.id)
+          : -1;
+
+        if (idx >= 0 && typeof window.__CU_setCoverflowIndex === 'function') {
+          this.showLoadingToast('Jumping to card...');
+          window.__CU_setCoverflowIndex(idx);
+
+          setTimeout(() => {
+            this.hideLoadingToast();
+            const card = document.querySelector(`.coverflow-card[data-cf-index="${idx}"]`);
+            if (card) {
+              card.classList.add('coverflow-search-highlight');
+              setTimeout(() => card.classList.remove('coverflow-search-highlight'), 2400);
+            }
+            this.showToast('Found!', 'success');
+          }, 400);
+          return;
+        }
+
+        this.showToast('Content not in this view. Try another class or layout.', 'error');
+        return;
+      }
+
+      // ---- STORY ----
+      if (isStory) {
+        const idx = typeof cachedData !== 'undefined' && Array.isArray(cachedData)
+          ? cachedData.findIndex((d) => d.id === item.id)
+          : -1;
+
+        if (idx >= 0) {
+          const section = document.querySelector(`.story-section[data-story-index="${idx}"]`);
+          if (section) {
+            this.showLoadingToast('Jumping to section...');
+            setTimeout(() => {
+              this.hideLoadingToast();
+              // Force reveal in case IntersectionObserver hasn't fired yet
+              section.classList.add('story-visible');
+              section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+              setTimeout(() => {
+                section.classList.add('story-search-highlight');
+                setTimeout(() => section.classList.remove('story-search-highlight'), 2400);
+              }, 500);
+
+              this.showToast('Found!', 'success');
+            }, 100);
+            return;
+          }
+        }
+
+        this.showToast('Content not in this view. Try another class or layout.', 'error');
+        return;
+      }
+
+      // ---- GRID / LIST ----
       let attempts = 0;
       const maxAttempts = 30;
       let autoLoads = 0;
@@ -640,7 +689,7 @@
         }
         if (attempts >= maxAttempts) {
           this.hideLoadingToast();
-          this.showToast('Content not found in current view. Try scrolling or reloading.', 'error');
+          this.showToast('Content not found. Try scrolling or reloading.', 'error');
           return;
         }
         setTimeout(tryFind, 200);
