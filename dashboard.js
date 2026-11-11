@@ -941,6 +941,11 @@ window.__CU_getUser = function () {
   };
 };
 
+  // Near your other window.* exports in dashboard.js:
+window.__CU_getSelectedClass = function () {
+  return selectedClass;
+};
+
 window.__CU_rerenderContent = function () {
   const area = $('contentArea');
   if (!area || !cachedData || cachedData.length === 0) return;
