@@ -2913,10 +2913,23 @@ img, video, iframe {
         page-break-inside: avoid;
     }
 }
+.ios-save-hint {
+    display: none;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+    font-style: italic;
+}
 
 /* Hide fullscreen button on iOS where the API is unsupported */
 @supports (-webkit-touch-callout: none) {
     .fullscreen-btn {
         display: none !important;
     }
+       .image-download-btn {
+        display: none !important;
+    }
+   .ios-save-hint {
+        display: block;
+   }
 }
