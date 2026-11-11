@@ -2913,3 +2913,10 @@ img, video, iframe {
         page-break-inside: avoid;
     }
 }
+
+/* Hide fullscreen button on iOS where the API is unsupported */
+@supports (-webkit-touch-callout: none) {
+    .fullscreen-btn {
+        display: none !important;
+    }
+}
