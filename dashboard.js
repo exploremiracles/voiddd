@@ -640,11 +640,18 @@
             <div class="card-title">${title}</div>
             ${subject ? `<div class="card-description">${subject}</div>` : ''}
             <div class="watched-indicator ${watched ? 'watched' : ''}"
-                 onclick="event.stopPropagation(); toggleWatched('${item.id}', '${title}', this); return false;"
-                 role="button" tabindex="0">
-              <span class="material-icons">${watched ? 'check_circle' : 'check_circle_outline'}</span>
-              <span>${watched ? 'Watched' : 'Mark as watched'}</span>
-            </div>
+     onclick="event.stopPropagation(); toggleWatched('${item.id}', '${title}', this); return false;"
+     role="button" tabindex="0">
+  <span class="material-icons">${watched ? 'check_circle' : 'check_circle_outline'}</span>
+  <span>${watched ? 'Watched' : 'Mark as watched'}</span>
+</div>
+<div class="note-indicator"
+     onclick="event.stopPropagation(); openNote('${item.id}', '${title}'); return false;"
+     role="button" tabindex="0"
+     aria-label="Open note for ${title}">
+  <span class="material-icons">sticky_note_2</span>
+  <span>Add note</span>
+</div>
           </div>
         </div>
       `;
