@@ -1311,8 +1311,22 @@ function generateCoverflowCardContent(item) {
     }, 3000);
   }
 
-  function onVideoWatched() { if (cachedData.length) updateVideoProgress(cachedData); }
-  function onVideoUnwatched() { if (cachedData.length) updateVideoProgress(cachedData); }
+  function onVideoWatched() {
+    if (cachedData.length) updateVideoProgress(cachedData);
+    // Refresh coverflow if it's the active view
+    const area = $('contentArea');
+    if (area && area.classList.contains('coverflow-view')) {
+        renderCoverflow();
+    }
+}
+
+function onVideoUnwatched() {
+    if (cachedData.length) updateVideoProgress(cachedData);
+    const area = $('contentArea');
+    if (area && area.classList.contains('coverflow-view')) {
+        renderCoverflow();
+    }
+}
 
   // ============================================
   // CARD CLICK DELEGATION
