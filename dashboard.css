@@ -1972,3 +1972,253 @@ img, video, iframe {
         page-break-inside: avoid;
     }
 }
+/* ============================================
+   TEXT SIZE SLIDER — Rounded Pill Fill
+   ============================================ */
+.text-size-control {
+    padding: 12px 16px 14px;
+    background: var(--menu-bg);
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.text-size-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--menu-fg);
+}
+
+.text-size-header .material-icons {
+    color: var(--menu-icon);
+    font-size: 18px;
+}
+
+.text-size-label {
+    color: var(--menu-icon);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    transition: color 0.2s ease;
+}
+
+/* Pill track wrapper */
+.pill-slider-wrap {
+    position: relative;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    cursor: pointer;
+}
+
+/* The visible pill */
+.pill-slider-track {
+    position: absolute;
+    inset: 0;
+    height: 14px;
+    margin: auto 0;
+    border-radius: 999px;
+    background: var(--menu-hover);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    pointer-events: none;
+}
+
+/* The fill — grows from left */
+.pill-slider-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-hover, var(--accent)));
+    box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 40%, transparent);
+    transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+
+/* Shine effect on the fill */
+.pill-slider-fill::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.35) 50%,
+        transparent 100%
+    );
+    transform: translateX(-100%);
+    animation: pillShine 3s ease-in-out infinite;
+}
+
+@keyframes pillShine {
+    0%, 100% { transform: translateX(-100%); }
+    50%      { transform: translateX(100%); }
+}
+
+/* The actual input — transparent but on top for dragging */
+.pill-slider-input {
+    position: relative;
+    width: 100%;
+    height: 32px;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+    z-index: 2;
+    outline: none;
+}
+
+.pill-slider-input::-webkit-slider-runnable-track {
+    height: 14px;
+    background: transparent;
+    border-radius: 999px;
+}
+
+.pill-slider-input::-moz-range-track {
+    height: 14px;
+    background: transparent;
+    border-radius: 999px;
+    border: none;
+}
+
+/* The draggable thumb */
+.pill-slider-input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--menu-bg);
+    border: 3px solid var(--accent);
+    box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.15),
+        0 0 0 0 color-mix(in srgb, var(--accent) 30%, transparent);
+    cursor: grab;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    margin-top: -6px;
+}
+
+.pill-slider-input::-moz-range-thumb {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--menu-bg);
+    border: 3px solid var(--accent);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    cursor: grab;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    box-sizing: border-box;
+}
+
+.pill-slider-input:hover::-webkit-slider-thumb {
+    transform: scale(1.08);
+    box-shadow:
+        0 4px 12px rgba(0, 0, 0, 0.18),
+        0 0 0 6px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+.pill-slider-input:hover::-moz-range-thumb {
+    transform: scale(1.08);
+    box-shadow:
+        0 4px 12px rgba(0, 0, 0, 0.18),
+        0 0 0 6px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+.pill-slider-input:active::-webkit-slider-thumb {
+    cursor: grabbing;
+    transform: scale(0.95);
+    box-shadow:
+        0 4px 10px rgba(0, 0, 0, 0.2),
+        0 0 0 8px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.pill-slider-input:active::-moz-range-thumb {
+    cursor: grabbing;
+    transform: scale(0.95);
+}
+
+.pill-slider-input:focus-visible::-webkit-slider-thumb {
+    box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.15),
+        0 0 0 4px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.pill-slider-input:focus-visible::-moz-range-thumb {
+    box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.15),
+        0 0 0 4px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+/* Tick marks below the pill */
+.text-size-ticks {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 10px;
+    pointer-events: none;
+}
+
+.text-size-tick {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--menu-border);
+    opacity: 0.5;
+    transition: all 0.2s ease;
+}
+
+.text-size-tick.passed {
+    background: var(--accent);
+    opacity: 0.6;
+}
+
+.text-size-tick.active {
+    background: var(--accent);
+    opacity: 1;
+    transform: scale(1.4);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+/* Mobile adjustments */
+@media (max-width: 480px) {
+    .text-size-control {
+        padding: 10px 14px 12px;
+    }
+    .pill-slider-input::-webkit-slider-thumb {
+        width: 24px;
+        height: 24px;
+        margin-top: -5px;
+    }
+    .pill-slider-input::-moz-range-thumb {
+        width: 24px;
+        height: 24px;
+    }
+    .text-size-tick {
+        width: 5px;
+        height: 5px;
+    }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .pill-slider-fill,
+    .pill-slider-input::-webkit-slider-thumb,
+    .pill-slider-input::-moz-range-thumb,
+    .text-size-tick,
+    .text-size-label {
+        transition: none !important;
+    }
+    .pill-slider-fill::after {
+        animation: none !important;
+    }
+}
+
+
