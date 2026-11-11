@@ -8,15 +8,17 @@
  * - Cleans up on unload / logout / tab hidden for >2min
  * - Filters by currently selected class (from dashboard.js)
  * - Graceful when dashboard isn't ready yet
+ * - Scroll-optimized list (smooth momentum + custom scrollbar)
+ * - Auto-scrolls to top only when new users join (not on every re-render)
  */
 
 (function () {
   'use strict';
 
   const COLLECTION = 'presence';
-  const HEARTBEAT_MS = 30000;          // refresh lastSeen every 30s
-  const STALE_MS = 90000;              // consider offline after 90s without heartbeat
-  const REFRESH_LIST_MS = 15000;       // re-sort/refresh dropdown every 15s
+  const HEARTBEAT_MS = 30000;         // refresh lastSeen every 30s
+  const STALE_MS = 90000;             // offline after 90s without heartbeat
+  const REFRESH_LIST_MS = 15000;      // refresh relative times in dropdown
   const AVATAR_LIMIT = 4;
   const PALETTE = [
     '#5a745f', '#7c9c6b', '#c98a5b', '#c96b8d',
@@ -33,10 +35,13 @@
   let isReady = false;
   let heartbeatTimer = null;
   let listRefreshTimer = null;
+  let classWatchTimer = null;
   let presenceUnsub = null;
   let dropdownOpen = false;
-  let latestPresence = [];             // [{userId, name, class, lastSeen, email}]
+  let latestPresence = [];
   let lastKnownSelectedClass = null;
+  let lastRenderedUserIds = '';      // signature to detect "did the set change?"
+  let hasRenderedOnce = false;       // first render scrolls to top unconditionally
 
   const $ = (id) => document.getElementById(id);
 
@@ -56,7 +61,6 @@
     if (!name) return '?';
     const cleaned = String(name).trim();
     if (!cleaned) return '?';
-    // Skip leading emojis / spaces; grab first letter/digit
     const match = cleaned.match(/[A-Za-z0-9]/);
     return match ? match[0].toUpperCase() : cleaned.charAt(0).toUpperCase();
   }
@@ -76,19 +80,32 @@
 
   function isStale(lastSeen) {
     if (!lastSeen) return true;
-    const ms = lastSeen.toMillis ? lastSeen.toMillis() : (lastSeen instanceof Date ? lastSeen.getTime() : Number(lastSeen));
+    const ms = lastSeen.toMillis
+      ? lastSeen.toMillis()
+      : (lastSeen instanceof Date ? lastSeen.getTime() : Number(lastSeen));
     return Date.now() - ms > STALE_MS;
   }
 
   function getSelectedClass() {
-    // Prefer dashboard getter (authoritative)
     if (typeof window.__CU_getSelectedClass === 'function') {
       return window.__CU_getSelectedClass();
     }
-    // Fallback: active class chip
     const activeChip = document.querySelector('.class-chips .chip.active');
     if (activeChip) return activeChip.dataset.class || activeChip.textContent.trim();
     return null;
+  }
+
+  function escapeHtml(text) {
+    if (text == null) return '';
+    const div = document.createElement('div');
+    div.textContent = String(text);
+    return div.innerHTML;
+  }
+
+  function signatureOf(list) {
+    // Sort-safe signature so we only auto-scroll when the SET changes,
+    // not when a timestamp updates.
+    return list.map((p) => p.userId).sort().join('|');
   }
 
   // ============================================
@@ -112,47 +129,41 @@
 
     currentUserId = user.uid;
     const cu = typeof window.__CU_getUser === 'function' ? window.__CU_getUser() : null;
-    currentUserName = (cu && cu.displayName) || user.displayName || (user.email || '').split('@')[0] || 'Student';
+    currentUserName = (cu && cu.displayName)
+      || user.displayName
+      || (user.email || '').split('@')[0]
+      || 'Student';
 
     isReady = true;
 
-    // Wait for the user to pick a class before showing anything
     lastKnownSelectedClass = getSelectedClass();
     if (lastKnownSelectedClass) {
       await joinPresence(lastKnownSelectedClass);
     }
 
-    // Watch class chip changes so we can update presence when class switches
     watchClassChipChanges();
 
-    // Cleanup listeners
     window.addEventListener('beforeunload', leavePresence);
     window.addEventListener('pagehide', leavePresence);
     document.addEventListener('visibilitychange', onVisibilityChange);
 
-    // Auth sign out → delete presence
     auth.onAuthStateChanged((u) => {
       if (!u) leavePresence();
     });
 
-    // Auto-refresh relative times in dropdown
     listRefreshTimer = setInterval(() => {
       if (dropdownOpen) renderList();
     }, REFRESH_LIST_MS);
   }
 
   function watchClassChipChanges() {
-    const chipsContainer = document.querySelector('.class-chips');
-    if (!chipsContainer) return;
-
-    // Poll for active class every second (cheap, avoids MutationObserver noise)
-    setInterval(() => {
+    if (classWatchTimer) clearInterval(classWatchTimer);
+    classWatchTimer = setInterval(() => {
       const cls = getSelectedClass();
       if (cls && cls !== lastKnownSelectedClass) {
         lastKnownSelectedClass = cls;
         joinPresence(cls);
       } else if (!cls && lastKnownSelectedClass) {
-        // Class deselected — leave presence
         lastKnownSelectedClass = null;
         leavePresence();
       }
@@ -166,7 +177,6 @@
     if (!isReady || !currentUserId || !className) return;
     currentClass = className;
 
-    // Ensure we're subscribed (once)
     if (!presenceUnsub) subscribeToPresence();
 
     await writePresence();
@@ -202,9 +212,7 @@
   }
 
   function onVisibilityChange() {
-    if (document.visibilityState === 'visible') {
-      writePresence();
-    }
+    if (document.visibilityState === 'visible') writePresence();
   }
 
   // ============================================
@@ -230,7 +238,7 @@
   }
 
   // ============================================
-  // RENDER
+  // FILTER
   // ============================================
   function filteredForCurrentClass() {
     const cls = lastKnownSelectedClass;
@@ -238,7 +246,6 @@
     return latestPresence
       .filter((p) => p.class === cls)
       .sort((a, b) => {
-        // Current user always first
         if (a.userId === currentUserId) return -1;
         if (b.userId === currentUserId) return 1;
         const ta = a.lastSeen?.toMillis?.() || 0;
@@ -247,6 +254,9 @@
       });
   }
 
+  // ============================================
+  // RENDER — pill
+  // ============================================
   function renderWidget() {
     const widget = $('presenceWidget');
     if (!widget) return;
@@ -254,14 +264,7 @@
     const list = filteredForCurrentClass();
     const count = list.length;
 
-    // Hide if no class selected
-    if (!lastKnownSelectedClass) {
-      widget.hidden = true;
-      return;
-    }
-
-    // Always show if there's at least the current user OR someone else
-    if (count === 0) {
+    if (!lastKnownSelectedClass || count === 0) {
       widget.hidden = true;
       return;
     }
@@ -301,10 +304,12 @@
       headerEl.textContent = `Studying ${lastKnownSelectedClass} — ${count} online`;
     }
 
-    // Render list if dropdown is open
     if (dropdownOpen) renderList();
   }
 
+  // ============================================
+  // RENDER — dropdown list (scroll-optimized)
+  // ============================================
   function renderList() {
     const listEl = $('presenceList');
     if (!listEl) return;
@@ -318,16 +323,19 @@
           No one else is studying ${escapeHtml(lastKnownSelectedClass || '')} right now.
         </div>
       `;
+      lastRenderedUserIds = '';
       return;
     }
 
-    const html = list.map((p) => {
+    // Build items with staggered entry animation
+    const html = list.map((p, i) => {
       const initial = initialFor(p.name);
       const color = colorFor(p.userId || p.name);
       const isYou = p.userId === currentUserId;
       const time = relativeTime(p.lastSeen);
+      const delay = Math.min(i, 15) * 20;
       return `
-        <div class="presence-list-item">
+        <div class="presence-list-item" style="animation-delay:${delay}ms">
           <div class="presence-list-avatar" style="background:${color}">${initial}</div>
           <div class="presence-list-info">
             <div class="presence-list-name">
@@ -340,14 +348,23 @@
       `;
     }).join('');
 
-    listEl.innerHTML = html;
-  }
+    // Footer counter (only if list is long enough to need context)
+    const footer = list.length > 6
+      ? `<div class="presence-list-footer">${list.length} students studying now</div>`
+      : '';
 
-  function escapeHtml(text) {
-    if (text == null) return '';
-    const div = document.createElement('div');
-    div.textContent = String(text);
-    return div.innerHTML;
+    listEl.innerHTML = html + footer;
+
+    // Smooth scroll to top ONLY when the set of users changes
+    const newSignature = signatureOf(list);
+    if (!hasRenderedOnce) {
+      hasRenderedOnce = true;
+      listEl.scrollTop = 0;
+    } else if (newSignature !== lastRenderedUserIds && listEl.scrollTop > 40) {
+      // Only when user was scrolled down AND someone joined/left
+      listEl.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    lastRenderedUserIds = newSignature;
   }
 
   // ============================================
@@ -360,6 +377,9 @@
     dropdownOpen = true;
     dd.classList.add('open');
     pill.setAttribute('aria-expanded', 'true');
+    // Reset render state so first render after open scrolls to top
+    hasRenderedOnce = false;
+    lastRenderedUserIds = '';
     renderList();
   }
 
@@ -390,9 +410,7 @@
     document.addEventListener('click', (e) => {
       if (!dropdownOpen) return;
       const widget = $('presenceWidget');
-      if (widget && !widget.contains(e.target)) {
-        closeDropdown();
-      }
+      if (widget && !widget.contains(e.target)) closeDropdown();
     });
 
     document.addEventListener('keydown', (e) => {
@@ -404,7 +422,6 @@
   // BOOT
   // ============================================
   function boot() {
-    // Wire up click handlers first (they exist even before user is ready)
     setupDropdownHandlers();
     init();
   }
