@@ -2939,28 +2939,16 @@ img, video, iframe {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: clamp(340px, 55vh, 500px);
+    height: clamp(380px, 60vh, 540px);      /* ← increased from 340–500 */
     perspective: 1400px;
     perspective-origin: 50% 40%;
     margin: 1rem 0 2rem;
     user-select: none;
     -webkit-user-select: none;
     touch-action: pan-y;
-    overflow: hidden; 
-      mask-image: linear-gradient(
-        to right,
-        transparent 0%,
-        black 8%,
-        black 92%,
-        transparent 100%
-    );
-    -webkit-mask-image: linear-gradient(
-        to right,
-        transparent 0%,
-        black 8%,
-        black 92%,
-        transparent 100%
-    );
+    overflow: hidden;
+    padding-bottom: 56px;                    /* ← reserve space for dots */
+    box-sizing: border-box;
 }
 
 .coverflow-track {
@@ -2969,6 +2957,8 @@ img, video, iframe {
     height: 100%;
     transform-style: preserve-3d;
     transition: transform 0.3s ease;
+    /* Shift the cards up by half the reserved space */
+    margin-bottom: 56px;
 }
 
 .coverflow-card {
@@ -3200,7 +3190,7 @@ img, video, iframe {
 /* Pagination dots */
 .coverflow-dots {
     position: absolute;
-    bottom: 16px;
+    bottom: 16px;      /* sits in the reserved 56px space */
     left: 50%;
     transform: translateX(-50%);
     display: flex;
