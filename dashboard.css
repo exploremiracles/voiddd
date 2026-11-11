@@ -3074,6 +3074,7 @@ img, video, iframe {
     flex-direction: column;
     gap: 0.35rem;
     overflow: hidden;
+    /* margin-top: auto pushes actions to bottom */
 }
 
 .coverflow-title {
@@ -3096,6 +3097,65 @@ img, video, iframe {
     -webkit-line-clamp: 1;
     -webkit-box-orient: vertical;
     overflow: hidden;
+}
+
+/* Action buttons inside coverflow card */
+.coverflow-actions {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: auto;
+    padding-top: 0.5rem;
+}
+
+.coverflow-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    background: var(--surface-muted);
+    border: 1.5px solid var(--border);
+    border-radius: 50%;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.coverflow-action:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-contrast);
+    transform: translateY(-1px);
+}
+
+.coverflow-action.active {
+    background: var(--success);
+    border-color: var(--success);
+    color: white;
+}
+
+.coverflow-action.active:hover {
+    background: var(--success);
+    filter: brightness(1.1);
+}
+
+.coverflow-action .material-icons {
+    font-size: 18px;
+}
+
+/* Only show action buttons on the focused card */
+.coverflow-card:not([aria-selected="true"]) .coverflow-actions {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.coverflow-card[aria-selected="true"] .coverflow-actions {
+    opacity: 1;
+    pointer-events: auto;
 }
 
 /* Nav arrows */
