@@ -14,7 +14,7 @@
 // ============================================
 
 // Bump these on every deploy. Or inject __BUILD__ at build time.
-const VERSION = 'v2.1.1';
+const VERSION = 'v2.1.15';
 const STATIC_CACHE = `cu-static-${VERSION}`;
 const RUNTIME_CACHE = `cu-runtime-${VERSION}`;
 const IMAGE_CACHE = `cu-images-${VERSION}`;
