@@ -3636,6 +3636,42 @@ img, video, iframe {
     }
 }
 
+/* ============================================
+   SEARCH HIGHLIGHT — Cover Flow
+   ============================================ */
+.coverflow-card.coverflow-search-highlight {
+    animation: coverflowSearchPulse 2.4s ease-out;
+}
+
+@keyframes coverflowSearchPulse {
+    0%   { box-shadow: var(--shadow-md); }
+    15%  { box-shadow: 0 0 0 6px color-mix(in srgb, var(--success) 40%, transparent),
+                       0 20px 40px rgba(0, 0, 0, 0.3); }
+    50%  { box-shadow: 0 0 0 6px color-mix(in srgb, var(--success) 30%, transparent),
+                       0 20px 40px rgba(0, 0, 0, 0.3); }
+    100% { box-shadow: var(--shadow-md); }
+}
+
+/* ============================================
+   SEARCH HIGHLIGHT — Story View
+   ============================================ */
+.story-section.story-search-highlight {
+    animation: storySearchPulse 2.4s ease-out;
+    border-radius: var(--radius);
+}
+
+@keyframes storySearchPulse {
+    0%   { background: transparent; }
+    20%  { background: color-mix(in srgb, var(--success) 12%, transparent); }
+    100% { background: transparent; }
+}
+
+/* Make sure story sections get a slight scroll-margin so the top
+   doesn't get hidden under any sticky headers */
+.story-section {
+    scroll-margin-top: 24px;
+}
+
 /* Hide fullscreen button on iOS where the API is unsupported */
 @supports (-webkit-touch-callout: none) {
     .fullscreen-btn {
