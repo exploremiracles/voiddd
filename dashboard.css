@@ -2946,6 +2946,21 @@ img, video, iframe {
     user-select: none;
     -webkit-user-select: none;
     touch-action: pan-y;
+    overflow: hidden; 
+      mask-image: linear-gradient(
+        to right,
+        transparent 0%,
+        black 8%,
+        black 92%,
+        transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+        to right,
+        transparent 0%,
+        black 8%,
+        black 92%,
+        transparent 100%
+    );
 }
 
 .coverflow-track {
