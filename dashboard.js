@@ -86,11 +86,20 @@
   // AUTH GATE
   // ============================================
   function hideAuthGate() {
-    const gate = $('authGate');
-    if (!gate) return;
+  const gate = $('authGate') || document.querySelector('.page-transition.active') || $('campusLoader');
+  if (gate) {
     gate.classList.remove('active');
-    $('dashboardRoot')?.removeAttribute('hidden');
+    gate.style.display = 'none'; // belt and suspenders
   }
+  // Also hide campus loader if it's a separate element
+  const loader = $('campusLoader');
+  if (loader && loader !== gate) {
+    loader.classList.remove('active');
+    loader.style.display = 'none';
+  }
+  $('dashboardRoot')?.removeAttribute('hidden');
+  document.body.style.overflow = 'auto';
+}
 
   function failClosed(message, reason) {
     if (message) {
