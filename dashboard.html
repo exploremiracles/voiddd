@@ -156,6 +156,28 @@
                 </div>
             </div>
 
+            <!-- ========== PRESENCE WIDGET — "Studying right now" ========== -->
+            <div id="presenceWidget" class="presence-widget" hidden>
+                <button class="presence-pill" id="presencePill"
+                        aria-haspopup="listbox" aria-expanded="false"
+                        aria-label="Students studying now">
+                    <div class="presence-avatars" id="presenceAvatars"></div>
+                    <div class="presence-meta">
+                        <span class="presence-dot" aria-hidden="true"></span>
+                        <span class="presence-count" id="presenceCount">0 studying</span>
+                    </div>
+                </button>
+
+                <div class="presence-dropdown" id="presenceDropdown"
+                     role="listbox" aria-label="Students currently studying">
+                    <div class="presence-dropdown-header">
+                        <span class="presence-live-dot" aria-hidden="true"></span>
+                        <span id="presenceHeaderText">Studying now</span>
+                    </div>
+                    <div class="presence-list" id="presenceList"></div>
+                </div>
+            </div>
+
             <div class="filters-section">
                 <div class="filter-label">Select Class:</div>
                 <div class="class-chips" id="classChips" role="tablist"></div>
@@ -283,6 +305,7 @@
     <script src="dashboard.js" defer></script>
     <script src="watched-badge.js" defer></script>
     <script src="notes.js" defer></script>
+    <script src="presence.js" defer></script>
     <script src="search.js" defer></script>
 </body>
 </html>
