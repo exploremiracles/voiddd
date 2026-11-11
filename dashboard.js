@@ -1506,6 +1506,13 @@ function onVideoUnwatched() {
     appendContent();
   };
 
+  window.__CU_refreshCoverflow = function () {
+    const area = $('contentArea');
+    if (area && area.classList.contains('coverflow-view')) {
+        renderCoverflow();
+    }
+};
+
   window.__CU_setCoverflowIndex = setCoverflowIndex;
   window.__CU_getCoverflowIndex = () => coverflowIndex;
   window.__CU_renderStoryView = renderStoryView;
