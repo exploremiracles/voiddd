@@ -195,34 +195,113 @@
     }, 3000);
   }
 
-  // ============================================
-  // DOWNLOAD IMAGE
-  // ============================================
-  async function downloadCurrentImage() {
+// ============================================
+// DEVICE DETECTION
+// ============================================
+function isIOSDevice() {
+    if (typeof navigator === 'undefined') return false;
+    const ua = navigator.userAgent || navigator.vendor || '';
+    // Standard iOS devices
+    if (/iPad|iPhone|iPod/.test(ua)) return true;
+    // iPadOS 13+ reports as "Macintosh" but has touch support
+    if (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) return true;
+    return false;
+}
+
+// ============================================
+// DOWNLOAD / SAVE IMAGE (iOS-aware)
+// ============================================
+async function downloadCurrentImage() {
     if (!currentImageUrl) return;
+
     const btn = $('imageDownloadBtn');
+    if (!btn) return;
+
     const original = btn.innerHTML;
+    const filename = (currentImageTitle || 'image').replace(/[^\w\-]+/g, '_') + '.jpg';
+    const onIOS = isIOSDevice();
+
     try {
-      btn.innerHTML = '<span class="material-icons">hourglass_empty</span> Downloading...';
-      btn.disabled = true;
-      const res = await fetch(currentImageUrl, { mode: 'cors' });
-      if (!res.ok) throw new Error('fetch failed');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = (currentImageTitle || 'image').replace(/[^\w\-]+/g, '_') + '.jpg';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch (_) {
-      window.open(currentImageUrl, '_blank', 'noopener,noreferrer');
+        btn.disabled = true;
+        btn.innerHTML = `<span class="material-icons">hourglass_empty</span> ${onIOS ? 'Preparing…' : 'Downloading…'}`;
+
+        // 1. Fetch the image as a blob (needed for both paths)
+        const res = await fetch(currentImageUrl, { mode: 'cors' });
+        if (!res.ok) throw new Error('fetch-failed');
+        const blob = await res.blob();
+
+        // 2. Try Web Share API on iOS (native "Save Image" sheet)
+        if (onIOS && typeof navigator.share === 'function') {
+            try {
+                const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+
+                // Some browsers support share() but not files — must check
+                const canShareFiles = typeof navigator.canShare === 'function'
+                    && navigator.canShare({ files: [file] });
+
+                if (canShareFiles) {
+                    await navigator.share({
+                        files: [file],
+                        title: currentImageTitle || 'Save Image'
+                    });
+                    // Share sheet completed — user saved to Photos/Files
+                    return;
+                }
+                // Fall through to download if file sharing isn't supported
+            } catch (shareErr) {
+                // User cancelled the share sheet — that's fine
+                if (shareErr && shareErr.name === 'AbortError') return;
+                // Otherwise fall through to download fallback
+                console.warn('[Download] Share failed, trying fallback:', shareErr?.message);
+            }
+        }
+
+        // 3. Standard download path (works on desktop, Android, and iOS 13+ as fallback)
+        const url = URL.createObjectURL(blob);
+
+        // For iOS fallback: opening in new tab gives the user a chance
+        // to long-press → "Save Image"
+        if (onIOS) {
+            const win = window.open(url, '_blank');
+            if (!win) {
+                // Popup blocked — fall back to anchor download
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.rel = 'noopener';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            }
+            // Revoke later so the tab has time to load
+            setTimeout(() => URL.revokeObjectURL(url), 30000);
+            return;
+        }
+
+        // Non-iOS: standard anchor download
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+
+    } catch (err) {
+        // Final fallback — open image directly in a new tab
+        console.warn('[Download] Failed:', err?.message);
+        try {
+            window.open(currentImageUrl, '_blank', 'noopener,noreferrer');
+        } catch (_) {}
+
     } finally {
-      btn.innerHTML = original;
-      btn.disabled = false;
+        // Restore button state on every path
+        btn.innerHTML = original;
+        btn.disabled = false;
     }
-  }
+}
+  
 
   // ============================================
   // REFRESH
@@ -821,9 +900,17 @@
     $('modalImage').src = url;
     $('imageModalTitle').textContent = title;
     $('imageModalDescription').textContent = `${subject || ''}${desc ? ' • ' + desc : ''}`;
+
+    // Update button label based on platform
+    const btn = $('imageDownloadBtn');
+    if (btn) {
+        const label = isIOSDevice() ? 'Save Image' : 'Download';
+        btn.innerHTML = `<span class="material-icons">${isIOSDevice() ? 'ios_share' : 'download'}</span> ${label}`;
+    }
+
     $('imageModal').style.display = 'flex';
     document.body.style.overflow = 'hidden';
-  }
+}
   function closeImageModal() {
     $('imageModal').style.display = 'none';
     $('modalImage').src = '';
