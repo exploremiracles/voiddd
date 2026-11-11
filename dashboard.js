@@ -30,7 +30,8 @@
     },
     ROUTES: { LOGIN: 'index.html' },
     PAGE_SIZE: 5,
-    DISPLAY_SESSION_HINT_MS: 2 * 60 * 60 * 1000
+    DISPLAY_SESSION_HINT_MS: 2 * 60 * 60 * 1000,
+    STORY_PAGE_SIZE: 5
   });
 
   const TABS = ['videos', 'pdfs', 'images', 'posts'];
@@ -55,6 +56,12 @@
   let classLoadToken = 0;
   let contentLoadToken = 0;
   let coverflowIndex = 0;
+
+  // Story view state
+  let storyObserver = null;
+  let storyLoadObserver = null;
+  let storyRenderedCount = 0;
+  let storyLoadedAll = false;
 
   // ============================================
   // UTIL
@@ -556,22 +563,22 @@
   }
 
   // ============================================
-  // CONTENT
+  // CONTENT LOADING
   // ============================================
   async function loadContent(token) {
     if (!selectedClass) return;
     const area = $('contentArea');
     if (!area) return;
 
-       // Disconnect story observer when reloading content
-    if (typeof storyObserver !== 'undefined' && storyObserver) {
-    storyObserver.disconnect();
-    storyObserver = null;
-}
-if (typeof storyLoadObserver !== 'undefined' && storyLoadObserver) {
-    storyLoadObserver.disconnect();
-    storyLoadObserver = null;
-}
+    // Disconnect story observers when reloading content
+    if (storyObserver) {
+      storyObserver.disconnect();
+      storyObserver = null;
+    }
+    if (storyLoadObserver) {
+      storyLoadObserver.disconnect();
+      storyLoadObserver = null;
+    }
 
     const myToken = token !== undefined ? token : ++contentLoadToken;
     const tabAtStart = currentTab;
@@ -634,7 +641,7 @@ if (typeof storyLoadObserver !== 'undefined' && storyLoadObserver) {
   }
 
   // ============================================
-  // CARD RENDER
+  // CARD RENDER (Grid + List)
   // ============================================
   function generateCardHtml(item) {
     const title = escapeHtml(item.title || '');
@@ -754,9 +761,9 @@ if (typeof storyLoadObserver !== 'undefined' && storyLoadObserver) {
     }
 
     if (area.classList.contains('story-view')) {
-    renderStoryView();
-    return;
-}
+      renderStoryView();
+      return;
+    }
 
     area.querySelector('.load-more-btn:not(.modal-content .load-more-btn)')?.remove();
 
@@ -860,15 +867,15 @@ if (typeof storyLoadObserver !== 'undefined' && storyLoadObserver) {
 
       card.innerHTML = generateCoverflowCardContent(item);
       card.addEventListener('click', (e) => {
-    // Don't trigger card action if clicked on action button
-    if (e.target.closest('[data-watched-id], [data-note-id]')) return;
+        // Don't trigger card action if clicked on action button
+        if (e.target.closest('[data-watched-id], [data-note-id]')) return;
 
-    if (i === coverflowIndex) {
-        handleCoverflowOpen(item);
-    } else {
-        setCoverflowIndex(i);
-    }
-});
+        if (i === coverflowIndex) {
+          handleCoverflowOpen(item);
+        } else {
+          setCoverflowIndex(i);
+        }
+      });
 
       track.appendChild(card);
     });
@@ -911,317 +918,90 @@ if (typeof storyLoadObserver !== 'undefined' && storyLoadObserver) {
     wrapper.appendChild(counter);
   }
 
-  // ============================================
-// STORYTELLING SCROLL VIEW
-// ============================================
-let storyObserver = null;
-let storyLoadObserver = null;
-let storyRenderedCount = 0;
-let storyLoadedAll = false;
-const STORY_PAGE_SIZE = 5;
-
-function renderStoryView() {
-    const area = $('contentArea');
-    if (!area) return;
-
-    // Clean up previous observers
-    if (storyObserver) {
-        storyObserver.disconnect();
-        storyObserver = null;
-    }
-    if (storyLoadObserver) {
-        storyLoadObserver.disconnect();
-        storyLoadObserver = null;
-    }
-
-    area.querySelector('.story-wrapper')?.remove();
-
-    if (!cachedData.length) return;
-
-    // Reset counters
-    storyRenderedCount = 0;
-    storyLoadedAll = false;
-
-    const wrapper = document.createElement('div');
-    wrapper.className = 'story-wrapper';
-    area.appendChild(wrapper);
-
-    // Reveal observer
-    if ('IntersectionObserver' in window) {
-        storyObserver = new IntersectionObserver((entries) => {
-            entries.forEach((entry) => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('story-visible');
-                    storyObserver.unobserve(entry.target);
-                }
-            });
-        }, {
-            rootMargin: '0px 0px -15% 0px',
-            threshold: 0.12
-        });
-    }
-
-    // Load-more observer — triggers when user nears the bottom
-    if ('IntersectionObserver' in window) {
-        storyLoadObserver = new IntersectionObserver((entries) => {
-            entries.forEach((entry) => {
-                if (entry.isIntersecting && !storyLoadedAll) {
-                    appendStorySections();
-                }
-            });
-        }, {
-            rootMargin: '400px 0px 400px 0px',
-            threshold: 0
-        });
-    }
-
-    // Render first batch
-    appendStorySections();
-
-    // If no IO support, load everything
-    if (!('IntersectionObserver' in window)) {
-        while (storyRenderedCount < cachedData.length) {
-            appendStorySections();
-        }
-    }
-}
-
-function appendStorySections() {
-    const wrapper = document.querySelector('.story-wrapper');
-    if (!wrapper || storyLoadedAll) return;
-
-    const start = storyRenderedCount;
-    const end = Math.min(start + STORY_PAGE_SIZE, cachedData.length);
-    if (start >= end) {
-        storyLoadedAll = true;
-        return;
-    }
-
-    // Remove any existing sentinel
-    wrapper.querySelector('.story-sentinel')?.remove();
-
-    const frag = document.createDocumentFragment();
-
-    for (let i = start; i < end; i++) {
-        const item = cachedData[i];
-        const section = document.createElement('section');
-        section.className = 'story-section';
-        section.dataset.storyIndex = String(i);
-        section.innerHTML = generateStorySectionContent(item, i);
-        frag.appendChild(section);
-    }
-
-    wrapper.appendChild(frag);
-    storyRenderedCount = end;
-
-    if (storyRenderedCount >= cachedData.length) {
-        storyLoadedAll = true;
-    } else {
-        // Add sentinel for load-more observer
-        const sentinel = document.createElement('div');
-        sentinel.className = 'story-sentinel';
-        sentinel.style.cssText = 'height:1px; width:100%;';
-        wrapper.appendChild(sentinel);
-        if (storyLoadObserver) storyLoadObserver.observe(sentinel);
-    }
-
-    // Wire CTA buttons in newly added sections
-    wrapper.querySelectorAll('[data-story-action]').forEach((btn) => {
-        if (btn.dataset.wired === 'true') return;
-        btn.dataset.wired = 'true';
-        btn.addEventListener('click', () => {
-            const idx = parseInt(btn.dataset.storyIndex, 10);
-            const item = cachedData[idx];
-            if (item) handleCoverflowOpen(item);
-        });
-    });
-
-    // Observe newly added sections for reveal
-    if (storyObserver) {
-        wrapper.querySelectorAll('.story-section:not(.story-visible)').forEach((el) => {
-            if (!el.dataset.observed) {
-                el.dataset.observed = 'true';
-                storyObserver.observe(el);
-            }
-        });
-    } else {
-        // Fallback: show immediately
-        wrapper.querySelectorAll('.story-section').forEach((el) => {
-            el.classList.add('story-visible');
-        });
-    }
-}
-
-
-function generateStorySectionContent(item, index) {
-    const title = escapeHtml(item.title || 'Untitled');
-    const subject = escapeHtml(item.subject || '');
-    const description = escapeHtml(item.description || item.content || '');
-    const indexLabel = String(index + 1).padStart(2, '0');
-
-    let imageHtml = '';
-    let ctaLabel = '';
-    let ctaIcon = '';
-
-    if (currentTab === 'videos') {
-        const vid = extractYouTubeId(item.videoUrl);
-        const thumb = vid ? `https://img.youtube.com/vi/${vid}/maxresdefault.jpg` : '';
-        imageHtml = thumb
-            ? `<img src="${thumb}" loading="lazy" alt=""
-                    onerror="this.onerror=null;this.src='https://img.youtube.com/vi/${vid}/hqdefault.jpg';">`
-            : '<div class="story-placeholder"><span class="material-icons">play_circle</span></div>';
-        ctaLabel = 'Watch Lecture';
-        ctaIcon = 'play_arrow';
-    } else if (currentTab === 'pdfs') {
-        imageHtml = '<div class="story-placeholder"><span class="material-icons">picture_as_pdf</span></div>';
-        ctaLabel = 'Read PDF';
-        ctaIcon = 'open_in_new';
-    } else if (currentTab === 'images') {
-        imageHtml = item.imageUrl
-            ? `<img src="${escapeAttr(item.imageUrl)}" loading="lazy" alt="">`
-            : '<div class="story-placeholder"><span class="material-icons">image</span></div>';
-        ctaLabel = 'View Full Image';
-        ctaIcon = 'zoom_in';
-    } else if (currentTab === 'posts') {
-        imageHtml = '<div class="story-placeholder"><span class="material-icons">article</span></div>';
-        ctaLabel = item.url ? 'Read More' : '';
-        ctaIcon = 'arrow_forward';
-    }
-
-    const classLabel = Array.isArray(item.class)
-        ? item.class.join(' · ')
-        : (item.class || '');
-
-    const metaParts = [subject, classLabel].filter(Boolean);
-
-    // Alternate the text card side per section (left, right, left, ...)
-    const sideClass = index % 2 === 0 ? 'story-card-left' : 'story-card-right';
-
-    return `
-        <div class="story-image-wrap">
-            ${imageHtml}
-        </div>
-
-        <div class="story-card ${sideClass}">
-            <div class="story-index">${indexLabel}</div>
-            <h2 class="story-title">${title}</h2>
-            ${metaParts.length ? `
-                <div class="story-meta">
-                    ${metaParts.map((p, idx) => `
-                        ${idx > 0 ? '<span class="story-meta-dot">·</span>' : ''}
-                        <span class="story-meta-item">${escapeHtml(p)}</span>
-                    `).join('')}
-                </div>
-            ` : ''}
-            ${description ? `<p class="story-description">${description}</p>` : ''}
-            ${ctaLabel ? `
-                <button class="story-cta"
-                        data-story-action
-                        data-story-index="${index}">
-                    <span class="material-icons">${ctaIcon}</span>
-                    <span>${ctaLabel}</span>
-                </button>
-            ` : ''}
-        </div>
-    `;
-}
-
-function generateCoverflowCardContent(item) {
+  function generateCoverflowCardContent(item) {
     const title = escapeHtml(item.title || '');
     const titleAttr = escapeAttr(item.title || '');
     const subject = escapeHtml(item.subject || '');
     const itemIdAttr = escapeAttr(item.id);
 
     if (currentTab === 'videos') {
-        const vid = extractYouTubeId(item.videoUrl);
-        const thumb = vid ? `https://img.youtube.com/vi/${vid}/hqdefault.jpg` : '';
-        const duration = escapeHtml(item.duration || '');
-        const watched = typeof isVideoWatched === 'function' ? isVideoWatched(item.id) : false;
+      const vid = extractYouTubeId(item.videoUrl);
+      const thumb = vid ? `https://img.youtube.com/vi/${vid}/hqdefault.jpg` : '';
+      const duration = escapeHtml(item.duration || '');
+      const watched = typeof isVideoWatched === 'function' ? isVideoWatched(item.id) : false;
 
-        return `
-            <div class="coverflow-thumb">
-                ${thumb ? `<img src="${thumb}" loading="lazy" alt="">` : ''}
-                ${duration ? `<span class="video-duration">${duration}</span>` : ''}
-                ${item.videoUrl ? '<div class="coverflow-play"><span class="material-icons">play_arrow</span></div>' : ''}
-            </div>
-            <div class="coverflow-info">
-                <div class="coverflow-title">${title}</div>
-                ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
-                <div class="coverflow-actions">
-                    <button class="coverflow-action ${watched ? 'active' : ''}"
-                            data-watched-id="${itemIdAttr}"
-                            data-watched-title="${titleAttr}"
-                            aria-label="${watched ? 'Unmark watched' : 'Mark as watched'}">
-                        <span class="material-icons">${watched ? 'check_circle' : 'check_circle_outline'}</span>
-                    </button>
-                    <button class="coverflow-action"
-                            data-note-id="${itemIdAttr}"
-                            data-note-title="${titleAttr}"
-                            aria-label="Open note">
-                        <span class="material-icons">sticky_note_2</span>
-                    </button>
-                </div>
-            </div>
-        `;
+      return `
+        <div class="coverflow-thumb">
+          ${thumb ? `<img src="${thumb}" loading="lazy" alt="">` : ''}
+          ${duration ? `<span class="video-duration">${duration}</span>` : ''}
+          ${item.videoUrl ? '<div class="coverflow-play"><span class="material-icons">play_arrow</span></div>' : ''}
+        </div>
+        <div class="coverflow-info">
+          <div class="coverflow-title">${title}</div>
+          ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
+          <div class="coverflow-actions">
+            <button class="coverflow-action ${watched ? 'active' : ''}"
+                    data-watched-id="${itemIdAttr}"
+                    data-watched-title="${titleAttr}"
+                    aria-label="${watched ? 'Unmark watched' : 'Mark as watched'}">
+              <span class="material-icons">${watched ? 'check_circle' : 'check_circle_outline'}</span>
+            </button>
+            <button class="coverflow-action"
+                    data-note-id="${itemIdAttr}"
+                    data-note-title="${titleAttr}"
+                    aria-label="Open note">
+              <span class="material-icons">sticky_note_2</span>
+            </button>
+          </div>
+        </div>
+      `;
     }
     if (currentTab === 'pdfs') {
-        return `
-            <div class="coverflow-thumb coverflow-thumb-pdf">
-                <span class="material-icons">picture_as_pdf</span>
-            </div>
-            <div class="coverflow-info">
-                <div class="coverflow-title">${title}</div>
-                ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
-            </div>
-        `;
+      return `
+        <div class="coverflow-thumb coverflow-thumb-pdf">
+          <span class="material-icons">picture_as_pdf</span>
+        </div>
+        <div class="coverflow-info">
+          <div class="coverflow-title">${title}</div>
+          ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
+        </div>
+      `;
     }
     if (currentTab === 'images') {
-        const imgSrc = item.imageUrl || '';
-        if (!imgSrc) {
-            return `
-                <div class="coverflow-thumb coverflow-thumb-post">
-                    <span class="material-icons">image</span>
-                </div>
-                <div class="coverflow-info">
-                    <div class="coverflow-title">${title}</div>
-                    ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
-                </div>
-            `;
-        }
+      const imgSrc = item.imageUrl || '';
+      if (!imgSrc) {
         return `
-            <div class="coverflow-thumb">
-                <img src="${escapeAttr(imgSrc)}" loading="lazy" alt="">
-            </div>
-            <div class="coverflow-info">
-                <div class="coverflow-title">${title}</div>
-                ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
-            </div>
+          <div class="coverflow-thumb coverflow-thumb-post">
+            <span class="material-icons">image</span>
+          </div>
+          <div class="coverflow-info">
+            <div class="coverflow-title">${title}</div>
+            ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
+          </div>
         `;
+      }
+      return `
+        <div class="coverflow-thumb">
+          <img src="${escapeAttr(imgSrc)}" loading="lazy" alt="">
+        </div>
+        <div class="coverflow-info">
+          <div class="coverflow-title">${title}</div>
+          ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
+        </div>
+      `;
     }
     if (currentTab === 'posts') {
-        return `
-            <div class="coverflow-thumb coverflow-thumb-post">
-                <span class="material-icons">article</span>
-            </div>
-            <div class="coverflow-info">
-                <div class="coverflow-title">${title}</div>
-                ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
-            </div>
-        `;
+      return `
+        <div class="coverflow-thumb coverflow-thumb-post">
+          <span class="material-icons">article</span>
+        </div>
+        <div class="coverflow-info">
+          <div class="coverflow-title">${title}</div>
+          ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
+        </div>
+      `;
     }
     return `<div class="coverflow-info"><div class="coverflow-title">${title}</div></div>`;
-}
-
-  function handleCoverflowOpen(item) {
-    if (currentTab === 'videos' && item.videoUrl) {
-      playVideo(item.videoUrl, item.title || '', item.description || '');
-    } else if (currentTab === 'images' && item.imageUrl) {
-      viewImage(item.imageUrl, item.title || '', item.description || '', item.subject || '');
-    } else if (currentTab === 'pdfs' && item.pdfUrl) {
-      window.open(item.pdfUrl, '_blank', 'noopener,noreferrer');
-    } else if (currentTab === 'posts' && item.url) {
-      window.open(item.url, '_blank', 'noopener,noreferrer');
-    }
   }
 
   function setCoverflowIndex(i) {
@@ -1233,6 +1013,247 @@ function generateCoverflowCardContent(item) {
     const selected = document.querySelector(`.coverflow-card[data-cf-index="${coverflowIndex}"]`);
     if (selected) {
       selected.focus({ preventScroll: true });
+    }
+  }
+
+  // ============================================
+  // STORY VIEW
+  // ============================================
+  function renderStoryView() {
+    const area = $('contentArea');
+    if (!area) return;
+
+    if (storyObserver) {
+      storyObserver.disconnect();
+      storyObserver = null;
+    }
+    if (storyLoadObserver) {
+      storyLoadObserver.disconnect();
+      storyLoadObserver = null;
+    }
+
+    area.querySelector('.story-wrapper')?.remove();
+
+    if (!cachedData.length) return;
+
+    storyRenderedCount = 0;
+    storyLoadedAll = false;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'story-wrapper';
+    area.appendChild(wrapper);
+
+    if ('IntersectionObserver' in window) {
+      storyObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('story-visible');
+            storyObserver.unobserve(entry.target);
+          }
+        });
+      }, {
+        rootMargin: '0px 0px -15% 0px',
+        threshold: 0.12
+      });
+    }
+
+    if ('IntersectionObserver' in window) {
+      storyLoadObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !storyLoadedAll) {
+            appendStorySections();
+          }
+        });
+      }, {
+        rootMargin: '400px 0px 400px 0px',
+        threshold: 0
+      });
+    }
+
+    appendStorySections();
+
+    if (!('IntersectionObserver' in window)) {
+      while (storyRenderedCount < cachedData.length) {
+        appendStorySections();
+      }
+    }
+  }
+
+  function appendStorySections() {
+    const wrapper = document.querySelector('.story-wrapper');
+    if (!wrapper || storyLoadedAll) return;
+
+    const start = storyRenderedCount;
+    const end = Math.min(start + CONFIG.STORY_PAGE_SIZE, cachedData.length);
+    if (start >= end) {
+      storyLoadedAll = true;
+      return;
+    }
+
+    wrapper.querySelector('.story-sentinel')?.remove();
+
+    const frag = document.createDocumentFragment();
+
+    for (let i = start; i < end; i++) {
+      const item = cachedData[i];
+      const section = document.createElement('section');
+      section.className = 'story-section';
+      section.dataset.storyIndex = String(i);
+      section.innerHTML = generateStorySectionContent(item, i);
+      frag.appendChild(section);
+    }
+
+    wrapper.appendChild(frag);
+    storyRenderedCount = end;
+
+    if (storyRenderedCount >= cachedData.length) {
+      storyLoadedAll = true;
+    } else {
+      const sentinel = document.createElement('div');
+      sentinel.className = 'story-sentinel';
+      sentinel.style.cssText = 'height:1px; width:100%;';
+      wrapper.appendChild(sentinel);
+      if (storyLoadObserver) storyLoadObserver.observe(sentinel);
+    }
+
+    // Wire CTA buttons in newly added sections
+    wrapper.querySelectorAll('[data-story-action]').forEach((btn) => {
+      if (btn.dataset.wired === 'true') return;
+      btn.dataset.wired = 'true';
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.storyIndex, 10);
+        const item = cachedData[idx];
+        if (item) handleCoverflowOpen(item);
+      });
+    });
+
+    // Observe newly added sections for reveal
+    if (storyObserver) {
+      wrapper.querySelectorAll('.story-section:not(.story-visible)').forEach((el) => {
+        if (!el.dataset.observed) {
+          el.dataset.observed = 'true';
+          storyObserver.observe(el);
+        }
+      });
+    } else {
+      wrapper.querySelectorAll('.story-section').forEach((el) => {
+        el.classList.add('story-visible');
+      });
+    }
+  }
+
+  function generateStorySectionContent(item, index) {
+    const title = escapeHtml(item.title || 'Untitled');
+    const subject = escapeHtml(item.subject || '');
+    const description = escapeHtml(item.description || item.content || '');
+    const indexLabel = String(index + 1).padStart(2, '0');
+
+    let imageHtml = '';
+    let ctaLabel = '';
+    let ctaIcon = '';
+
+    if (currentTab === 'videos') {
+      const vid = extractYouTubeId(item.videoUrl);
+      const thumb = vid ? `https://img.youtube.com/vi/${vid}/maxresdefault.jpg` : '';
+      imageHtml = thumb
+        ? `<img src="${thumb}" loading="lazy" alt=""
+                onerror="this.onerror=null;this.src='https://img.youtube.com/vi/${vid}/hqdefault.jpg';">`
+        : '<div class="story-placeholder"><span class="material-icons">play_circle</span></div>';
+      ctaLabel = 'Watch Lecture';
+      ctaIcon = 'play_arrow';
+    } else if (currentTab === 'pdfs') {
+      imageHtml = '<div class="story-placeholder"><span class="material-icons">picture_as_pdf</span></div>';
+      ctaLabel = 'Read PDF';
+      ctaIcon = 'open_in_new';
+    } else if (currentTab === 'images') {
+      imageHtml = item.imageUrl
+        ? `<img src="${escapeAttr(item.imageUrl)}" loading="lazy" alt="">`
+        : '<div class="story-placeholder"><span class="material-icons">image</span></div>';
+      ctaLabel = 'View Full Image';
+      ctaIcon = 'zoom_in';
+    } else if (currentTab === 'posts') {
+      imageHtml = '<div class="story-placeholder"><span class="material-icons">article</span></div>';
+      ctaLabel = item.url ? 'Read More' : '';
+      ctaIcon = 'arrow_forward';
+    }
+
+    const classLabel = Array.isArray(item.class)
+      ? item.class.join(' · ')
+      : (item.class || '');
+
+    const metaParts = [subject, classLabel].filter(Boolean);
+    const sideClass = index % 2 === 0 ? 'story-card-left' : 'story-card-right';
+
+    // Watched / Note action buttons (videos only)
+    const isVideo = currentTab === 'videos';
+    const watched = isVideo && typeof isVideoWatched === 'function' ? isVideoWatched(item.id) : false;
+    const itemIdAttr = escapeAttr(item.id);
+    const titleAttr = escapeAttr(item.title || '');
+
+    const storyActionsHtml = isVideo ? `
+      <div class="story-actions">
+        <button class="story-action-btn ${watched ? 'active' : ''}"
+                data-watched-id="${itemIdAttr}"
+                data-watched-title="${titleAttr}"
+                aria-label="${watched ? 'Unmark watched' : 'Mark as watched'}"
+                title="${watched ? 'Watched' : 'Mark as watched'}">
+          <span class="material-icons">${watched ? 'check_circle' : 'check_circle_outline'}</span>
+        </button>
+        <button class="story-action-btn"
+                data-note-id="${itemIdAttr}"
+                data-note-title="${titleAttr}"
+                aria-label="Open note"
+                title="Add note">
+          <span class="material-icons">sticky_note_2</span>
+        </button>
+      </div>
+    ` : '';
+
+    return `
+      <div class="story-image-wrap">
+        ${imageHtml}
+      </div>
+
+      <div class="story-card ${sideClass}">
+        <div class="story-index">${indexLabel}</div>
+        <h2 class="story-title">${title}</h2>
+        ${metaParts.length ? `
+          <div class="story-meta">
+            ${metaParts.map((p, idx) => `
+              ${idx > 0 ? '<span class="story-meta-dot">·</span>' : ''}
+              <span class="story-meta-item">${escapeHtml(p)}</span>
+            `).join('')}
+          </div>
+        ` : ''}
+        ${description ? `<p class="story-description">${description}</p>` : ''}
+
+        <div class="story-cta-row">
+          ${ctaLabel ? `
+            <button class="story-cta"
+                    data-story-action
+                    data-story-index="${index}">
+              <span class="material-icons">${ctaIcon}</span>
+              <span>${ctaLabel}</span>
+            </button>
+          ` : ''}
+          ${storyActionsHtml}
+        </div>
+      </div>
+    `;
+  }
+
+  // ============================================
+  // HANDLE OPEN
+  // ============================================
+  function handleCoverflowOpen(item) {
+    if (currentTab === 'videos' && item.videoUrl) {
+      playVideo(item.videoUrl, item.title || '', item.description || '');
+    } else if (currentTab === 'images' && item.imageUrl) {
+      viewImage(item.imageUrl, item.title || '', item.description || '', item.subject || '');
+    } else if (currentTab === 'pdfs' && item.pdfUrl) {
+      window.open(item.pdfUrl, '_blank', 'noopener,noreferrer');
+    } else if (currentTab === 'posts' && item.url) {
+      window.open(item.url, '_blank', 'noopener,noreferrer');
     }
   }
 
@@ -1302,16 +1323,16 @@ function generateCoverflowCardContent(item) {
     displayedCount = 0;
     coverflowIndex = 0;
     contentLoadToken++;
-   // Clean up story observer
+
     if (storyObserver) {
-    storyObserver.disconnect();
-    storyObserver = null;
-}
-if (storyLoadObserver) {
-    storyLoadObserver.disconnect();
-    storyLoadObserver = null;
-}
-    
+      storyObserver.disconnect();
+      storyObserver = null;
+    }
+    if (storyLoadObserver) {
+      storyLoadObserver.disconnect();
+      storyLoadObserver = null;
+    }
+
     document.querySelectorAll('.sidebar-item').forEach((el) => {
       el.classList.toggle('active', el.dataset.tab === tab);
     });
@@ -1393,26 +1414,52 @@ if (storyLoadObserver) {
 
   function onVideoWatched() {
     if (cachedData.length) updateVideoProgress(cachedData);
-    // Refresh coverflow if it's the active view
-    const area = $('contentArea');
-    if (area && area.classList.contains('coverflow-view')) {
-        renderCoverflow();
-    }
-}
+    refreshAllViews();
+  }
 
-function onVideoUnwatched() {
+  function onVideoUnwatched() {
     if (cachedData.length) updateVideoProgress(cachedData);
+    refreshAllViews();
+  }
+
+  // Refresh current layout's watched indicators
+  function refreshAllViews() {
     const area = $('contentArea');
-    if (area && area.classList.contains('coverflow-view')) {
-        renderCoverflow();
+    if (!area) return;
+    if (area.classList.contains('coverflow-view')) {
+      renderCoverflow();
+    } else if (area.classList.contains('story-view')) {
+      refreshStoryActions();
     }
-}
+  }
+
+  // Update story action buttons without re-rendering sections
+  function refreshStoryActions() {
+    const area = $('contentArea');
+    if (!area || !area.classList.contains('story-view')) return;
+
+    document.querySelectorAll('.story-section').forEach((section) => {
+      const idx = parseInt(section.dataset.storyIndex, 10);
+      if (isNaN(idx)) return;
+      const item = cachedData[idx];
+      if (!item) return;
+
+      const btn = section.querySelector('[data-watched-id]');
+      if (!btn) return;
+
+      const watched = typeof isVideoWatched === 'function' ? isVideoWatched(item.id) : false;
+      btn.classList.toggle('active', watched);
+      btn.setAttribute('aria-label', watched ? 'Unmark watched' : 'Mark as watched');
+      btn.setAttribute('title', watched ? 'Watched' : 'Mark as watched');
+      const icon = btn.querySelector('.material-icons');
+      if (icon) icon.textContent = watched ? 'check_circle' : 'check_circle_outline';
+    });
+  }
 
   // ============================================
   // CARD CLICK DELEGATION
   // ============================================
   document.addEventListener('click', (e) => {
-    // Video card click
     const videoEl = e.target.closest('[data-action="play-video"]');
     if (videoEl) {
       e.stopPropagation();
@@ -1424,7 +1471,6 @@ function onVideoUnwatched() {
       return;
     }
 
-    // Image card click
     const imageEl = e.target.closest('[data-action="view-image"]');
     if (imageEl) {
       e.stopPropagation();
@@ -1437,7 +1483,6 @@ function onVideoUnwatched() {
       return;
     }
 
-    // Watched toggle
     const watchedEl = e.target.closest('[data-watched-id]');
     if (watchedEl) {
       e.stopPropagation();
@@ -1449,7 +1494,6 @@ function onVideoUnwatched() {
       return;
     }
 
-    // Note open
     const noteEl = e.target.closest('[data-note-id]');
     if (noteEl) {
       e.stopPropagation();
@@ -1469,7 +1513,6 @@ function onVideoUnwatched() {
     }
   });
 
-  // Keyboard activation for interactive elements
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
 
@@ -1589,9 +1632,11 @@ function onVideoUnwatched() {
   window.__CU_refreshCoverflow = function () {
     const area = $('contentArea');
     if (area && area.classList.contains('coverflow-view')) {
-        renderCoverflow();
+      renderCoverflow();
     }
-};
+  };
+
+  window.__CU_refreshStoryActions = refreshStoryActions;
 
   window.__CU_setCoverflowIndex = setCoverflowIndex;
   window.__CU_getCoverflowIndex = () => coverflowIndex;
