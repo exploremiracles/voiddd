@@ -1494,6 +1494,7 @@ img, video, iframe {
     gap: 1rem;
 }
 
+/* List View */
 .list-view .content-grid {
     display: flex;
     flex-direction: column;
@@ -1502,48 +1503,126 @@ img, video, iframe {
 
 .list-view .card {
     flex-direction: row;
-    min-height: 120px;
-    max-height: 150px;
+    min-height: 110px;
+    max-height: 140px;
+    align-items: stretch;
+    overflow: hidden; /* keep, but children must fit */
 }
 
+/* Video thumbnail: fixed WIDTH, full card HEIGHT, object-fit cover */
 .list-view .video-thumbnail {
     width: 200px;
     min-width: 200px;
-    aspect-ratio: 16/9;
     height: 100%;
+    aspect-ratio: auto;         /* ← disable inherited 16/9 — let height drive */
+    position: relative;
+    flex-shrink: 0;
+    background: var(--surface-muted);
+    overflow: hidden;
 }
 
+.list-view .video-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;          /* ← fills without distortion */
+    display: block;
+}
+
+.list-view .video-thumbnail .video-duration {
+    bottom: 8px;
+    right: 8px;
+}
+
+/* Image thumbnail: fixed WIDTH, full card HEIGHT */
 .list-view .image-thumbnail {
-    width: 150px;
-    min-width: 150px;
-    aspect-ratio: 4/3;
+    width: 160px;
+    min-width: 160px;
     height: 100%;
+    aspect-ratio: auto;
     object-fit: cover;
+    flex-shrink: 0;
 }
 
+/* Card info: fill remaining width, stack vertically, no overflow */
 .list-view .card-info {
+    flex: 1;
+    min-width: 0;                /* ← critical: allows text truncation */
+    display: flex;
+    flex-direction: column;
     justify-content: center;
+    align-items: flex-start;     /* ← left-align contents in list view */
     text-align: left;
-    padding: 0.5rem 1rem;
+    padding: 0.75rem 1rem;
+    gap: 0.25rem;
+    overflow: hidden;
 }
 
-.list-view .card-title { font-size: 0.9rem; }
-.list-view .card-description { font-size: 0.75rem; }
+.list-view .card-info .card-title {
+    font-size: 0.9rem;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;       /* truncate after 2 lines */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 0;
+}
 
+.list-view .card-info .card-description {
+    font-size: 0.75rem;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 0;
+}
+
+/* Watched indicator: compact pill in list view */
+.list-view .watched-indicator {
+    margin: 4px 0 0 0;           /* ← left-aligned, tight */
+    padding: 4px 10px;
+    font-size: 0.7rem;
+}
+
+.list-view .watched-indicator .material-icons {
+    font-size: 13px;
+}
+
+/* PDF cards in list view */
 .list-view .pdf-card {
     flex-direction: row;
     min-height: 100px;
     max-height: 120px;
-    padding: 0.75rem;
+    padding: 0.75rem 1rem;
     text-align: left;
     gap: 1rem;
+    align-items: center;
 }
 
-.list-view .pdf-icon { font-size: 2rem !important; margin-bottom: 0; }
-.list-view .pdf-card .card-title { margin-top: 0; flex: 1; text-align: left; }
-.list-view .pdf-download-btn { margin-top: 0; padding: 6px 15px; font-size: 0.75rem; }
+.list-view .pdf-icon {
+    font-size: 2rem !important;
+    margin-bottom: 0;
+    flex-shrink: 0;
+}
 
-.list-view .posts-container { max-width: 100%; }
+.list-view .pdf-card .card-title {
+    margin-top: 0;
+    flex: 1;
+    text-align: left;
+    margin-bottom: 0;
+}
+
+.list-view .pdf-download-btn {
+    margin-top: 0;
+    padding: 6px 15px;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+
+/* Posts in list view */
+.list-view .posts-container {
+    max-width: 100%;
+}
 
 /* ============================================
    RESPONSIVE
