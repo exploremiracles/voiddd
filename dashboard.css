@@ -2221,5 +2221,472 @@ img, video, iframe {
         animation: none !important;
     }
 }
+/* ============================================
+   NOTE INDICATOR (on video card)
+   ============================================ */
+.note-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 12px;
+    margin: 6px auto 0;
+    background: transparent;
+    border: 1.5px dashed var(--border);
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition);
+    width: fit-content;
+    font-family: inherit;
+    user-select: none;
+}
 
+.note-indicator:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+    transform: translateY(-1px);
+}
+
+.note-indicator.has-note {
+    border-style: solid;
+    border-color: var(--accent);
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.note-indicator .material-icons {
+    font-size: 14px;
+}
+
+/* ============================================
+   NOTE MODAL — PAPER CUTOUT DESIGN
+   ============================================ */
+.note-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    z-index: 2500;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(0.75rem, 3vw, 1.5rem);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.note-modal-overlay.active {
+    display: flex;
+    opacity: 1;
+}
+
+.note-modal-content {
+    width: 100%;
+    max-width: 500px;
+    animation: noteSlideIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes noteSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* The sticky note itself */
+.note-paper {
+    position: relative;
+    background: #FFF9E6;                       /* warm paper color */
+    border-radius: 12px;
+    padding: 1.5rem 1.25rem 1rem;
+    box-shadow:
+        0 1px 1px rgba(0, 0, 0, 0.05),
+        0 8px 24px rgba(0, 0, 0, 0.18),
+        0 16px 48px rgba(0, 0, 0, 0.12);
+    transform: rotate(-0.4deg);               /* subtle tilt */
+    transition: transform 0.3s ease;
+    overflow: hidden;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.note-paper::after {
+    /* Subtle paper texture */
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+        repeating-linear-gradient(
+            0deg,
+            transparent 0px,
+            transparent 27px,
+            rgba(90, 116, 95, 0.08) 27px,
+            rgba(90, 116, 95, 0.08) 28px
+        );
+    pointer-events: none;
+    border-radius: 12px;
+}
+
+/* Tape at the top */
+.note-tape {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%) rotate(-2deg);
+    width: 90px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.55);
+    border-left: 2px solid rgba(0, 0, 0, 0.04);
+    border-right: 2px solid rgba(0, 0, 0, 0.04);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    pointer-events: none;
+}
+
+.note-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    position: relative;
+    z-index: 1;
+}
+
+.note-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #233130;
+}
+
+.note-header-left .material-icons {
+    font-size: 20px;
+    color: #B8860B;                            /* golden — like a sticky note icon */
+}
+
+.note-header h3 {
+    font-family: 'Caveat', 'Playfair Display', cursive;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #233130;
+    margin: 0;
+}
+
+.note-close-btn {
+    background: transparent;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #85937D;
+    transition: var(--transition);
+}
+
+.note-close-btn:hover {
+    background: rgba(0, 0, 0, 0.06);
+    color: #233130;
+}
+
+.note-video-title {
+    font-size: 0.78rem;
+    color: #85937D;
+    font-style: italic;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(90, 116, 95, 0.15);
+    line-height: 1.4;
+    word-break: break-word;
+    position: relative;
+    z-index: 1;
+}
+
+/* The textarea — looks like writing on paper */
+.note-textarea {
+    width: 100%;
+    min-height: 140px;
+    max-height: 50vh;
+    padding: 0.5rem 0.25rem;
+    background: transparent;
+    border: none;
+    outline: none;
+    resize: none;
+    font-family: 'Caveat', cursive;
+    font-size: 1.4rem;
+    line-height: 28px;
+    color: #233130;
+    overflow-y: auto;
+    position: relative;
+    z-index: 1;
+    caret-color: #5a745f;
+}
+
+.note-textarea::placeholder {
+    color: rgba(133, 147, 125, 0.6);
+    font-style: italic;
+}
+
+.note-textarea:focus {
+    outline: none;
+}
+
+/* Footer */
+.note-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(90, 116, 95, 0.15);
+    margin-top: 0.25rem;
+    position: relative;
+    z-index: 1;
+    flex-wrap: wrap;
+}
+
+.note-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.note-word-count {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #85937D;
+    font-variant-numeric: tabular-nums;
+    transition: color 0.2s ease;
+}
+
+.note-word-count.near-limit {
+    color: #D97706;
+}
+
+.note-word-count.over-limit {
+    color: #DC2626;
+}
+
+.note-save-status {
+    font-size: 0.7rem;
+    color: #85937D;
+    font-style: italic;
+}
+
+.note-save-status.saving { color: #D97706; }
+.note-save-status.saved  { color: #059669; }
+.note-save-status.error  { color: #DC2626; }
+
+.note-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.note-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 7px 12px;
+    border: none;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.note-btn .material-icons {
+    font-size: 15px;
+}
+
+.note-btn-clear {
+    background: transparent;
+    color: #85937D;
+    border: 1.5px solid rgba(133, 147, 125, 0.4);
+}
+
+.note-btn-clear:hover {
+    background: rgba(220, 38, 38, 0.08);
+    color: #DC2626;
+    border-color: #DC2626;
+}
+
+.note-btn-save {
+    background: #5a745f;
+    color: white;
+}
+
+.note-btn-save:hover {
+    background: #4a6353;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(90, 116, 95, 0.3);
+}
+
+.note-hint {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 0.5rem;
+    font-size: 0.7rem;
+    color: #85937D;
+    position: relative;
+    z-index: 1;
+}
+
+.note-hint .material-icons {
+    font-size: 13px;
+}
+
+/* ============================================
+   DARK THEME OVERRIDES
+   ============================================ */
+[data-theme="dark"] .note-paper,
+[data-theme="midnight"] .note-paper,
+[data-theme="forest"] .note-paper,
+[data-theme="sunset"] .note-paper {
+    background: #2a2418;                       /* dark amber paper */
+}
+
+[data-theme="dark"] .note-paper::after,
+[data-theme="midnight"] .note-paper::after,
+[data-theme="forest"] .note-paper::after,
+[data-theme="sunset"] .note-paper::after {
+    background-image:
+        repeating-linear-gradient(
+            0deg,
+            transparent 0px,
+            transparent 27px,
+            rgba(255, 255, 255, 0.04) 27px,
+            rgba(255, 255, 255, 0.04) 28px
+        );
+}
+
+[data-theme="dark"] .note-header h3,
+[data-theme="midnight"] .note-header h3,
+[data-theme="forest"] .note-header h3,
+[data-theme="sunset"] .note-header h3,
+[data-theme="dark"] .note-textarea,
+[data-theme="midnight"] .note-textarea,
+[data-theme="forest"] .note-textarea,
+[data-theme="sunset"] .note-textarea {
+    color: #f5eee8;
+}
+
+[data-theme="dark"] .note-header-left .material-icons,
+[data-theme="midnight"] .note-header-left .material-icons,
+[data-theme="forest"] .note-header-left .material-icons,
+[data-theme="sunset"] .note-header-left .material-icons {
+    color: #f0c674;
+}
+
+[data-theme="dark"] .note-tape,
+[data-theme="midnight"] .note-tape,
+[data-theme="forest"] .note-tape,
+[data-theme="sunset"] .note-tape {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.05);
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 768px) {
+    .note-modal-content {
+        max-width: 100%;
+    }
+
+    .note-paper {
+        padding: 1.25rem 1rem 0.85rem;
+        transform: rotate(0);
+        max-height: 85vh;
+    }
+
+    .note-header h3 {
+        font-size: 1.3rem;
+    }
+
+    .note-textarea {
+        font-size: 1.25rem;
+        line-height: 26px;
+        min-height: 120px;
+        max-height: 45vh;
+    }
+
+    .note-footer {
+        gap: 0.4rem;
+    }
+
+    .note-btn {
+        padding: 6px 10px;
+        font-size: 0.7rem;
+    }
+
+    .note-indicator {
+        font-size: 0.68rem;
+        padding: 5px 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .note-modal-content {
+        max-width: 100%;
+    }
+
+    .note-paper {
+        padding: 1rem 0.75rem 0.75rem;
+        border-radius: 10px;
+    }
+
+    .note-header h3 {
+        font-size: 1.15rem;
+    }
+
+    .note-textarea {
+        font-size: 1.15rem;
+        line-height: 24px;
+    }
+
+    .note-actions {
+        gap: 4px;
+    }
+
+    .note-btn {
+        padding: 6px 9px;
+        font-size: 0.65rem;
+    }
+
+    .note-btn-clear {
+        padding: 6px 8px;
+    }
+
+    .note-btn-clear span:not(.material-icons) {
+        display: none;
+    }
+}
+
+/* ============================================
+   REDUCED MOTION
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+    .note-modal-content {
+        animation: none !important;
+    }
+    .note-paper {
+        transform: none !important;
+    }
+}
 
