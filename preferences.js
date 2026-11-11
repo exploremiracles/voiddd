@@ -20,8 +20,9 @@
   const LAYOUTS = {
     grid:      { name: 'Grid View',      icon: 'grid_view' },
     list:      { name: 'List View',      icon: 'view_list' },
-    coverflow: { name: 'Cover Flow',     icon: 'view_carousel' }
-  };
+    coverflow: { name: 'Cover Flow',     icon: 'view_carousel' },
+    story:     { name: 'Story View',     icon: 'auto_stories' }   // ← ADD
+};
 
   const TEXT_SIZES = [
     { value: 0, label: 'Small',   scale: 0.90 },
@@ -82,24 +83,28 @@
     const contentArea = document.getElementById('contentArea');
     if (!contentArea) return;
 
-    contentArea.classList.remove('grid-view', 'list-view', 'coverflow-view');
+    contentArea.classList.remove('grid-view', 'list-view', 'coverflow-view', 'story-view');
     const classMap = {
-      grid: 'grid-view',
-      list: 'list-view',
-      coverflow: 'coverflow-view'
+        grid: 'grid-view',
+        list: 'list-view',
+        coverflow: 'coverflow-view',
+        story: 'story-view'
     };
     contentArea.classList.add(classMap[layoutName] || 'grid-view');
 
-    // Reset focus index when entering coverflow
+    // Reset scroll/focus for special modes
     if (layoutName === 'coverflow') {
-      contentArea.scrollLeft = 0;
-      window.__CU_setCoverflowIndex?.(0);
+        contentArea.scrollLeft = 0;
+        window.__CU_setCoverflowIndex?.(0);
+    }
+    if (layoutName === 'story') {
+        window.scrollTo({ top: 0, behavior: 'instant' });
     }
 
     if (typeof window.__CU_rerenderContent === 'function') {
-      window.__CU_rerenderContent();
+        window.__CU_rerenderContent();
     }
-  }
+}
 
   // ============================================
   // TEXT SIZE
