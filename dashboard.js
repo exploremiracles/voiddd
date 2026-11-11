@@ -30,9 +30,7 @@
     },
     ROUTES: { LOGIN: 'index.html' },
     PAGE_SIZE: 5,
-    // NOTE: The session in localStorage is display-only. It is NOT used to
-    // authorize access. Firestore rules + Firebase auth are the source of truth.
-    // This value is informational (used only to show "you've been here 1h" etc).
+    // Session in localStorage is display-only. Rules + auth are source of truth.
     DISPLAY_SESSION_HINT_MS: 2 * 60 * 60 * 1000
   });
 
@@ -52,11 +50,11 @@
   let deferredPrompt = null;
   let whitelistUnsubscribe = null;
   let listenerEmail = null;
-  let subjectCache = {}; // { class => [subjects] }
+  let subjectCache = {};
   let isUserReady = false;
   const readyCallbacks = [];
-  let classLoadToken = 0; // Incremented on every class selection to invalidate in-flight loads
-  let contentLoadToken = 0; // Same for content loads
+  let classLoadToken = 0;
+  let contentLoadToken = 0;
 
   // ============================================
   // UTIL
@@ -68,6 +66,17 @@
     const div = document.createElement('div');
     div.textContent = String(text);
     return div.innerHTML;
+  }
+
+  // Safe attribute escape for data-* values inside HTML strings
+  function escapeAttr(text) {
+    if (text == null) return '';
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
   }
 
   function onUserReady(callback) {
@@ -86,20 +95,21 @@
   // AUTH GATE
   // ============================================
   function hideAuthGate() {
-  const gate = $('authGate') || document.querySelector('.page-transition.active') || $('campusLoader');
-  if (gate) {
-    gate.classList.remove('active');
-    gate.style.display = 'none'; // belt and suspenders
+    const gate = $('authGate')
+      || document.querySelector('.page-transition.active')
+      || $('campusLoader');
+    if (gate) {
+      gate.classList.remove('active');
+      gate.style.display = 'none';
+    }
+    const loader = $('campusLoader');
+    if (loader && loader !== gate) {
+      loader.classList.remove('active');
+      loader.style.display = 'none';
+    }
+    $('dashboardRoot')?.removeAttribute('hidden');
+    document.body.style.overflow = 'auto';
   }
-  // Also hide campus loader if it's a separate element
-  const loader = $('campusLoader');
-  if (loader && loader !== gate) {
-    loader.classList.remove('active');
-    loader.style.display = 'none';
-  }
-  $('dashboardRoot')?.removeAttribute('hidden');
-  document.body.style.overflow = 'auto';
-}
 
   function failClosed(message, reason) {
     if (message) {
@@ -113,7 +123,7 @@
   }
 
   // ============================================
-  // SESSION (DISPLAY ONLY — never trusted for auth)
+  // SESSION (DISPLAY ONLY)
   // ============================================
   function saveSession(data) {
     try { localStorage.setItem(CONFIG.STORAGE.SESSION, JSON.stringify(data)); } catch (_) {}
@@ -128,7 +138,7 @@
   }
 
   // ============================================
-  // AUTHORITATIVE WHITELIST CHECK (runs on every load)
+  // WHITELIST
   // ============================================
   async function verifyWhitelist(user) {
     const email = (user.email || '').toLowerCase();
@@ -142,11 +152,7 @@
     return { ok: true, data };
   }
 
-  // ============================================
-  // LIVE STATUS LISTENER (1 read per change, not per 5s)
-  // ============================================
   function startWhitelistListener(email) {
-    // Idempotent: if already listening to this email, don't restart
     if (listenerEmail === email && whitelistUnsubscribe) return;
 
     if (whitelistUnsubscribe) {
@@ -172,7 +178,7 @@
   }
 
   // ============================================
-  // REVOKED DIALOG
+  // REVOKED
   // ============================================
   function showAccessRevoked(message) {
     if (whitelistUnsubscribe) { try { whitelistUnsubscribe(); } catch (_) {} whitelistUnsubscribe = null; }
@@ -190,7 +196,7 @@
   }
 
   // ============================================
-  // DOWNLOAD IMAGE (with graceful fallback)
+  // DOWNLOAD IMAGE
   // ============================================
   async function downloadCurrentImage() {
     if (!currentImageUrl) return;
@@ -289,7 +295,7 @@
   }
 
   // ============================================
-  // PWA + SERVICE WORKER UPDATE FLOW
+  // PWA + SW
   // ============================================
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
@@ -315,9 +321,7 @@
     if (btn) btn.style.display = 'none';
   }
 
-  // Service Worker registration + update handler
   if ('serviceWorker' in navigator) {
-    // Auto-reload when a new SW takes control (once per session)
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (!sessionStorage.getItem(CONFIG.STORAGE.SW_RELOADED)) {
         sessionStorage.setItem(CONFIG.STORAGE.SW_RELOADED, '1');
@@ -327,10 +331,8 @@
 
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/sw.js').then((reg) => {
-        // Check for updates every 30 minutes
         setInterval(() => reg.update().catch(() => {}), 30 * 60 * 1000);
 
-        // If a new SW is installed and waiting, activate it
         reg.addEventListener('updatefound', () => {
           const newWorker = reg.installing;
           newWorker?.addEventListener('statechange', () => {
@@ -428,7 +430,7 @@
       return;
     }
     chipsDiv.innerHTML = classes
-      .map((c) => `<button class="chip" role="tab" data-class="${escapeHtml(c)}">${escapeHtml(c)}</button>`)
+      .map((c) => `<button class="chip" role="tab" data-class="${escapeAttr(c)}">${escapeHtml(c)}</button>`)
       .join('');
     chipsDiv.querySelectorAll('.chip').forEach((btn) => {
       btn.addEventListener('click', () => selectClass(btn.dataset.class));
@@ -448,7 +450,7 @@
   }
 
   // ============================================
-  // CLASS SELECT (race-safe)
+  // CLASS SELECT
   // ============================================
   async function selectClass(cls) {
     const token = ++classLoadToken;
@@ -473,12 +475,12 @@
     if (progress) progress.style.display = currentTab === 'videos' ? 'block' : 'none';
 
     await loadAvailableSubjects(cls, token);
-    if (token !== classLoadToken) return; // superseded by a newer class click
+    if (token !== classLoadToken) return;
     await loadContent(token);
   }
 
   // ============================================
-  // SUBJECTS (cached per class, race-safe)
+  // SUBJECTS
   // ============================================
   async function loadAvailableSubjects(cls, token) {
     const chipsDiv = $('subjectChips');
@@ -527,7 +529,7 @@
     }
     let html = `<button class="chip active" data-subject="">All (${subjects.length})</button>`;
     subjects.forEach((s) => {
-      html += `<button class="chip" data-subject="${escapeHtml(s)}">${escapeHtml(s)}</button>`;
+      html += `<button class="chip" data-subject="${escapeAttr(s)}">${escapeHtml(s)}</button>`;
     });
     chipsDiv.innerHTML = html;
     chipsDiv.querySelectorAll('.chip').forEach((btn) => {
@@ -545,7 +547,7 @@
   }
 
   // ============================================
-  // CONTENT (race-safe)
+  // CONTENT
   // ============================================
   async function loadContent(token) {
     if (!selectedClass) return;
@@ -568,7 +570,6 @@
         case 'posts':  data = await fetchPosts(classAtStart); break;
       }
 
-      // Bail if state changed while awaiting
       if (tabAtStart !== currentTab) return;
       if (classAtStart !== selectedClass) return;
       if (subjectAtStart !== selectedSubject) return;
@@ -613,10 +614,11 @@
   }
 
   // ============================================
-  // CARD RENDER (unchanged)
+  // CARD RENDER
   // ============================================
   function generateCardHtml(item) {
     const title = escapeHtml(item.title || '');
+    const titleAttr = escapeAttr(item.title || '');
     const subject = escapeHtml(item.subject || '');
     const description = escapeHtml(item.description || '');
 
@@ -626,13 +628,15 @@
       const duration = escapeHtml(item.duration || '');
       const watched = typeof isVideoWatched === 'function' ? isVideoWatched(item.id) : false;
 
+      // Note indicator shows generic "Note" until notes.js updates it
       return `
         <div class="card ${watched ? 'watched-card' : ''}"
-             data-item-id="${item.id}"
-             data-item-title="${title}"
-             onclick="playVideo('${escapeHtml(item.videoUrl || '')}','${title}','${description}')"
-             role="button" tabindex="0">
-          <div class="video-thumbnail">
+             data-item-id="${escapeAttr(item.id)}"
+             data-item-title="${titleAttr}">
+          <div class="video-thumbnail"
+               role="button" tabindex="0"
+               onclick="playVideo('${escapeAttr(item.videoUrl || '')}','${titleAttr}','${escapeAttr(item.description || '')}')"
+               onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();playVideo('${escapeAttr(item.videoUrl || '')}','${titleAttr}','${escapeAttr(item.description || '')}');}">
             ${thumb ? `<img src="${thumb}" loading="lazy" alt="">` : ''}
             ${duration ? `<span class="video-duration">${duration}</span>` : ''}
           </div>
@@ -640,38 +644,41 @@
             <div class="card-title">${title}</div>
             ${subject ? `<div class="card-description">${subject}</div>` : ''}
             <div class="watched-indicator ${watched ? 'watched' : ''}"
-     onclick="event.stopPropagation(); toggleWatched('${item.id}', '${title}', this); return false;"
-     role="button" tabindex="0">
-  <span class="material-icons">${watched ? 'check_circle' : 'check_circle_outline'}</span>
-  <span>${watched ? 'Watched' : 'Mark as watched'}</span>
-</div>
-<div class="note-indicator"
-     onclick="event.stopPropagation(); openNote('${item.id}', '${title}'); return false;"
-     role="button" tabindex="0"
-     aria-label="Open note for ${title}">
-  <span class="material-icons">sticky_note_2</span>
-  <span>Add note</span>
-</div>
+                 data-watched-id="${escapeAttr(item.id)}"
+                 data-watched-title="${titleAttr}"
+                 role="button" tabindex="0">
+              <span class="material-icons">${watched ? 'check_circle' : 'check_circle_outline'}</span>
+              <span>${watched ? 'Watched' : 'Mark as watched'}</span>
+            </div>
+            <div class="note-indicator"
+                 data-note-id="${escapeAttr(item.id)}"
+                 data-note-title="${titleAttr}"
+                 role="button" tabindex="0"
+                 aria-label="Open note for ${titleAttr}">
+              <span class="material-icons">sticky_note_2</span>
+              <span>Add note</span>
+            </div>
           </div>
         </div>
       `;
     }
     if (currentTab === 'pdfs') {
       return `
-        <div class="card pdf-card" data-item-id="${item.id}" data-item-title="${title}">
+        <div class="card pdf-card" data-item-id="${escapeAttr(item.id)}" data-item-title="${titleAttr}">
           <span class="material-icons pdf-icon">picture_as_pdf</span>
           <div class="card-title">${title}</div>
           ${subject ? `<div class="card-description">${subject}</div>` : ''}
-          <a href="${escapeHtml(item.pdfUrl || '#')}" target="_blank" rel="noopener noreferrer" class="pdf-download-btn">Download PDF</a>
+          <a href="${escapeAttr(item.pdfUrl || '#')}" target="_blank" rel="noopener noreferrer" class="pdf-download-btn">Download PDF</a>
         </div>
       `;
     }
     if (currentTab === 'images') {
       return `
-        <div class="card" data-item-id="${item.id}" data-item-title="${title}"
-             onclick="viewImage('${escapeHtml(item.imageUrl || '')}','${title}','${description}','${subject}')"
-             role="button" tabindex="0">
-          <img src="${escapeHtml(item.imageUrl || '')}" class="image-thumbnail" alt="${title}" loading="lazy">
+        <div class="card" data-item-id="${escapeAttr(item.id)}" data-item-title="${titleAttr}"
+             role="button" tabindex="0"
+             onclick="viewImage('${escapeAttr(item.imageUrl || '')}','${titleAttr}','${escapeAttr(item.description || '')}','${escapeAttr(item.subject || '')}')"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();viewImage('${escapeAttr(item.imageUrl || '')}','${titleAttr}','${escapeAttr(item.description || '')}','${escapeAttr(item.subject || '')}');}">
+          <img src="${escapeAttr(item.imageUrl || '')}" class="image-thumbnail" alt="${titleAttr}" loading="lazy">
           <div class="card-info">
             <div class="card-title">${title}</div>
             ${subject ? `<div class="card-description">${subject}</div>` : ''}
@@ -681,11 +688,11 @@
     }
     if (currentTab === 'posts') {
       return `
-        <div class="post-card" data-item-id="${item.id}">
+        <div class="post-card" data-item-id="${escapeAttr(item.id)}">
           <div class="post-title">${title}</div>
           ${subject ? `<div class="card-description">${subject}</div>` : ''}
           <p class="post-content">${escapeHtml(item.content || '')}</p>
-          ${item.url ? `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="post-link">Read More →</a>` : ''}
+          ${item.url ? `<a href="${escapeAttr(item.url)}" target="_blank" rel="noopener noreferrer" class="post-link">Read More →</a>` : ''}
         </div>
       `;
     }
@@ -693,7 +700,7 @@
   }
 
   // ============================================
-  // APPEND (paginated, unchanged)
+  // APPEND
   // ============================================
   function appendContent() {
     const area = $('contentArea');
@@ -758,8 +765,12 @@
       area.appendChild(btn);
     }
 
+    // Refresh badge systems after new cards render
     if (typeof refreshWatchedBadges === 'function') {
       setTimeout(refreshWatchedBadges, 100);
+    }
+    if (typeof window.refreshNoteBadges === 'function') {
+      setTimeout(window.refreshNoteBadges, 120);
     }
   }
 
@@ -819,7 +830,7 @@
   }
 
   // ============================================
-  // TAB SWITCH (race-safe)
+  // TAB SWITCH
   // ============================================
   function switchTab(tab) {
     if (!TABS.includes(tab)) return;
@@ -924,6 +935,53 @@
   function onVideoUnwatched() { if (cachedData.length) updateVideoProgress(cachedData); }
 
   // ============================================
+  // NOTE / WATCH DELEGATION
+  // ============================================
+  // Central click handler for cards — safer than inline onclick with user data.
+  document.addEventListener('click', (e) => {
+    const watchedEl = e.target.closest('[data-watched-id]');
+    if (watchedEl) {
+      e.stopPropagation();
+      const id = watchedEl.dataset.watchedId;
+      const title = watchedEl.dataset.watchedTitle || '';
+      if (typeof window.toggleWatched === 'function') {
+        window.toggleWatched(id, title, watchedEl);
+      }
+      return;
+    }
+
+    const noteEl = e.target.closest('[data-note-id]');
+    if (noteEl) {
+      e.stopPropagation();
+      const id = noteEl.dataset.noteId;
+      const title = noteEl.dataset.noteTitle || '';
+      if (typeof window.openNote === 'function') {
+        window.openNote(id, title);
+      } else {
+        // notes.js not loaded yet — retry once after a tick
+        setTimeout(() => {
+          if (typeof window.openNote === 'function') {
+            window.openNote(id, title);
+          } else {
+            window.showToast?.('Notes loading, please try again', 'error');
+          }
+        }, 300);
+      }
+    }
+  });
+
+  // Keyboard activation for watched/note buttons
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const watchedEl = e.target.closest?.('[data-watched-id]');
+    const noteEl = e.target.closest?.('[data-note-id]');
+    const target = watchedEl || noteEl;
+    if (!target) return;
+    e.preventDefault();
+    target.click();
+  });
+
+  // ============================================
   // GLOBAL HANDLERS
   // ============================================
   window.openSidebar = openSidebar;
@@ -945,32 +1003,31 @@
   window.onVideoUnwatched = onVideoUnwatched;
   window.showAccessRevoked = showAccessRevoked;
 
-
-  // ── Cross-file getters (used by search.js, watched-badge.js) ──
-window.__CU_getUser = function () {
-  if (!currentUser) return null;
-  return {
-    uid: currentUser.uid,
-    email: currentUser.email,
-    displayName: currentUser.displayName,
-    allowedClasses: (currentUser.allowedClasses || []).slice()
+  // Cross-file getters
+  window.__CU_getUser = function () {
+    if (!currentUser) return null;
+    return {
+      uid: currentUser.uid,
+      email: currentUser.email,
+      displayName: currentUser.displayName,
+      allowedClasses: (currentUser.allowedClasses || []).slice()
+    };
   };
-};
 
-  // Near your other window.* exports in dashboard.js:
-window.__CU_getSelectedClass = function () {
-  return selectedClass;
-};
+  window.__CU_getSelectedClass = function () {
+    return selectedClass;
+  };
 
-window.__CU_rerenderContent = function () {
-  const area = $('contentArea');
-  if (!area || !cachedData || cachedData.length === 0) return;
-  displayedCount = 0;
-  area.innerHTML = '';
-  appendContent();
-};
+  window.__CU_rerenderContent = function () {
+    const area = $('contentArea');
+    if (!area || !cachedData || cachedData.length === 0) return;
+    displayedCount = 0;
+    area.innerHTML = '';
+    appendContent();
+  };
+
   // ============================================
-  // MODAL CLOSE ON OUTSIDE CLICK + ESC
+  // MODAL CLOSE
   // ============================================
   document.getElementById('videoModal')?.addEventListener('click', function (e) {
     if (e.target === this) closeVideoModal();
