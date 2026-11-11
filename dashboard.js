@@ -565,9 +565,13 @@
 
        // Disconnect story observer when reloading content
     if (typeof storyObserver !== 'undefined' && storyObserver) {
-        storyObserver.disconnect();
-        storyObserver = null;
-    }
+    storyObserver.disconnect();
+    storyObserver = null;
+}
+if (typeof storyLoadObserver !== 'undefined' && storyLoadObserver) {
+    storyLoadObserver.disconnect();
+    storyLoadObserver = null;
+}
 
     const myToken = token !== undefined ? token : ++contentLoadToken;
     const tabAtStart = currentTab;
@@ -911,44 +915,38 @@
 // STORYTELLING SCROLL VIEW
 // ============================================
 let storyObserver = null;
+let storyLoadObserver = null;
+let storyRenderedCount = 0;
+let storyLoadedAll = false;
+const STORY_PAGE_SIZE = 5;
 
 function renderStoryView() {
     const area = $('contentArea');
     if (!area) return;
 
-    // Clean up previous observer
+    // Clean up previous observers
     if (storyObserver) {
         storyObserver.disconnect();
         storyObserver = null;
+    }
+    if (storyLoadObserver) {
+        storyLoadObserver.disconnect();
+        storyLoadObserver = null;
     }
 
     area.querySelector('.story-wrapper')?.remove();
 
     if (!cachedData.length) return;
 
+    // Reset counters
+    storyRenderedCount = 0;
+    storyLoadedAll = false;
+
     const wrapper = document.createElement('div');
     wrapper.className = 'story-wrapper';
-
-    cachedData.forEach((item, i) => {
-        const section = document.createElement('section');
-        section.className = 'story-section';
-        section.dataset.storyIndex = String(i);
-        section.innerHTML = generateStorySectionContent(item, i);
-        wrapper.appendChild(section);
-    });
-
     area.appendChild(wrapper);
 
-    // Wire CTA buttons
-    wrapper.querySelectorAll('[data-story-action]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-            const idx = parseInt(btn.dataset.storyIndex, 10);
-            const item = cachedData[idx];
-            if (item) handleCoverflowOpen(item);   // reuse existing opener
-        });
-    });
-
-    // Intersection observer for reveal animation
+    // Reveal observer
     if ('IntersectionObserver' in window) {
         storyObserver = new IntersectionObserver((entries) => {
             entries.forEach((entry) => {
@@ -961,17 +959,99 @@ function renderStoryView() {
             rootMargin: '0px 0px -15% 0px',
             threshold: 0.12
         });
+    }
 
-        wrapper.querySelectorAll('.story-section').forEach((el) => {
-            storyObserver.observe(el);
+    // Load-more observer — triggers when user nears the bottom
+    if ('IntersectionObserver' in window) {
+        storyLoadObserver = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting && !storyLoadedAll) {
+                    appendStorySections();
+                }
+            });
+        }, {
+            rootMargin: '400px 0px 400px 0px',
+            threshold: 0
+        });
+    }
+
+    // Render first batch
+    appendStorySections();
+
+    // If no IO support, load everything
+    if (!('IntersectionObserver' in window)) {
+        while (storyRenderedCount < cachedData.length) {
+            appendStorySections();
+        }
+    }
+}
+
+function appendStorySections() {
+    const wrapper = document.querySelector('.story-wrapper');
+    if (!wrapper || storyLoadedAll) return;
+
+    const start = storyRenderedCount;
+    const end = Math.min(start + STORY_PAGE_SIZE, cachedData.length);
+    if (start >= end) {
+        storyLoadedAll = true;
+        return;
+    }
+
+    // Remove any existing sentinel
+    wrapper.querySelector('.story-sentinel')?.remove();
+
+    const frag = document.createDocumentFragment();
+
+    for (let i = start; i < end; i++) {
+        const item = cachedData[i];
+        const section = document.createElement('section');
+        section.className = 'story-section';
+        section.dataset.storyIndex = String(i);
+        section.innerHTML = generateStorySectionContent(item, i);
+        frag.appendChild(section);
+    }
+
+    wrapper.appendChild(frag);
+    storyRenderedCount = end;
+
+    if (storyRenderedCount >= cachedData.length) {
+        storyLoadedAll = true;
+    } else {
+        // Add sentinel for load-more observer
+        const sentinel = document.createElement('div');
+        sentinel.className = 'story-sentinel';
+        sentinel.style.cssText = 'height:1px; width:100%;';
+        wrapper.appendChild(sentinel);
+        if (storyLoadObserver) storyLoadObserver.observe(sentinel);
+    }
+
+    // Wire CTA buttons in newly added sections
+    wrapper.querySelectorAll('[data-story-action]').forEach((btn) => {
+        if (btn.dataset.wired === 'true') return;
+        btn.dataset.wired = 'true';
+        btn.addEventListener('click', () => {
+            const idx = parseInt(btn.dataset.storyIndex, 10);
+            const item = cachedData[idx];
+            if (item) handleCoverflowOpen(item);
+        });
+    });
+
+    // Observe newly added sections for reveal
+    if (storyObserver) {
+        wrapper.querySelectorAll('.story-section:not(.story-visible)').forEach((el) => {
+            if (!el.dataset.observed) {
+                el.dataset.observed = 'true';
+                storyObserver.observe(el);
+            }
         });
     } else {
-        // Fallback: show everything
+        // Fallback: show immediately
         wrapper.querySelectorAll('.story-section').forEach((el) => {
             el.classList.add('story-visible');
         });
     }
 }
+
 
 function generateStorySectionContent(item, index) {
     const title = escapeHtml(item.title || 'Untitled');
@@ -1224,9 +1304,13 @@ function generateCoverflowCardContent(item) {
     contentLoadToken++;
    // Clean up story observer
     if (storyObserver) {
-        storyObserver.disconnect();
-        storyObserver = null;
-    }
+    storyObserver.disconnect();
+    storyObserver = null;
+}
+if (storyLoadObserver) {
+    storyLoadObserver.disconnect();
+    storyLoadObserver = null;
+}
     
     document.querySelectorAll('.sidebar-item').forEach((el) => {
       el.classList.toggle('active', el.dataset.tab === tab);
