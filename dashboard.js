@@ -55,6 +55,7 @@
   const readyCallbacks = [];
   let classLoadToken = 0;
   let contentLoadToken = 0;
+  let coverflowIndex = 0;
 
   // ============================================
   // UTIL
@@ -599,10 +600,11 @@ async function downloadCurrentImage() {
       });
 
       cachedData = data;
-      displayedCount = 0;
-      area.innerHTML = '';
-      appendContent();
-      updateVideoProgress(data);
+displayedCount = 0;
+coverflowIndex = 0;   // ← reset focus on new load
+area.innerHTML = '';
+appendContent();
+updateVideoProgress(data);
     } catch (err) {
       if (tabAtStart !== currentTab || classAtStart !== selectedClass) return;
       console.warn('Content load failed:', err.code);
@@ -739,6 +741,11 @@ async function downloadCurrentImage() {
       return;
     }
 
+    if (area.classList.contains('coverflow-view')) {
+    renderCoverflow();
+    return;
+}
+
     area.querySelector('.load-more-btn:not(.modal-content .load-more-btn)')?.remove();
 
     let container;
@@ -787,6 +794,196 @@ async function downloadCurrentImage() {
       setTimeout(window.refreshNoteBadges, 120);
     }
   }
+
+  // ============================================
+// COVER FLOW VIEW
+// ============================================
+function renderCoverflow() {
+    const area = $('contentArea');
+    if (!area) return;
+
+    // Remove any existing coverflow
+    area.querySelector('.coverflow-wrapper')?.remove();
+
+    if (!cachedData.length) return;
+
+    const total = cachedData.length;
+
+    // Clamp index
+    if (coverflowIndex >= total) coverflowIndex = total - 1;
+    if (coverflowIndex < 0) coverflowIndex = 0;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'coverflow-wrapper';
+
+    // Track
+    const track = document.createElement('div');
+    track.className = 'coverflow-track';
+    track.setAttribute('role', 'listbox');
+    track.setAttribute('aria-label', 'Content carousel');
+
+    const cardWidth = 280;
+    const gap = 20;
+    const stepPx = cardWidth + gap;
+
+    cachedData.forEach((item, i) => {
+        const offset = i - coverflowIndex;
+        const absOffset = Math.abs(offset);
+
+        // Skip cards too far away — they'd stack on top of each other anyway
+        if (absOffset > 4) return;
+
+        const card = document.createElement('div');
+        card.className = 'coverflow-card';
+        card.dataset.cfIndex = String(i);
+        card.setAttribute('role', 'option');
+        card.setAttribute('aria-selected', String(i === coverflowIndex));
+        card.setAttribute('tabindex', i === coverflowIndex ? '0' : '-1');
+
+        // Positioning
+        const tx = offset * stepPx * 0.85;   // horizontal spread
+        const tz = -absOffset * 180;          // push back in Z
+        const ry = offset === 0 ? 0 : (offset < 0 ? 40 : -40);
+        const scale = offset === 0 ? 1 : Math.max(0.72, 1 - absOffset * 0.12);
+        const opacity = offset === 0 ? 1 : Math.max(0.35, 1 - absOffset * 0.22);
+        const zIndex = 100 - absOffset;
+
+        card.style.transform = `translateX(${tx}px) translateZ(${tz}px) rotateY(${ry}deg) scale(${scale})`;
+        card.style.opacity = String(opacity);
+        card.style.zIndex = String(zIndex);
+
+        card.innerHTML = generateCoverflowCardContent(item);
+        card.addEventListener('click', (e) => {
+            if (i === coverflowIndex) {
+                // Focused card — open it
+                handleCoverflowOpen(item);
+            } else {
+                // Not focused — focus it
+                setCoverflowIndex(i);
+            }
+        });
+
+        track.appendChild(card);
+    });
+
+    wrapper.appendChild(track);
+
+    // Pagination dots
+    const dots = document.createElement('div');
+    dots.className = 'coverflow-dots';
+    cachedData.forEach((_, i) => {
+        const dot = document.createElement('button');
+        dot.className = 'coverflow-dot' + (i === coverflowIndex ? ' active' : '');
+        dot.setAttribute('aria-label', `Go to item ${i + 1}`);
+        dot.addEventListener('click', () => setCoverflowIndex(i));
+        dots.appendChild(dot);
+    });
+    wrapper.appendChild(dots);
+
+    // Nav buttons (subtle, for accessibility)
+    const prevBtn = document.createElement('button');
+    prevBtn.className = 'coverflow-nav coverflow-prev';
+    prevBtn.setAttribute('aria-label', 'Previous item');
+    prevBtn.innerHTML = '<span class="material-icons">chevron_left</span>';
+    prevBtn.disabled = coverflowIndex === 0;
+    prevBtn.addEventListener('click', () => setCoverflowIndex(coverflowIndex - 1));
+
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'coverflow-nav coverflow-next';
+    nextBtn.setAttribute('aria-label', 'Next item');
+    nextBtn.innerHTML = '<span class="material-icons">chevron_right</span>';
+    nextBtn.disabled = coverflowIndex === total - 1;
+    nextBtn.addEventListener('click', () => setCoverflowIndex(coverflowIndex + 1));
+
+    wrapper.appendChild(prevBtn);
+    wrapper.appendChild(nextBtn);
+
+    area.appendChild(wrapper);
+
+    // Show counter
+    const counter = document.createElement('div');
+    counter.className = 'coverflow-counter';
+    counter.textContent = `${coverflowIndex + 1} / ${total}`;
+    wrapper.appendChild(counter);
+}
+
+function generateCoverflowCardContent(item) {
+    const title = escapeHtml(item.title || '');
+    const subject = escapeHtml(item.subject || '');
+
+    if (currentTab === 'videos') {
+        const vid = extractYouTubeId(item.videoUrl);
+        const thumb = vid ? `https://img.youtube.com/vi/${vid}/hqdefault.jpg` : '';
+        const duration = escapeHtml(item.duration || '');
+        return `
+            <div class="coverflow-thumb">
+                ${thumb ? `<img src="${thumb}" loading="lazy" alt="">` : ''}
+                ${duration ? `<span class="video-duration">${duration}</span>` : ''}
+                ${item.videoUrl ? '<div class="coverflow-play"><span class="material-icons">play_arrow</span></div>' : ''}
+            </div>
+            <div class="coverflow-info">
+                <div class="coverflow-title">${title}</div>
+                ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
+            </div>
+        `;
+    }
+    if (currentTab === 'pdfs') {
+        return `
+            <div class="coverflow-thumb coverflow-thumb-pdf">
+                <span class="material-icons">picture_as_pdf</span>
+            </div>
+            <div class="coverflow-info">
+                <div class="coverflow-title">${title}</div>
+                ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
+            </div>
+        `;
+    }
+    if (currentTab === 'images') {
+        return `
+            <div class="coverflow-thumb">
+                <img src="${escapeAttr(item.imageUrl || '')}" loading="lazy" alt="">
+            </div>
+            <div class="coverflow-info">
+                <div class="coverflow-title">${title}</div>
+                ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
+            </div>
+        `;
+    }
+    if (currentTab === 'posts') {
+        return `
+            <div class="coverflow-thumb coverflow-thumb-post">
+                <span class="material-icons">article</span>
+            </div>
+            <div class="coverflow-info">
+                <div class="coverflow-title">${title}</div>
+                ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
+            </div>
+        `;
+    }
+    return `<div class="coverflow-info"><div class="coverflow-title">${title}</div></div>`;
+}
+
+function handleCoverflowOpen(item) {
+    if (currentTab === 'videos' && item.videoUrl) {
+        playVideo(item.videoUrl, item.title || '', item.description || '');
+    } else if (currentTab === 'images' && item.imageUrl) {
+        viewImage(item.imageUrl, item.title || '', item.description || '', item.subject || '');
+    } else if (currentTab === 'pdfs' && item.pdfUrl) {
+        window.open(item.pdfUrl, '_blank', 'noopener,noreferrer');
+    } else if (currentTab === 'posts' && item.url) {
+        window.open(item.url, '_blank', 'noopener,noreferrer');
+    }
+}
+
+function setCoverflowIndex(i) {
+    const total = cachedData.length;
+    if (!total) return;
+    coverflowIndex = Math.max(0, Math.min(total - 1, i));
+    renderCoverflow();
+}
+
+// Expose for preferences.js
+window.__CU_setCoverflowIndex = setCoverflowIndex;
 
   // ============================================
   // YOUTUBE
@@ -1028,7 +1225,9 @@ async function downloadCurrentImage() {
     area.innerHTML = '';
     appendContent();
   };
-
+  
+window.__CU_setCoverflowIndex = setCoverflowIndex;
+window.__CU_getCoverflowIndex = () => coverflowIndex;
   // ============================================
   // MODAL CLOSE
   // ============================================
@@ -1049,6 +1248,65 @@ async function downloadCurrentImage() {
     }
   });
 
+  
+// Coverflow keyboard navigation
+document.addEventListener('keydown', (e) => {
+    const area = $('contentArea');
+    if (!area || !area.classList.contains('coverflow-view')) return;
+    if (!cachedData.length) return;
+
+    // Don't hijack keys when typing in an input
+    if (e.target.matches('input, textarea, select')) return;
+
+    if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setCoverflowIndex(coverflowIndex - 1);
+    } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setCoverflowIndex(coverflowIndex + 1);
+    } else if (e.key === 'Enter') {
+        const focused = cachedData[coverflowIndex];
+        if (focused) {
+            e.preventDefault();
+            handleCoverflowOpen(focused);
+        }
+    }
+});
+
+  // Coverflow swipe support (mobile)
+(function setupCoverflowSwipe() {
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let isSwiping = false;
+
+    document.addEventListener('touchstart', (e) => {
+        const area = $('contentArea');
+        if (!area || !area.classList.contains('coverflow-view')) return;
+        if (!cachedData.length) return;
+        if (e.touches.length !== 1) return;
+
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        isSwiping = false;
+    }, { passive: true });
+
+    document.addEventListener('touchend', (e) => {
+        const area = $('contentArea');
+        if (!area || !area.classList.contains('coverflow-view')) return;
+        if (!cachedData.length) return;
+        if (!e.changedTouches.length) return;
+
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        const dy = e.changedTouches[0].clientY - touchStartY;
+
+        // Must be primarily horizontal AND long enough
+        if (Math.abs(dx) < 50) return;
+        if (Math.abs(dy) > Math.abs(dx) * 0.7) return; // vertical scroll, ignore
+
+        if (dx < 0) setCoverflowIndex(coverflowIndex + 1);
+        else setCoverflowIndex(coverflowIndex - 1);
+    }, { passive: true });
+})();
   // ============================================
   // BOOT
   // ============================================
