@@ -980,36 +980,30 @@ function generateStorySectionContent(item, index) {
     const indexLabel = String(index + 1).padStart(2, '0');
 
     let imageHtml = '';
-    let metaLine = '';
     let ctaLabel = '';
     let ctaIcon = '';
 
     if (currentTab === 'videos') {
         const vid = extractYouTubeId(item.videoUrl);
         const thumb = vid ? `https://img.youtube.com/vi/${vid}/maxresdefault.jpg` : '';
-        // Fallback to hqdefault if maxres not available
         imageHtml = thumb
             ? `<img src="${thumb}" loading="lazy" alt=""
                     onerror="this.onerror=null;this.src='https://img.youtube.com/vi/${vid}/hqdefault.jpg';">`
             : '<div class="story-placeholder"><span class="material-icons">play_circle</span></div>';
-        metaLine = subject;
         ctaLabel = 'Watch Lecture';
         ctaIcon = 'play_arrow';
     } else if (currentTab === 'pdfs') {
         imageHtml = '<div class="story-placeholder"><span class="material-icons">picture_as_pdf</span></div>';
-        metaLine = subject;
         ctaLabel = 'Read PDF';
         ctaIcon = 'open_in_new';
     } else if (currentTab === 'images') {
         imageHtml = item.imageUrl
             ? `<img src="${escapeAttr(item.imageUrl)}" loading="lazy" alt="">`
             : '<div class="story-placeholder"><span class="material-icons">image</span></div>';
-        metaLine = subject;
         ctaLabel = 'View Full Image';
         ctaIcon = 'zoom_in';
     } else if (currentTab === 'posts') {
         imageHtml = '<div class="story-placeholder"><span class="material-icons">article</span></div>';
-        metaLine = subject;
         ctaLabel = item.url ? 'Read More' : '';
         ctaIcon = 'arrow_forward';
     }
@@ -1020,13 +1014,15 @@ function generateStorySectionContent(item, index) {
 
     const metaParts = [subject, classLabel].filter(Boolean);
 
+    // Alternate the text card side per section (left, right, left, ...)
+    const sideClass = index % 2 === 0 ? 'story-card-left' : 'story-card-right';
+
     return `
         <div class="story-image-wrap">
             ${imageHtml}
-            <div class="story-image-overlay"></div>
         </div>
 
-        <div class="story-content">
+        <div class="story-card ${sideClass}">
             <div class="story-index">${indexLabel}</div>
             <h2 class="story-title">${title}</h2>
             ${metaParts.length ? `
