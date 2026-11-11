@@ -2,93 +2,165 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - VOID</title>
-    <meta name="theme-color" content="#DFDDD3">
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Admin — Campus Unfolded</title>
+    <meta name="theme-color" content="#DFDDD3" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0d1117" media="(prefers-color-scheme: dark)">
+    <meta name="robots" content="noindex, nofollow">
+
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self';
+                   script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com;
+                   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+                   font-src 'self' https://fonts.gstatic.com;
+                   img-src 'self' data: blob: https:;
+                   connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com;
+                   frame-src https://*.firebaseapp.com;
+                   object-src 'none';
+                   base-uri 'self';
+                   form-action 'self';">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <style>
         :root {
             --bg: #DFDDD3;
             --text: #233130;
             --text-secondary: #85937D;
             --surface: #FFFFFF;
+            --surface-muted: #EFEEE8;
             --border: #C5C3B8;
             --shadow-sm: 0 2px 4px rgba(35,49,48,0.1);
             --shadow-md: 0 8px 16px rgba(35,49,48,0.15);
+            --shadow-lg: 0 16px 32px rgba(35,49,48,0.2);
+            --accent: #5a745f;
+            --accent-hover: #4a6353;
+            --accent-contrast: #FFFFFF;
+            --danger: #DC2626;
+            --danger-hover: #B91C1C;
+            --success: #059669;
             --radius: 20px;
             --radius-sm: 12px;
-            --transition: all 0.3s ease;
+            --transition: all 0.25s ease;
             --font-heading: 'Playfair Display', serif;
             --font-body: 'Inter', sans-serif;
+            --touch-min: 44px;
+            --admin-email: 'khanshoib82@gmail.com'; /* documentation only, not auth */
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
         body {
             font-family: var(--font-body);
             background: var(--bg);
             color: var(--text);
             min-height: 100vh;
+            min-height: 100dvh;
+            padding-top: env(safe-area-inset-top, 0);
+            padding-bottom: env(safe-area-inset-bottom, 0);
+            -webkit-tap-highlight-color: transparent;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            line-height: 1.5;
         }
 
-        /* Login Screen */
+        [hidden] { display: none !important; }
+
+        :focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 3px;
+            border-radius: 6px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
+
+        /* ============ LOGIN SCREEN ============ */
         .login-screen {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            inset: 0;
             background: var(--bg);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 9999;
+            padding: 1rem;
+            padding-top: calc(1rem + env(safe-area-inset-top, 0));
+            padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0));
         }
 
         .login-box {
             background: var(--surface);
             border-radius: var(--radius);
-            padding: 2rem;
+            padding: clamp(1.5rem, 4vw, 2.25rem);
             box-shadow: var(--shadow-lg);
             max-width: 400px;
-            width: 90%;
+            width: 100%;
             text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-box::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 4px;
+            background: linear-gradient(90deg, var(--accent), var(--text-secondary), var(--accent));
+            background-size: 200% 100%;
+            animation: loginBarSlide 4s linear infinite;
+        }
+
+        @keyframes loginBarSlide {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
         }
 
         .login-box .logo {
             font-family: var(--font-heading);
             font-size: 1.5rem;
             font-weight: 900;
-            background: linear-gradient(135deg, #233130, #85937D);
+            background: linear-gradient(135deg, var(--text), var(--text-secondary));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            background-clip: text;
             margin-bottom: 0.5rem;
         }
 
         .login-box h2 {
             font-family: var(--font-heading);
             margin-bottom: 0.5rem;
+            font-size: clamp(1.2rem, 3vw, 1.5rem);
         }
 
         .login-box p {
             color: var(--text-secondary);
             font-size: 0.85rem;
             margin-bottom: 1.5rem;
+            line-height: 1.5;
         }
 
-        .admin-container { 
-            display: flex; 
-            min-height: 100vh;
+        .admin-container {
             display: none;
+            min-height: 100vh;
+            min-height: 100dvh;
         }
 
-        .admin-container.active {
-            display: flex;
-        }
+        .admin-container.active { display: flex; }
 
+        /* ============ SIDEBAR ============ */
         .admin-sidebar {
             width: 250px;
             background: var(--surface);
@@ -96,43 +168,61 @@
             position: fixed;
             top: 0; left: 0; bottom: 0;
             padding: 0.75rem;
+            padding-top: calc(0.75rem + env(safe-area-inset-top, 0));
             overflow-y: auto;
             z-index: 1000;
             transition: transform 0.3s ease;
+            display: flex;
+            flex-direction: column;
         }
 
         .admin-sidebar-header {
             padding: 0.75rem;
-            text-align: center;
             margin-bottom: 0.75rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 0.5rem;
         }
 
         .logo-text {
             font-family: var(--font-heading);
             font-size: 1.4rem;
             font-weight: 900;
-            background: linear-gradient(135deg, #233130, #85937D);
+            background: linear-gradient(135deg, var(--text), var(--text-secondary));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
-        .close-sidebar-btn { display: none; background: none; border: none; cursor: pointer; color: var(--text); }
+        .close-sidebar-btn {
+            display: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text);
+            padding: 6px;
+            border-radius: 6px;
+            min-width: var(--touch-min);
+            min-height: var(--touch-min);
+            align-items: center;
+            justify-content: center;
+        }
 
         .admin-main {
             flex: 1;
             margin-left: 250px;
-            padding: 1.5rem;
+            padding: clamp(1rem, 2vw, 1.5rem);
             min-width: 0;
+            padding-top: calc(clamp(1rem, 2vw, 1.5rem) + env(safe-area-inset-top, 0));
         }
 
         .admin-sidebar-item {
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 11px 14px;
+            padding: 12px 14px;
+            min-height: var(--touch-min);
             border-radius: var(--radius-sm);
             cursor: pointer;
             transition: var(--transition);
@@ -140,20 +230,27 @@
             font-weight: 500;
             margin-bottom: 3px;
             font-size: 0.9rem;
+            background: transparent;
+            border: none;
+            width: 100%;
+            text-align: left;
+            font-family: inherit;
         }
-        .admin-sidebar-item:hover { background: var(--bg); color: var(--text); }
+        .admin-sidebar-item:hover { background: var(--surface-muted); color: var(--text); }
         .admin-sidebar-item.active { background: var(--text); color: var(--bg); }
 
         .sidebar-overlay {
             display: none;
             position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
+            inset: 0;
             background: rgba(0,0,0,0.5);
             z-index: 999;
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
-        .sidebar-overlay.active { display: block; }
+        .sidebar-overlay.active { display: block; opacity: 1; }
 
+        /* ============ TOP BAR ============ */
         .top-bar {
             display: flex;
             justify-content: space-between;
@@ -163,7 +260,7 @@
             gap: 0.75rem;
         }
 
-        .top-bar-left { display: flex; align-items: center; gap: 0.75rem; }
+        .top-bar-left { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
 
         .mobile-menu-btn {
             display: none;
@@ -173,15 +270,27 @@
             padding: 6px;
             cursor: pointer;
             color: var(--text);
+            min-width: var(--touch-min);
+            min-height: var(--touch-min);
+            align-items: center;
+            justify-content: center;
         }
 
-        .admin-title { font-family: var(--font-heading); font-size: 1.8rem; font-weight: 700; }
+        .admin-title {
+            font-family: var(--font-heading);
+            font-size: clamp(1.3rem, 3vw, 1.8rem);
+            font-weight: 700;
+            word-break: break-word;
+        }
+
+        .top-bar-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 
         .logout-btn {
-            background: #DC2626;
+            background: var(--danger);
             color: white;
             border: none;
-            padding: 8px 16px;
+            padding: 10px 16px;
+            min-height: var(--touch-min);
             border-radius: var(--radius-sm);
             cursor: pointer;
             font-weight: 600;
@@ -192,10 +301,12 @@
             gap: 6px;
             transition: var(--transition);
         }
-        .logout-btn:hover { opacity: 0.9; }
+        .logout-btn:hover { background: var(--danger-hover); }
 
+        /* ============ BUTTONS ============ */
         .btn {
-            padding: 9px 18px;
+            padding: 10px 18px;
+            min-height: var(--touch-min);
             border: none;
             border-radius: var(--radius-sm);
             font-weight: 600;
@@ -204,19 +315,23 @@
             font-size: 0.85rem;
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 6px;
             font-family: inherit;
             white-space: nowrap;
         }
         .btn-primary { background: var(--text); color: var(--bg); }
-        .btn-primary:hover { opacity: 0.9; }
+        .btn-primary:hover { background: var(--accent); color: var(--accent-contrast); }
         .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn-danger { background: #DC2626; color: white; }
-        .btn-sm { padding: 5px 10px; font-size: 0.75rem; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover { background: var(--danger-hover); }
+        .btn-sm { padding: 6px 12px; font-size: 0.75rem; min-height: 36px; }
 
+        /* ============ FORMS ============ */
         .form-input, .form-select, .form-textarea {
             width: 100%;
-            padding: 10px 14px;
+            padding: 12px 14px;
+            min-height: var(--touch-min);
             border: 2px solid var(--border);
             border-radius: var(--radius-sm);
             font-size: 0.9rem;
@@ -228,39 +343,53 @@
         }
         .form-input:focus, .form-select:focus, .form-textarea:focus {
             outline: none;
-            border-color: var(--text);
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px rgba(90,116,95,0.12);
         }
+        .form-textarea { resize: vertical; min-height: 80px; }
 
         .class-checkboxes {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
             gap: 0.4rem;
             margin-bottom: 0.75rem;
+            max-height: 260px;
+            overflow-y: auto;
+            padding: 4px;
         }
 
         .class-checkbox {
             display: flex;
             align-items: center;
             gap: 0.4rem;
-            padding: 0.4rem;
-            background: var(--bg);
+            padding: 8px;
+            background: var(--surface-muted);
             border-radius: var(--radius-sm);
             cursor: pointer;
             font-size: 0.8rem;
+            min-height: 38px;
         }
-        .class-checkbox input[type="checkbox"] { accent-color: var(--text); width: 16px; height: 16px; }
+        .class-checkbox input[type="checkbox"] {
+            accent-color: var(--accent);
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+        }
 
+        /* ============ MODAL ============ */
         .modal-overlay {
             position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
+            inset: 0;
             background: rgba(0,0,0,0.6);
             z-index: 2000;
             display: none;
             align-items: center;
             justify-content: center;
-            padding: 0.75rem;
+            padding: clamp(0.5rem, 2vw, 1rem);
+            opacity: 0;
+            transition: opacity 0.25s ease;
         }
+        .modal-overlay[style*="flex"] { opacity: 1; }
 
         .modal-content {
             background: var(--surface);
@@ -268,42 +397,85 @@
             max-width: 600px;
             width: 100%;
             max-height: 90vh;
+            max-height: 90dvh;
             overflow-y: auto;
-            padding: 1.5rem;
+            padding: clamp(1rem, 3vw, 1.5rem);
+            animation: modalIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.94); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            gap: 0.5rem;
+        }
+
+        .modal-title {
+            font-family: var(--font-heading);
+            font-size: clamp(1.1rem, 2vw, 1.3rem);
+            font-weight: 700;
+        }
+
+        .modal-close-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.4rem;
+            color: var(--text);
+            padding: 6px;
+            min-width: 36px;
+            min-height: 36px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-close-btn:hover { background: var(--surface-muted); }
+
+        /* ============ TABLE ============ */
         .table-container {
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
+            border-radius: var(--radius);
+            background: var(--surface);
+            box-shadow: var(--shadow-sm);
         }
 
         .data-table {
             width: 100%;
             border-collapse: collapse;
             background: var(--surface);
-            border-radius: var(--radius);
-            overflow: hidden;
-            box-shadow: var(--shadow-sm);
             min-width: 600px;
         }
         .data-table th {
-            padding: 0.75rem;
+            padding: 12px;
             text-align: left;
-            background: var(--bg);
+            background: var(--surface-muted);
             color: var(--text-secondary);
             font-weight: 600;
             font-size: 0.8rem;
             white-space: nowrap;
+            position: sticky;
+            top: 0;
         }
         .data-table td {
-            padding: 0.75rem;
+            padding: 12px;
             border-bottom: 1px solid var(--border);
             font-size: 0.85rem;
+            vertical-align: middle;
         }
+        .data-table tr:last-child td { border-bottom: none; }
 
+        /* ============ STATS ============ */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
             gap: 0.75rem;
         }
 
@@ -313,15 +485,24 @@
             border-radius: var(--radius);
             text-align: center;
             box-shadow: var(--shadow-sm);
+            transition: var(--transition);
         }
-        .stat-card .material-icons { font-size: 2rem; color: var(--text); }
-        .stat-card h2 { margin-top: 0.35rem; font-size: 1.3rem; }
+        .stat-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+        .stat-card .material-icons { font-size: 2rem; color: var(--accent); }
+        .stat-card h2 {
+            margin-top: 0.35rem;
+            font-size: clamp(1.2rem, 2vw, 1.5rem);
+            font-family: var(--font-heading);
+            font-weight: 900;
+        }
         .stat-card p { color: var(--text-secondary); font-size: 0.85rem; }
 
+        /* ============ LOAD MORE / EMPTY ============ */
         .load-more-btn {
             display: block;
-            margin: 0.75rem auto;
-            padding: 10px 28px;
+            margin: 1rem auto;
+            padding: 12px 28px;
+            min-height: var(--touch-min);
             border-radius: 24px;
             background: var(--surface);
             border: 2px solid var(--border);
@@ -332,38 +513,42 @@
             font-size: 0.85rem;
             transition: var(--transition);
         }
-        .load-more-btn:hover { background: var(--text); color: var(--bg); }
+        .load-more-btn:hover { background: var(--accent); color: var(--accent-contrast); border-color: var(--accent); }
 
         .empty-state {
             text-align: center;
-            padding: 2rem 1rem;
+            padding: 3rem 1rem;
             color: var(--text-secondary);
         }
-        .empty-state .material-icons { font-size: 3rem; margin-bottom: 0.5rem; }
-        .empty-state h3 { font-size: 1.1rem; margin-bottom: 0.25rem; }
+        .empty-state .material-icons { font-size: 3rem; margin-bottom: 0.5rem; color: var(--accent); }
+        .empty-state h3 { font-size: 1.1rem; margin-bottom: 0.25rem; color: var(--text); }
         .empty-state p { font-size: 0.85rem; }
 
+        /* ============ TOAST ============ */
         .toast {
             position: fixed;
-            bottom: 2rem;
+            bottom: calc(2rem + env(safe-area-inset-bottom, 0));
             left: 50%;
-            transform: translateX(-50%);
+            transform: translateX(-50%) translateY(120px);
             background: var(--text);
             color: var(--bg);
             padding: 12px 24px;
-            border-radius: 8px;
+            border-radius: 10px;
             z-index: 3000;
-            display: none;
             font-size: 0.9rem;
             box-shadow: var(--shadow-md);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            max-width: calc(100vw - 40px);
+            text-align: center;
         }
-        .toast.show { display: block; }
-        .toast.error { background: #DC2626; color: white; }
-        .toast.success { background: #059669; color: white; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.error { background: var(--danger); color: white; }
+        .toast.success { background: var(--success); color: white; }
 
+        /* ============ BADGES / ERRORS ============ */
         .email-badge {
             display: inline-block;
-            padding: 3px 8px;
+            padding: 3px 10px;
             border-radius: 12px;
             font-size: 0.7rem;
             font-weight: 600;
@@ -379,44 +564,119 @@
             margin-bottom: 0.75rem;
             display: none;
             font-size: 0.85rem;
+            text-align: left;
+            line-height: 1.4;
         }
         .error-message.show { display: block; }
 
+        /* ============ LOADING SPINNER ============ */
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ============ RESPONSIVE ============ */
+        @media (max-width: 900px) {
+            .admin-sidebar { width: 240px; }
+            .admin-main { margin-left: 240px; }
+        }
+
         @media (max-width: 768px) {
-            .admin-sidebar { width: 260px; transform: translateX(-100%); padding: 0.5rem; }
-            .admin-sidebar.open { transform: translateX(0); box-shadow: var(--shadow-md); }
-            .close-sidebar-btn { display: block; }
-            .admin-main { margin-left: 0; padding: 1rem; }
-            .mobile-menu-btn { display: flex; align-items: center; justify-content: center; }
-            .admin-title { font-size: 1.5rem; }
-            .btn { padding: 7px 14px; font-size: 0.8rem; }
-            .modal-content { padding: 1.25rem; }
-            .class-checkboxes { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
-            .class-checkbox { padding: 0.35rem; font-size: 0.75rem; }
-            .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
+            .admin-sidebar {
+                width: 280px;
+                max-width: 85vw;
+                transform: translateX(-100%);
+                padding: 0.5rem;
+                padding-top: calc(0.5rem + env(safe-area-inset-top, 0));
+            }
+            .admin-sidebar.open { transform: translateX(0); box-shadow: var(--shadow-lg); }
+            .close-sidebar-btn { display: flex; }
+            .admin-main { margin-left: 0; padding: clamp(0.75rem, 2vw, 1rem); padding-top: calc(clamp(0.75rem, 2vw, 1rem) + env(safe-area-inset-top, 0)); }
+            .mobile-menu-btn { display: flex; }
+            .admin-title { font-size: 1.4rem; }
+            .top-bar-actions { width: 100%; justify-content: flex-end; }
+            .btn { padding: 8px 14px; font-size: 0.78rem; }
+            .modal-content { padding: 1rem; }
+            .class-checkboxes { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); }
+            .class-checkbox { padding: 6px; font-size: 0.72rem; }
+            .stats-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.5rem; }
             .stat-card { padding: 1rem; }
+            .stat-card .material-icons { font-size: 1.6rem; }
+        }
+
+        @media (max-width: 480px) {
+            .admin-title { font-size: 1.2rem; }
+            .logout-btn, .btn { font-size: 0.72rem; }
+            .logout-btn span:not(.material-icons),
+            .btn span:not(.material-icons) {
+                /* hide text labels on very small phones, keep icons */
+                display: none;
+            }
+            .logout-btn, .btn { padding: 8px 12px; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .modal-content { padding: 0.85rem; }
+            .data-table th, .data-table td { padding: 8px; font-size: 0.75rem; }
+        }
+
+        /* Reduced motion for toast */
+        @media (prefers-reduced-motion: reduce) {
+            .toast { transition: none; }
+            .modal-content { animation: none; }
+            .login-box::before { animation: none; }
         }
     </style>
 </head>
 <body>
+
+    <noscript>
+        <div style="padding:2rem;text-align:center;font-family:sans-serif">
+            <h2>JavaScript required</h2>
+            <p>Please enable JavaScript to access the admin panel.</p>
+        </div>
+    </noscript>
+
     <!-- Login Screen -->
     <div class="login-screen" id="loginScreen">
         <div class="login-box">
             <div class="logo">Admin</div>
             <h2>Admin Login</h2>
             <p>Enter your credentials to access the admin panel</p>
-            
-            <div class="error-message" id="loginError">
+
+            <div class="error-message" id="loginError" role="alert" aria-live="assertive">
                 Invalid email or password. Please try again.
             </div>
-            
-            <input type="email" class="form-input" id="adminEmail" placeholder="Admin Email" required>
-            <input type="password" class="form-input" id="adminPassword" placeholder="Password" required>
-            
-            <button class="btn btn-primary" onclick="adminLogin()" id="loginBtn">
-                <span class="material-icons">lock</span>
-                Login
-            </button>
+
+            <form id="loginForm" onsubmit="event.preventDefault(); adminLogin();" autocomplete="on">
+                <input type="email"
+                       class="form-input"
+                       id="adminEmail"
+                       placeholder="Admin Email"
+                       required
+                       autocomplete="username"
+                       inputmode="email"
+                       spellcheck="false">
+                <input type="password"
+                       class="form-input"
+                       id="adminPassword"
+                       placeholder="Password"
+                       required
+                       autocomplete="current-password">
+                <button type="submit"
+                        class="btn btn-primary"
+                        id="loginBtn"
+                        style="width:100%">
+                    <span class="material-icons" aria-hidden="true">lock</span>
+                    <span>Login</span>
+                </button>
+            </form>
         </div>
     </div>
 
@@ -424,34 +684,36 @@
     <div class="admin-container" id="adminContainer">
         <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
-        <div class="admin-sidebar" id="adminSidebar">
+        <aside class="admin-sidebar" id="adminSidebar" aria-label="Admin navigation">
             <div class="admin-sidebar-header">
                 <span class="logo-text">Admin</span>
                 <button class="close-sidebar-btn" onclick="closeSidebar()" aria-label="Close menu">
                     <span class="material-icons">close</span>
                 </button>
             </div>
-            <div class="admin-sidebar-item active" onclick="handleMobileTabClick('dashboard')">
-                <span class="material-icons">dashboard</span><span>Dashboard</span>
-            </div>
-            <div class="admin-sidebar-item" onclick="handleMobileTabClick('whitelist')">
-                <span class="material-icons">verified_user</span><span>Students</span>
-            </div>
-            <div class="admin-sidebar-item" onclick="handleMobileTabClick('videos')">
-                <span class="material-icons">video_library</span><span>Videos</span>
-            </div>
-            <div class="admin-sidebar-item" onclick="handleMobileTabClick('pdfs')">
-                <span class="material-icons">picture_as_pdf</span><span>PDFs</span>
-            </div>
-            <div class="admin-sidebar-item" onclick="handleMobileTabClick('images')">
-                <span class="material-icons">image</span><span>Images</span>
-            </div>
-            <div class="admin-sidebar-item" onclick="handleMobileTabClick('posts')">
-                <span class="material-icons">article</span><span>Posts</span>
-            </div>
-        </div>
+            <nav>
+                <button class="admin-sidebar-item active" data-tab="dashboard" onclick="handleMobileTabClick('dashboard')">
+                    <span class="material-icons">dashboard</span><span>Dashboard</span>
+                </button>
+                <button class="admin-sidebar-item" data-tab="whitelist" onclick="handleMobileTabClick('whitelist')">
+                    <span class="material-icons">verified_user</span><span>Students</span>
+                </button>
+                <button class="admin-sidebar-item" data-tab="videos" onclick="handleMobileTabClick('videos')">
+                    <span class="material-icons">video_library</span><span>Videos</span>
+                </button>
+                <button class="admin-sidebar-item" data-tab="pdfs" onclick="handleMobileTabClick('pdfs')">
+                    <span class="material-icons">picture_as_pdf</span><span>PDFs</span>
+                </button>
+                <button class="admin-sidebar-item" data-tab="images" onclick="handleMobileTabClick('images')">
+                    <span class="material-icons">image</span><span>Images</span>
+                </button>
+                <button class="admin-sidebar-item" data-tab="posts" onclick="handleMobileTabClick('posts')">
+                    <span class="material-icons">article</span><span>Posts</span>
+                </button>
+            </nav>
+        </aside>
 
-        <div class="admin-main">
+        <main class="admin-main">
             <div class="top-bar">
                 <div class="top-bar-left">
                     <button class="mobile-menu-btn" onclick="openSidebar()" aria-label="Open menu">
@@ -459,37 +721,57 @@
                     </button>
                     <h1 class="admin-title" id="adminTitle">Dashboard</h1>
                 </div>
-                <div style="display:flex;gap:0.5rem;">
-                    <button class="btn btn-primary" id="addBtn" onclick="showAddForm()">
-                        <span class="material-icons">add</span> Add New
+                <div class="top-bar-actions">
+                    <button class="btn btn-primary" id="addBtn" onclick="showAddForm()" hidden>
+                        <span class="material-icons" aria-hidden="true">add</span>
+                        <span>Add New</span>
                     </button>
                     <button class="logout-btn" onclick="adminLogout()">
-                        <span class="material-icons">logout</span>
-                        Logout
+                        <span class="material-icons" aria-hidden="true">logout</span>
+                        <span>Logout</span>
                     </button>
                 </div>
             </div>
-            <div id="adminContent"></div>
-        </div>
+            <div id="adminContent" aria-live="polite"></div>
+        </main>
     </div>
 
-    <div class="modal-overlay" id="modalOverlay">
+    <!-- Modal -->
+    <div class="modal-overlay" id="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal-content">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-                <h2 id="modalTitle" style="font-family:var(--font-heading);font-size:1.3rem;">Add New</h2>
-                <button onclick="closeModal()" style="background:none;border:none;cursor:pointer;font-size:1.3rem;color:var(--text);" aria-label="Close">✕</button>
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Add New</h2>
+                <button class="modal-close-btn" onclick="closeModal()" aria-label="Close dialog">✕</button>
             </div>
             <div id="modalBody"></div>
         </div>
     </div>
 
-    <div class="toast" id="toast"></div>
+    <!-- Confirm dialog (replaces confirm()) -->
+    <div class="modal-overlay" id="confirmOverlay" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle">
+        <div class="modal-content" style="max-width: 400px;">
+            <h2 class="modal-title" id="confirmTitle" style="margin-bottom: 0.75rem;">Confirm</h2>
+            <p id="confirmMessage" style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.25rem; line-height: 1.5;"></p>
+            <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
+                <button class="btn" id="confirmCancelBtn" style="background:var(--surface-muted); color:var(--text); border:2px solid var(--border);">Cancel</button>
+                <button class="btn btn-danger" id="confirmOkBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast" role="alert" aria-live="assertive"></div>
 
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
     <script>
+    (function () {
+        'use strict';
+
+        // ============================================
+        // CONFIG
+        // ============================================
         const firebaseConfig = {
             apiKey: "AIzaSyDQJeB1o4W6KnC_OlxGc1u1aPWsv40bICo",
             authDomain: "genesis-aec98.firebaseapp.com",
@@ -499,134 +781,184 @@
             appId: "1:1071823452533:web:ff7a7dd592249a6ea1fb3c"
         };
 
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
+        // Authoritative admin check happens in Firestore Rules.
+        // This client-side list is a UX gate only — never trust it for security.
+        const ADMIN_EMAILS = ['khanshoib82@gmail.com'];
+
+        const CONFIG = Object.freeze({
+            PAGE_SIZE: 5,
+            COLLECTIONS: ['whitelist', 'videos', 'pdfs', 'images', 'posts']
+        });
 
         const allClasses = ['Class 6','Class 7','Class 8','Class 9','Class 10','Class 11','Class 12','Jamia Entrance','JNU Entrance','DU Entrance','AMU Entrance','CUET'];
         const allSubjects = ['Geography','History','Economics','Social Science','General Knowledge','Mathematics','Hindi','Urdu','Computer','Biology','Zoology','Physics','Chemistry','Science','English','Current Affairs','Quant','Coding','AI'];
 
+        // ============================================
+        // FIREBASE INIT
+        // ============================================
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        db.settings({ ignoreUndefinedProperties: true });
+
+        // ============================================
+        // STATE
+        // ============================================
         let currentTab = 'dashboard';
         let cachedData = [];
         let displayedCount = 0;
-        const PAGE_SIZE = 5;
         let isSubmitting = false;
+        let loadToken = 0;          // races
+        let wasAuthenticated = false; // for transition-only rendering
+        let confirmCallback = null;
 
-        // Admin Login
+        // ============================================
+        // UTIL
+        // ============================================
+        const $ = (id) => document.getElementById(id);
+
+        function escapeHtml(text) {
+            if (text == null) return '';
+            const div = document.createElement('div');
+            div.textContent = String(text);
+            return div.innerHTML;
+        }
+
+        function isAdminEmail(email) {
+            if (!email) return false;
+            const e = email.toLowerCase().trim();
+            return ADMIN_EMAILS.some((a) => a.toLowerCase() === e);
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = $('toast');
+            toast.textContent = message;
+            toast.className = 'toast show ' + type;
+            clearTimeout(toast._timer);
+            toast._timer = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        function showConfirm(message, onConfirm) {
+            $('confirmMessage').textContent = message;
+            confirmCallback = onConfirm;
+            $('confirmOverlay').style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeConfirm() {
+            $('confirmOverlay').style.display = 'none';
+            document.body.style.overflow = 'auto';
+            confirmCallback = null;
+        }
+
+        // ============================================
+        // AUTH
+        // ============================================
         async function adminLogin() {
-            const email = document.getElementById('adminEmail').value.trim();
-            const password = document.getElementById('adminPassword').value;
-            const loginBtn = document.getElementById('loginBtn');
-            const loginError = document.getElementById('loginError');
-            
+            const email = $('adminEmail').value.trim().toLowerCase();
+            const password = $('adminPassword').value;
+            const loginBtn = $('loginBtn');
+            const loginError = $('loginError');
+
             if (!email || !password) {
                 loginError.textContent = 'Please enter email and password.';
                 loginError.classList.add('show');
                 return;
             }
-            
+
             loginBtn.disabled = true;
-            loginBtn.textContent = 'Logging in...';
+            loginBtn.innerHTML = '<span class="spinner"></span><span>Logging in...</span>';
             loginError.classList.remove('show');
-            
+
             try {
-                const userCredential = await auth.signInWithEmailAndPassword(email, password);
-                const user = userCredential.user;
-                
-                console.log('Logged in as:', user.email);
-                
-                // Check if this is admin email
-                if (user.email === 'khanshoib82@gmail.com') {
-                    document.getElementById('loginScreen').style.display = 'none';
-                    document.getElementById('adminContainer').classList.add('active');
-                    switchTab('dashboard');
-                } else {
-                    await auth.signOut();
-                    loginError.textContent = 'Access denied. Admin only.';
-                    loginError.classList.add('show');
-                }
-                
+                await auth.signInWithEmailAndPassword(email, password);
+                // onAuthStateChanged handles the rest
+                $('adminPassword').value = '';
             } catch (error) {
-                console.error('Login error:', error);
-                
-                switch (error.code) {
-                    case 'auth/invalid-email':
-                        loginError.textContent = 'Invalid email format.';
-                        break;
-                    case 'auth/user-not-found':
-                        loginError.textContent = 'No account found with this email.';
-                        break;
-                    case 'auth/wrong-password':
-                        loginError.textContent = 'Incorrect password.';
-                        break;
-                    case 'auth/too-many-requests':
-                        loginError.textContent = 'Too many attempts. Try again later.';
-                        break;
-                    default:
-                        loginError.textContent = 'Login failed: ' + error.message;
-                }
-                
+                console.error('[Admin] Login error:', error.code);
+
+                const messages = {
+                    'auth/invalid-email': 'Invalid email format.',
+                    'auth/user-not-found': 'No account found with this email.',
+                    'auth/wrong-password': 'Incorrect password.',
+                    'auth/invalid-credential': 'Incorrect email or password.',
+                    'auth/too-many-requests': 'Too many attempts. Try again in a few minutes.',
+                    'auth/user-disabled': 'This account has been disabled.',
+                    'auth/network-request-failed': 'Network error. Check your connection.'
+                };
+                loginError.textContent = messages[error.code] || 'Login failed. Please try again.';
                 loginError.classList.add('show');
             } finally {
                 loginBtn.disabled = false;
-                loginBtn.innerHTML = '<span class="material-icons">lock</span> Login';
+                loginBtn.innerHTML = '<span class="material-icons" aria-hidden="true">lock</span><span>Login</span>';
             }
         }
 
-        // Admin Logout
         async function adminLogout() {
-            if (confirm('Logout from admin panel?')) {
+            showConfirm('Logout from admin panel?', async () => {
                 try {
                     await auth.signOut();
-                    document.getElementById('adminContainer').classList.remove('active');
-                    document.getElementById('loginScreen').style.display = 'flex';
-                    document.getElementById('adminPassword').value = '';
+                    closeConfirm();
                 } catch (error) {
-                    console.error('Logout error:', error);
+                    console.error('[Admin] Logout error:', error);
                 }
-            }
+            });
         }
 
-        // Check if already logged in
-        auth.onAuthStateChanged((user) => {
-            if (user && user.email === 'khanshoib82@gmail.com') {
-                document.getElementById('loginScreen').style.display = 'none';
-                document.getElementById('adminContainer').classList.add('active');
-                switchTab('dashboard');
+        // Listen for auth state changes
+        auth.onAuthStateChanged(async (user) => {
+            if (user && isAdminEmail(user.email)) {
+                // Verify via a Firestore read that only admins can do.
+                // This confirms the server-side rules also recognize this user as admin.
+                try {
+                    await db.collection('whitelist').limit(1).get();
+                } catch (err) {
+                    console.error('[Admin] Rules rejected admin read:', err.code);
+                    await auth.signOut();
+                    const loginError = $('loginError');
+                    loginError.textContent =
+                        'Your account is not recognized as admin in Firestore rules. ' +
+                        'Check that khanshoib82@gmail.com is in the rules isAdmin() check.';
+                    loginError.classList.add('show');
+                    return;
+                }
+
+                // Show admin
+                $('loginScreen').style.display = 'none';
+                $('adminContainer').classList.add('active');
+
+                // Only switch to dashboard on first auth (avoid reloading on token refresh)
+                if (!wasAuthenticated) {
+                    wasAuthenticated = true;
+                    switchTab('dashboard');
+                }
             } else {
-                document.getElementById('loginScreen').style.display = 'flex';
-                document.getElementById('adminContainer').classList.remove('active');
+                if (user) {
+                    // Signed in but not admin
+                    await auth.signOut();
+                }
+                $('loginScreen').style.display = 'flex';
+                $('adminContainer').classList.remove('active');
+                wasAuthenticated = false;
             }
         });
 
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function sanitizeInput(text) {
-            if (!text) return '';
-            return text.replace(/[<>]/g, '').trim();
-        }
-
-        function showToast(message, type = 'success') {
-            const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.className = 'toast show ' + type;
-            setTimeout(() => { toast.classList.remove('show'); }, 3000);
-        }
-
+        // ============================================
+        // NAVIGATION
+        // ============================================
         function openSidebar() {
-            document.getElementById('adminSidebar').classList.add('open');
-            document.getElementById('sidebarOverlay').classList.add('active');
+            $('adminSidebar').classList.add('open');
+            $('sidebarOverlay').classList.add('active');
             document.body.style.overflow = 'hidden';
         }
 
         function closeSidebar() {
-            document.getElementById('adminSidebar').classList.remove('open');
-            document.getElementById('sidebarOverlay').classList.remove('active');
+            $('adminSidebar').classList.remove('open');
+            $('sidebarOverlay').classList.remove('active');
             document.body.style.overflow = 'auto';
         }
 
@@ -636,15 +968,17 @@
         }
 
         function switchTab(tab) {
+            if (!CONFIG.COLLECTIONS.includes(tab) && tab !== 'dashboard') return;
+
             currentTab = tab;
             cachedData = [];
             displayedCount = 0;
-            
-            document.querySelectorAll('.admin-sidebar-item').forEach(item => item.classList.remove('active'));
-            const tabs = ['dashboard','whitelist','videos','pdfs','images','posts'];
-            const index = tabs.indexOf(tab);
-            if (index !== -1) document.querySelectorAll('.admin-sidebar-item')[index].classList.add('active');
-            
+            loadToken++;
+
+            document.querySelectorAll('.admin-sidebar-item').forEach((item) => {
+                item.classList.toggle('active', item.dataset.tab === tab);
+            });
+
             const titles = {
                 dashboard: 'Dashboard',
                 whitelist: 'Student Management',
@@ -653,178 +987,166 @@
                 images: 'Image Management',
                 posts: 'Post Management'
             };
-            document.getElementById('adminTitle').textContent = titles[tab] || 'Dashboard';
-            document.getElementById('addBtn').style.display = tab === 'dashboard' ? 'none' : 'inline-flex';
-            
-            switch(tab) {
-                case 'dashboard': loadDashboard(); break;
-                case 'whitelist': loadData('whitelist'); break;
-                case 'videos': loadData('videos'); break;
-                case 'pdfs': loadData('pdfs'); break;
-                case 'images': loadData('images'); break;
-                case 'posts': loadData('posts'); break;
+            $('adminTitle').textContent = titles[tab] || 'Dashboard';
+
+            const addBtn = $('addBtn');
+            if (tab === 'dashboard') {
+                addBtn.setAttribute('hidden', '');
+            } else {
+                addBtn.removeAttribute('hidden');
             }
+
+            if (tab === 'dashboard') loadDashboard();
+            else loadData(tab);
         }
 
+        // ============================================
+        // ADD FORMS
+        // ============================================
         function showAddForm() {
-            const modal = document.getElementById('modalOverlay');
-            const modalBody = document.getElementById('modalBody');
-            
+            const modalBody = $('modalBody');
+            $('modalTitle').textContent = 'Add New';
+
             if (currentTab === 'whitelist') {
-                document.getElementById('modalTitle').textContent = 'Add Student';
+                $('modalTitle').textContent = 'Add Student';
                 modalBody.innerHTML = `
                     <input type="text" id="studentName" class="form-input" placeholder="Student Full Name" maxlength="50" required>
-                    <input type="email" id="studentEmail" class="form-input" placeholder="Student Gmail Address" required>
+                    <input type="email" id="studentEmail" class="form-input" placeholder="Student Gmail Address" required autocomplete="off">
                     <label style="font-weight:500;margin-bottom:0.4rem;display:block;font-size:0.85rem;">Assign Classes:</label>
                     <div class="class-checkboxes">
-                        ${allClasses.map(cls => `
+                        ${allClasses.map((cls) => `
                             <label class="class-checkbox">
-                                <input type="checkbox" value="${cls}" class="class-check"> ${cls}
+                                <input type="checkbox" value="${escapeHtml(cls)}" class="class-check"> ${escapeHtml(cls)}
                             </label>
                         `).join('')}
                     </div>
-                    <button class="btn btn-primary" onclick="addToWhitelist()" id="submitBtn">Add Student</button>
+                    <button class="btn btn-primary" onclick="addToWhitelist()" id="submitBtn" style="width:100%;">Add Student</button>
                 `;
-            } else {
-                document.getElementById('modalTitle').textContent = 'Add New';
-                switch(currentTab) {
-                    case 'videos':
-                        modalBody.innerHTML = `
-                            <input type="text" id="videoTitle" class="form-input" placeholder="Video Title" maxlength="100">
-                            <input type="url" id="videoUrl" class="form-input" placeholder="YouTube URL" maxlength="500">
-                            <select id="videoClass" class="form-select">
-                                <option value="">Select Class</option>
-                                ${allClasses.map(cls => `<option value="${cls}">${cls}</option>`).join('')}
-                            </select>
-                            <select id="videoSubject" class="form-select">
-                                <option value="">Select Subject</option>
-                                ${allSubjects.map(sub => `<option value="${sub}">${sub}</option>`).join('')}
-                            </select>
-                            <input type="text" id="videoDuration" class="form-input" placeholder="Duration (e.g., 45:30)" maxlength="20">
-                            <textarea id="videoDescription" class="form-textarea" placeholder="Description" rows="3" maxlength="500"></textarea>
-                            <button class="btn btn-primary" onclick="addVideo()" id="submitBtn">Add Video</button>
-                        `;
-                        break;
-                        
-                    case 'pdfs':
-                        modalBody.innerHTML = `
-                            <input type="text" id="pdfTitle" class="form-input" placeholder="PDF Title" maxlength="100">
-                            <input type="url" id="pdfUrl" class="form-input" placeholder="PDF URL" maxlength="500">
-                            <select id="pdfClass" class="form-select">
-                                <option value="">Select Class</option>
-                                ${allClasses.map(cls => `<option value="${cls}">${cls}</option>`).join('')}
-                            </select>
-                            <select id="pdfSubject" class="form-select">
-                                <option value="">Select Subject</option>
-                                ${allSubjects.map(sub => `<option value="${sub}">${sub}</option>`).join('')}
-                            </select>
-                            <button class="btn btn-primary" onclick="addPDF()" id="submitBtn">Add PDF</button>
-                        `;
-                        break;
-                        
-                    case 'images':
-                        modalBody.innerHTML = `
-                            <input type="text" id="imageTitle" class="form-input" placeholder="Image Title" maxlength="100">
-                            <input type="url" id="imageUrl" class="form-input" placeholder="Image URL" maxlength="500">
-                            <select id="imageClass" class="form-select">
-                                <option value="">Select Class</option>
-                                ${allClasses.map(cls => `<option value="${cls}">${cls}</option>`).join('')}
-                            </select>
-                            <select id="imageSubject" class="form-select">
-                                <option value="">Select Subject</option>
-                                ${allSubjects.map(sub => `<option value="${sub}">${sub}</option>`).join('')}
-                            </select>
-                            <textarea id="imageDescription" class="form-textarea" placeholder="Description" rows="3" maxlength="500"></textarea>
-                            <button class="btn btn-primary" onclick="addImage()" id="submitBtn">Add Image</button>
-                        `;
-                        break;
-                        
-                    case 'posts':
-                        modalBody.innerHTML = `
-                            <input type="text" id="postTitle" class="form-input" placeholder="Post Title" maxlength="100">
-                            <textarea id="postContent" class="form-textarea" placeholder="Content" rows="4" maxlength="2000"></textarea>
-                            <input type="url" id="postUrl" class="form-input" placeholder="URL (Optional)" maxlength="500">
-                            <label style="font-weight:500;margin-bottom:0.4rem;display:block;font-size:0.85rem;">Target Classes:</label>
-                            <div class="class-checkboxes">
-                                ${allClasses.map(cls => `
-                                    <label class="class-checkbox">
-                                        <input type="checkbox" value="${cls}" class="post-class-check"> ${cls}
-                                    </label>
-                                `).join('')}
-                            </div>
-                            <select id="postSubject" class="form-select">
-                                <option value="">Select Subject (Optional)</option>
-                                ${allSubjects.map(sub => `<option value="${sub}">${sub}</option>`).join('')}
-                            </select>
-                            <button class="btn btn-primary" onclick="addPost()" id="submitBtn">Add Post</button>
-                        `;
-                        break;
-                }
+            } else if (currentTab === 'videos') {
+                modalBody.innerHTML = `
+                    <input type="text" id="videoTitle" class="form-input" placeholder="Video Title" maxlength="100">
+                    <input type="url" id="videoUrl" class="form-input" placeholder="YouTube URL" maxlength="500">
+                    <select id="videoClass" class="form-select">
+                        <option value="">Select Class</option>
+                        ${allClasses.map((cls) => `<option value="${escapeHtml(cls)}">${escapeHtml(cls)}</option>`).join('')}
+                    </select>
+                    <select id="videoSubject" class="form-select">
+                        <option value="">Select Subject</option>
+                        ${allSubjects.map((sub) => `<option value="${escapeHtml(sub)}">${escapeHtml(sub)}</option>`).join('')}
+                    </select>
+                    <input type="text" id="videoDuration" class="form-input" placeholder="Duration (e.g., 45:30)" maxlength="20">
+                    <textarea id="videoDescription" class="form-textarea" placeholder="Description" rows="3" maxlength="500"></textarea>
+                    <button class="btn btn-primary" onclick="addVideo()" id="submitBtn" style="width:100%;">Add Video</button>
+                `;
+            } else if (currentTab === 'pdfs') {
+                modalBody.innerHTML = `
+                    <input type="text" id="pdfTitle" class="form-input" placeholder="PDF Title" maxlength="100">
+                    <input type="url" id="pdfUrl" class="form-input" placeholder="PDF URL" maxlength="500">
+                    <select id="pdfClass" class="form-select">
+                        <option value="">Select Class</option>
+                        ${allClasses.map((cls) => `<option value="${escapeHtml(cls)}">${escapeHtml(cls)}</option>`).join('')}
+                    </select>
+                    <select id="pdfSubject" class="form-select">
+                        <option value="">Select Subject</option>
+                        ${allSubjects.map((sub) => `<option value="${escapeHtml(sub)}">${escapeHtml(sub)}</option>`).join('')}
+                    </select>
+                    <button class="btn btn-primary" onclick="addPDF()" id="submitBtn" style="width:100%;">Add PDF</button>
+                `;
+            } else if (currentTab === 'images') {
+                modalBody.innerHTML = `
+                    <input type="text" id="imageTitle" class="form-input" placeholder="Image Title" maxlength="100">
+                    <input type="url" id="imageUrl" class="form-input" placeholder="Image URL" maxlength="500">
+                    <select id="imageClass" class="form-select">
+                        <option value="">Select Class</option>
+                        ${allClasses.map((cls) => `<option value="${escapeHtml(cls)}">${escapeHtml(cls)}</option>`).join('')}
+                    </select>
+                    <select id="imageSubject" class="form-select">
+                        <option value="">Select Subject</option>
+                        ${allSubjects.map((sub) => `<option value="${escapeHtml(sub)}">${escapeHtml(sub)}</option>`).join('')}
+                    </select>
+                    <textarea id="imageDescription" class="form-textarea" placeholder="Description" rows="3" maxlength="500"></textarea>
+                    <button class="btn btn-primary" onclick="addImage()" id="submitBtn" style="width:100%;">Add Image</button>
+                `;
+            } else if (currentTab === 'posts') {
+                modalBody.innerHTML = `
+                    <input type="text" id="postTitle" class="form-input" placeholder="Post Title" maxlength="100">
+                    <textarea id="postContent" class="form-textarea" placeholder="Content" rows="4" maxlength="2000"></textarea>
+                    <input type="url" id="postUrl" class="form-input" placeholder="URL (Optional)" maxlength="500">
+                    <label style="font-weight:500;margin-bottom:0.4rem;display:block;font-size:0.85rem;">Target Classes:</label>
+                    <div class="class-checkboxes">
+                        ${allClasses.map((cls) => `
+                            <label class="class-checkbox">
+                                <input type="checkbox" value="${escapeHtml(cls)}" class="post-class-check"> ${escapeHtml(cls)}
+                            </label>
+                        `).join('')}
+                    </div>
+                    <select id="postSubject" class="form-select">
+                        <option value="">Select Subject (Optional)</option>
+                        ${allSubjects.map((sub) => `<option value="${escapeHtml(sub)}">${escapeHtml(sub)}</option>`).join('')}
+                    </select>
+                    <button class="btn btn-primary" onclick="addPost()" id="submitBtn" style="width:100%;">Add Post</button>
+                `;
             }
-            
-            modal.style.display = 'flex';
+
+            $('modalOverlay').style.display = 'flex';
             document.body.style.overflow = 'hidden';
+
+            // Auto-focus first input
+            const firstInput = modalBody.querySelector('input, select, textarea');
+            firstInput?.focus();
         }
 
         function closeModal() {
-            document.getElementById('modalOverlay').style.display = 'none';
+            $('modalOverlay').style.display = 'none';
             document.body.style.overflow = 'auto';
             isSubmitting = false;
         }
 
-        document.getElementById('modalOverlay').addEventListener('click', function(e) {
-            if (e.target === this) closeModal();
-        });
-
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') closeModal();
-        });
-
+        // ============================================
+        // ADD HANDLERS
+        // ============================================
         async function addToWhitelist() {
             if (isSubmitting) return;
-            
-            const studentName = sanitizeInput(document.getElementById('studentName').value);
-            const email = document.getElementById('studentEmail').value.trim().toLowerCase();
-            const selectedClasses = [];
-            document.querySelectorAll('.class-check:checked').forEach(cb => selectedClasses.push(cb.value));
-            
+
+            const studentName = $('studentName').value.trim();
+            const email = $('studentEmail').value.trim().toLowerCase();
+            const selectedClasses = Array.from(document.querySelectorAll('.class-check:checked')).map((cb) => cb.value);
+
             if (!studentName || !email || !selectedClasses.length) {
                 showToast('Please fill name, email and select at least one class', 'error');
                 return;
             }
-            
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(email)) {
+
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
                 showToast('Please enter a valid email address', 'error');
                 return;
             }
-            
+
             isSubmitting = true;
-            const submitBtn = document.getElementById('submitBtn');
+            const submitBtn = $('submitBtn');
             submitBtn.disabled = true;
             submitBtn.textContent = 'Adding...';
-            
+
             try {
                 const oneYearLater = new Date();
                 oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
-                
+
                 await db.collection('whitelist').doc(email).set({
-                    studentName: studentName,
-                    email: email,
+                    studentName,
+                    email,
                     allowedClasses: selectedClasses,
                     active: true,
                     expiresAt: firebase.firestore.Timestamp.fromDate(oneYearLater),
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                
+
                 showToast('Student added successfully!');
                 closeModal();
                 switchTab('whitelist');
-                
             } catch (error) {
-                console.error('Error adding to whitelist:', error);
-                showToast('Failed to add student', 'error');
+                console.error('[Admin] Add student error:', error.code);
+                showToast('Failed to add student: ' + (error.code || 'unknown error'), 'error');
             } finally {
                 isSubmitting = false;
                 submitBtn.disabled = false;
@@ -834,24 +1156,24 @@
 
         async function addVideo() {
             if (isSubmitting) return;
-            
-            const title = sanitizeInput(document.getElementById('videoTitle').value);
-            const videoUrl = document.getElementById('videoUrl').value.trim();
-            const videoClass = document.getElementById('videoClass').value;
-            const subject = document.getElementById('videoSubject').value;
-            const duration = sanitizeInput(document.getElementById('videoDuration').value);
-            const description = sanitizeInput(document.getElementById('videoDescription').value);
-            
+
+            const title = $('videoTitle').value.trim();
+            const videoUrl = $('videoUrl').value.trim();
+            const videoClass = $('videoClass').value;
+            const subject = $('videoSubject').value;
+            const duration = $('videoDuration').value.trim();
+            const description = $('videoDescription').value.trim();
+
             if (!title || !videoUrl || !videoClass) {
                 showToast('Please fill required fields', 'error');
                 return;
             }
-            
+
             isSubmitting = true;
-            const submitBtn = document.getElementById('submitBtn');
+            const submitBtn = $('submitBtn');
             submitBtn.disabled = true;
             submitBtn.textContent = 'Adding...';
-            
+
             try {
                 await db.collection('videos').add({
                     title, videoUrl, class: videoClass, subject, duration, description,
@@ -861,8 +1183,8 @@
                 closeModal();
                 switchTab('videos');
             } catch (error) {
-                console.error('Error adding video:', error);
-                showToast('Failed to add video', 'error');
+                console.error('[Admin] Add video error:', error.code);
+                showToast('Failed to add video: ' + (error.code || 'unknown error'), 'error');
             } finally {
                 isSubmitting = false;
                 submitBtn.disabled = false;
@@ -872,22 +1194,22 @@
 
         async function addPDF() {
             if (isSubmitting) return;
-            
-            const title = sanitizeInput(document.getElementById('pdfTitle').value);
-            const pdfUrl = document.getElementById('pdfUrl').value.trim();
-            const pdfClass = document.getElementById('pdfClass').value;
-            const subject = document.getElementById('pdfSubject').value;
-            
+
+            const title = $('pdfTitle').value.trim();
+            const pdfUrl = $('pdfUrl').value.trim();
+            const pdfClass = $('pdfClass').value;
+            const subject = $('pdfSubject').value;
+
             if (!title || !pdfUrl || !pdfClass) {
                 showToast('Please fill required fields', 'error');
                 return;
             }
-            
+
             isSubmitting = true;
-            const submitBtn = document.getElementById('submitBtn');
+            const submitBtn = $('submitBtn');
             submitBtn.disabled = true;
             submitBtn.textContent = 'Adding...';
-            
+
             try {
                 await db.collection('pdfs').add({
                     title, pdfUrl, class: pdfClass, subject,
@@ -897,8 +1219,8 @@
                 closeModal();
                 switchTab('pdfs');
             } catch (error) {
-                console.error('Error adding PDF:', error);
-                showToast('Failed to add PDF', 'error');
+                console.error('[Admin] Add PDF error:', error.code);
+                showToast('Failed to add PDF: ' + (error.code || 'unknown error'), 'error');
             } finally {
                 isSubmitting = false;
                 submitBtn.disabled = false;
@@ -908,23 +1230,23 @@
 
         async function addImage() {
             if (isSubmitting) return;
-            
-            const title = sanitizeInput(document.getElementById('imageTitle').value);
-            const imageUrl = document.getElementById('imageUrl').value.trim();
-            const imageClass = document.getElementById('imageClass').value;
-            const subject = document.getElementById('imageSubject').value;
-            const description = sanitizeInput(document.getElementById('imageDescription').value);
-            
+
+            const title = $('imageTitle').value.trim();
+            const imageUrl = $('imageUrl').value.trim();
+            const imageClass = $('imageClass').value;
+            const subject = $('imageSubject').value;
+            const description = $('imageDescription').value.trim();
+
             if (!title || !imageUrl || !imageClass) {
                 showToast('Please fill required fields', 'error');
                 return;
             }
-            
+
             isSubmitting = true;
-            const submitBtn = document.getElementById('submitBtn');
+            const submitBtn = $('submitBtn');
             submitBtn.disabled = true;
             submitBtn.textContent = 'Adding...';
-            
+
             try {
                 await db.collection('images').add({
                     title, imageUrl, class: imageClass, subject, description,
@@ -934,8 +1256,8 @@
                 closeModal();
                 switchTab('images');
             } catch (error) {
-                console.error('Error adding image:', error);
-                showToast('Failed to add image', 'error');
+                console.error('[Admin] Add image error:', error.code);
+                showToast('Failed to add image: ' + (error.code || 'unknown error'), 'error');
             } finally {
                 isSubmitting = false;
                 submitBtn.disabled = false;
@@ -945,25 +1267,23 @@
 
         async function addPost() {
             if (isSubmitting) return;
-            
-            const selectedClasses = [];
-            document.querySelectorAll('.post-class-check:checked').forEach(cb => selectedClasses.push(cb.value));
-            
-            const title = sanitizeInput(document.getElementById('postTitle').value);
-            const content = sanitizeInput(document.getElementById('postContent').value);
-            const url = document.getElementById('postUrl').value.trim();
-            const subject = document.getElementById('postSubject').value;
-            
+
+            const selectedClasses = Array.from(document.querySelectorAll('.post-class-check:checked')).map((cb) => cb.value);
+            const title = $('postTitle').value.trim();
+            const content = $('postContent').value.trim();
+            const url = $('postUrl').value.trim();
+            const subject = $('postSubject').value;
+
             if (!title || !content || !selectedClasses.length) {
                 showToast('Please fill required fields and select at least one class', 'error');
                 return;
             }
-            
+
             isSubmitting = true;
-            const submitBtn = document.getElementById('submitBtn');
+            const submitBtn = $('submitBtn');
             submitBtn.disabled = true;
             submitBtn.textContent = 'Adding...';
-            
+
             try {
                 await db.collection('posts').add({
                     title, content, url, class: selectedClasses, subject,
@@ -973,8 +1293,8 @@
                 closeModal();
                 switchTab('posts');
             } catch (error) {
-                console.error('Error adding post:', error);
-                showToast('Failed to add post', 'error');
+                console.error('[Admin] Add post error:', error.code);
+                showToast('Failed to add post: ' + (error.code || 'unknown error'), 'error');
             } finally {
                 isSubmitting = false;
                 submitBtn.disabled = false;
@@ -982,61 +1302,95 @@
             }
         }
 
+        // ============================================
+        // LOAD DASHBOARD
+        // ============================================
         async function loadDashboard() {
+            const contentArea = $('adminContent');
+            contentArea.innerHTML = '<div class="empty-state"><div class="spinner" style="width:32px;height:32px;border-color:var(--border);border-top-color:var(--accent);"></div><p style="margin-top:0.75rem;">Loading dashboard...</p></div>';
+
             try {
-                const [whitelist, videos, pdfs, images, posts] = await Promise.all([
-                    db.collection('whitelist').where('active', '==', true).get().then(s => s.size),
-                    db.collection('videos').get().then(s => s.size),
-                    db.collection('pdfs').get().then(s => s.size),
-                    db.collection('images').get().then(s => s.size),
-                    db.collection('posts').get().then(s => s.size)
+                // Use count() aggregation — 1 read per collection, not 1 per doc
+                // Requires firebase-firestore-compat v9.11+. We're on 10.7.1 ✅
+                const [wlCount, vCount, pCount, iCount, poCount] = await Promise.all([
+                    db.collection('whitelist').where('active', '==', true).count().get(),
+                    db.collection('videos').count().get(),
+                    db.collection('pdfs').count().get(),
+                    db.collection('images').count().get(),
+                    db.collection('posts').count().get()
                 ]);
-                
-                document.getElementById('adminContent').innerHTML = `
+
+                contentArea.innerHTML = `
                     <div class="stats-grid">
-                        <div class="stat-card"><span class="material-icons">verified_user</span><h2>${whitelist}</h2><p>Students</p></div>
-                        <div class="stat-card"><span class="material-icons">video_library</span><h2>${videos}</h2><p>Videos</p></div>
-                        <div class="stat-card"><span class="material-icons">picture_as_pdf</span><h2>${pdfs}</h2><p>PDFs</p></div>
-                        <div class="stat-card"><span class="material-icons">image</span><h2>${images}</h2><p>Images</p></div>
-                        <div class="stat-card"><span class="material-icons">article</span><h2>${posts}</h2><p>Posts</p></div>
+                        <div class="stat-card"><span class="material-icons" aria-hidden="true">verified_user</span><h2>${wlCount.data().count}</h2><p>Students</p></div>
+                        <div class="stat-card"><span class="material-icons" aria-hidden="true">video_library</span><h2>${vCount.data().count}</h2><p>Videos</p></div>
+                        <div class="stat-card"><span class="material-icons" aria-hidden="true">picture_as_pdf</span><h2>${pCount.data().count}</h2><p>PDFs</p></div>
+                        <div class="stat-card"><span class="material-icons" aria-hidden="true">image</span><h2>${iCount.data().count}</h2><p>Images</p></div>
+                        <div class="stat-card"><span class="material-icons" aria-hidden="true">article</span><h2>${poCount.data().count}</h2><p>Posts</p></div>
                     </div>
                 `;
             } catch (error) {
-                console.error('Error loading dashboard:', error);
-                document.getElementById('adminContent').innerHTML = 
-                    '<div class="empty-state"><span class="material-icons">error_outline</span><h3>Error</h3><p>Failed to load dashboard</p></div>';
+                console.error('[Admin] Dashboard error:', error.code, error.message);
+                contentArea.innerHTML = `
+                    <div class="empty-state">
+                        <span class="material-icons">error_outline</span>
+                        <h3>Failed to load dashboard</h3>
+                        <p>${escapeHtml(error.code || 'Unknown error')}</p>
+                        <p style="margin-top:0.5rem;font-size:0.75rem;">If this says "permission-denied", check that your Firestore rules allow admins to read the whitelist collection.</p>
+                    </div>
+                `;
             }
         }
 
+        // ============================================
+        // LOAD DATA (per collection)
+        // ============================================
         async function loadData(collection) {
-            const contentArea = document.getElementById('adminContent');
-            contentArea.innerHTML = '<div style="text-align:center;padding:2rem;">Loading...</div>';
-            
+            const myToken = ++loadToken;
+            const contentArea = $('adminContent');
+            contentArea.innerHTML = '<div class="empty-state"><div class="spinner" style="width:32px;height:32px;border-color:var(--border);border-top-color:var(--accent);"></div><p style="margin-top:0.75rem;">Loading...</p></div>';
+
             try {
-                const snapshot = await db.collection(collection).get();
-                cachedData = snapshot.docs.map(d => ({id:d.id, ...d.data()}));
-                
+                // Load first page only — page size + margin
+                const limit = CONFIG.PAGE_SIZE * 3;
+                let query = db.collection(collection).limit(limit);
+
+                const snapshot = await query.get();
+
+                // Bail if user switched tabs mid-load
+                if (myToken !== loadToken) return;
+
+                cachedData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+
                 cachedData.sort((a, b) => {
-                    const timeA = a.addedAt?.toMillis?.() || a.createdAt?.toMillis?.() || a.uploadedAt?.toMillis?.() || 0;
-                    const timeB = b.addedAt?.toMillis?.() || b.createdAt?.toMillis?.() || b.uploadedAt?.toMillis?.() || 0;
-                    return timeB - timeA;
+                    const ta = a.uploadedAt?.toMillis?.() || a.createdAt?.toMillis?.() || a.addedAt?.toMillis?.() || 0;
+                    const tb = b.uploadedAt?.toMillis?.() || b.createdAt?.toMillis?.() || b.addedAt?.toMillis?.() || 0;
+                    return tb - ta;
                 });
-                
+
                 displayedCount = 0;
                 contentArea.innerHTML = '';
                 appendData();
-                
             } catch (error) {
-                console.error('Error loading data:', error);
-                contentArea.innerHTML = 
-                    '<div class="empty-state"><span class="material-icons">error_outline</span><h3>Error</h3><p>Failed to load data</p></div>';
+                if (myToken !== loadToken) return;
+                console.error('[Admin] Load data error:', error.code, error.message);
+                contentArea.innerHTML = `
+                    <div class="empty-state">
+                        <span class="material-icons">error_outline</span>
+                        <h3>Failed to load data</h3>
+                        <p>${escapeHtml(error.code || 'Unknown error')}</p>
+                    </div>
+                `;
             }
         }
 
+        // ============================================
+        // APPEND ROWS
+        // ============================================
         function appendData() {
-            const contentArea = document.getElementById('adminContent');
+            const contentArea = $('adminContent');
             const allData = cachedData;
-            
+
             if (!allData.length) {
                 contentArea.innerHTML = `
                     <div class="empty-state">
@@ -1047,102 +1401,83 @@
                 `;
                 return;
             }
-            
-            const existingLoadMore = contentArea.querySelector('.load-more-btn');
-            if (existingLoadMore) existingLoadMore.remove();
-            
+
+            contentArea.querySelector('.load-more-btn')?.remove();
+
             let tableContainer = contentArea.querySelector('.table-container');
             if (!tableContainer) {
                 tableContainer = document.createElement('div');
                 tableContainer.className = 'table-container';
                 contentArea.appendChild(tableContainer);
             }
-            
+
             let table = tableContainer.querySelector('.data-table');
             if (!table) {
                 table = document.createElement('table');
                 table.className = 'data-table';
                 tableContainer.appendChild(table);
-                
+
                 const thead = document.createElement('thead');
                 let headerRow = '';
-                
+
                 if (currentTab === 'whitelist') {
                     headerRow = '<tr><th>Name</th><th>Email</th><th>Classes</th><th>Status</th><th>Actions</th></tr>';
-                } else if (currentTab === 'videos') {
-                    headerRow = '<tr><th>Title</th><th>Class</th><th>Subject</th><th>Actions</th></tr>';
-                } else if (currentTab === 'pdfs') {
-                    headerRow = '<tr><th>Title</th><th>Class</th><th>Subject</th><th>Actions</th></tr>';
-                } else if (currentTab === 'images') {
+                } else if (currentTab === 'videos' || currentTab === 'pdfs' || currentTab === 'images') {
                     headerRow = '<tr><th>Title</th><th>Class</th><th>Subject</th><th>Actions</th></tr>';
                 } else if (currentTab === 'posts') {
                     headerRow = '<tr><th>Title</th><th>Classes</th><th>Subject</th><th>Actions</th></tr>';
                 }
-                
+
                 thead.innerHTML = headerRow;
                 table.appendChild(thead);
-                
+
                 const tbody = document.createElement('tbody');
                 tbody.id = 'tableBody';
                 table.appendChild(tbody);
             }
-            
+
             const tbody = table.querySelector('#tableBody') || table.querySelector('tbody');
-            
+
             const startIndex = displayedCount;
-            const endIndex = Math.min(startIndex + PAGE_SIZE, allData.length);
+            const endIndex = Math.min(startIndex + CONFIG.PAGE_SIZE, allData.length);
             const batchData = allData.slice(startIndex, endIndex);
-            
-            batchData.forEach(item => {
-                let rowHtml = '';
-                
+
+            batchData.forEach((item) => {
+                const tr = document.createElement('tr');
+
                 if (currentTab === 'whitelist') {
-                    const statusBadge = item.active ? 
-                        '<span class="email-badge active">Active</span>' : 
-                        '<span class="email-badge inactive">Inactive</span>';
-                    
-                    rowHtml = `<tr>
+                    const statusBadge = item.active
+                        ? '<span class="email-badge active">Active</span>'
+                        : '<span class="email-badge inactive">Inactive</span>';
+
+                    tr.innerHTML = `
                         <td>${escapeHtml(item.studentName || 'N/A')}</td>
                         <td>${escapeHtml(item.email || '')}</td>
-                        <td>${escapeHtml((item.allowedClasses||[]).join(', '))}</td>
+                        <td>${escapeHtml((item.allowedClasses || []).join(', '))}</td>
                         <td>${statusBadge}</td>
-                        <td><button class="btn btn-danger btn-sm" onclick="deleteItem('whitelist','${escapeHtml(item.id)}','${escapeHtml(item.studentName || item.email)}')">Remove</button></td>
-                    </tr>`;
-                } else if (currentTab === 'videos') {
-                    rowHtml = `<tr>
+                        <td><button class="btn btn-danger btn-sm" data-delete-id="${escapeHtml(item.id)}" data-delete-name="${escapeHtml(item.studentName || item.email)}">Remove</button></td>
+                    `;
+                } else if (currentTab === 'videos' || currentTab === 'pdfs' || currentTab === 'images') {
+                    tr.innerHTML = `
                         <td>${escapeHtml(item.title || '')}</td>
                         <td>${escapeHtml(item.class || '-')}</td>
                         <td>${escapeHtml(item.subject || '-')}</td>
-                        <td><button class="btn btn-danger btn-sm" onclick="deleteItem('videos','${escapeHtml(item.id)}','${escapeHtml(item.title || '')}')">Delete</button></td>
-                    </tr>`;
-                } else if (currentTab === 'pdfs') {
-                    rowHtml = `<tr>
-                        <td>${escapeHtml(item.title || '')}</td>
-                        <td>${escapeHtml(item.class || '-')}</td>
-                        <td>${escapeHtml(item.subject || '-')}</td>
-                        <td><button class="btn btn-danger btn-sm" onclick="deleteItem('pdfs','${escapeHtml(item.id)}','${escapeHtml(item.title || '')}')">Delete</button></td>
-                    </tr>`;
-                } else if (currentTab === 'images') {
-                    rowHtml = `<tr>
-                        <td>${escapeHtml(item.title || '')}</td>
-                        <td>${escapeHtml(item.class || '-')}</td>
-                        <td>${escapeHtml(item.subject || '-')}</td>
-                        <td><button class="btn btn-danger btn-sm" onclick="deleteItem('images','${escapeHtml(item.id)}','${escapeHtml(item.title || '')}')">Delete</button></td>
-                    </tr>`;
+                        <td><button class="btn btn-danger btn-sm" data-delete-id="${escapeHtml(item.id)}" data-delete-name="${escapeHtml(item.title || '')}">Delete</button></td>
+                    `;
                 } else if (currentTab === 'posts') {
-                    rowHtml = `<tr>
+                    tr.innerHTML = `
                         <td>${escapeHtml(item.title || '')}</td>
-                        <td>${escapeHtml((item.class||[]).join(', '))}</td>
+                        <td>${escapeHtml((item.class || []).join(', '))}</td>
                         <td>${escapeHtml(item.subject || '-')}</td>
-                        <td><button class="btn btn-danger btn-sm" onclick="deleteItem('posts','${escapeHtml(item.id)}','${escapeHtml(item.title || '')}')">Delete</button></td>
-                    </tr>`;
+                        <td><button class="btn btn-danger btn-sm" data-delete-id="${escapeHtml(item.id)}" data-delete-name="${escapeHtml(item.title || '')}">Delete</button></td>
+                    `;
                 }
-                
-                tbody.insertAdjacentHTML('beforeend', rowHtml);
+
+                tbody.appendChild(tr);
             });
-            
+
             displayedCount = endIndex;
-            
+
             if (displayedCount < allData.length) {
                 const loadMoreBtn = document.createElement('button');
                 loadMoreBtn.className = 'load-more-btn';
@@ -1152,18 +1487,71 @@
             }
         }
 
-        async function deleteItem(collection, id, name) {
-            if (confirm(`Delete "${name}"? This action cannot be undone.`)) {
+        // ============================================
+        // DELETE — delegated, no inline onclick
+        // ============================================
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-delete-id]');
+            if (!btn) return;
+            const id = btn.dataset.deleteId;
+            const name = btn.dataset.deleteName || id;
+            requestDelete(currentTab, id, name);
+        });
+
+        function requestDelete(collection, id, name) {
+            showConfirm(`Delete "${name}"? This action cannot be undone.`, async () => {
                 try {
                     await db.collection(collection).doc(id).delete();
                     showToast('Deleted successfully');
+                    closeConfirm();
                     switchTab(collection);
                 } catch (error) {
-                    console.error('Delete error:', error);
-                    showToast('Failed to delete', 'error');
+                    console.error('[Admin] Delete error:', error.code);
+                    showToast('Failed to delete: ' + (error.code || 'unknown error'), 'error');
                 }
-            }
+            });
         }
+
+        // ============================================
+        // MODAL + CONFIRM DISMISS
+        // ============================================
+        $('modalOverlay').addEventListener('click', function (e) {
+            if (e.target === this) closeModal();
+        });
+
+        $('confirmOverlay').addEventListener('click', function (e) {
+            if (e.target === this) closeConfirm();
+        });
+
+        $('confirmCancelBtn').addEventListener('click', closeConfirm);
+        $('confirmOkBtn').addEventListener('click', () => {
+            if (typeof confirmCallback === 'function') confirmCallback();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+                closeConfirm();
+                closeSidebar();
+            }
+        });
+
+        // ============================================
+        // EXPOSE GLOBALS (used from inline handlers in add forms)
+        // ============================================
+        window.adminLogin = adminLogin;
+        window.adminLogout = adminLogout;
+        window.openSidebar = openSidebar;
+        window.closeSidebar = closeSidebar;
+        window.handleMobileTabClick = handleMobileTabClick;
+        window.showAddForm = showAddForm;
+        window.closeModal = closeModal;
+        window.addToWhitelist = addToWhitelist;
+        window.addVideo = addVideo;
+        window.addPDF = addPDF;
+        window.addImage = addImage;
+        window.addPost = addPost;
+    })();
     </script>
 </body>
 </html>
