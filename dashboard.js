@@ -802,9 +802,12 @@
   }
   function toggleFullscreen() {
     const c = $('videoPlayerContainer');
-    if (!document.fullscreenElement) c?.requestFullscreen?.().catch(() => {});
+    // Only run on devices that actually support the Fullscreen API
+    if (!c || typeof c.requestFullscreen !== 'function') return;
+    
+    if (!document.fullscreenElement) c.requestFullscreen().catch(() => {});
     else document.exitFullscreen();
-  }
+}
   function closeVideoModal() {
     if (document.fullscreenElement) document.exitFullscreen();
     $('videoModal').style.display = 'none';
@@ -881,10 +884,10 @@
     wrap.classList.add('milestone');
     setTimeout(() => wrap.classList.remove('milestone'), 600);
     const msgs = {
-      25: '🎯 25% Complete! Great progress!',
-      50: '🚀 Halfway there! Amazing!',
-      75: '🔥 75% Done! Almost finished!',
-      100: '🏆 All lectures completed! Legendary!'
+      25: '25% Done!',
+      50: '50% Dome!',
+      75: '75% Done!',
+      100: 'Completed!'
     };
     if (msgs[pct]) showProgressToast(msgs[pct]);
   }
