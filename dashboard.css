@@ -2998,7 +2998,7 @@ img, video, iframe {
 /* Thumb */
 .coverflow-thumb {
     width: 100%;
-    aspect-ratio: 16/9;
+      height: 180px;  
     background: var(--surface-muted);
     position: relative;
     overflow: hidden;
@@ -3056,11 +3056,11 @@ img, video, iframe {
 
 /* Info — no more overflow into dots */
 .coverflow-info {
-    padding: 0.85rem 1rem 1rem;
+    padding: 0.6rem 0.75rem 0.75rem;
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
+    gap: 0.2rem;
     overflow: hidden;
     min-height: 0;
 }
