@@ -195,18 +195,7 @@
     }, 3000);
   }
 
-// ============================================
-// DEVICE DETECTION
-// ============================================
-function isIOSDevice() {
-    if (typeof navigator === 'undefined') return false;
-    const ua = navigator.userAgent || navigator.vendor || '';
-    // Standard iOS devices
-    if (/iPad|iPhone|iPod/.test(ua)) return true;
-    // iPadOS 13+ reports as "Macintosh" but has touch support
-    if (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) return true;
-    return false;
-}
+
 
 // ============================================
 // DOWNLOAD / SAVE IMAGE (iOS-aware)
@@ -214,66 +203,18 @@ function isIOSDevice() {
 
 async function downloadCurrentImage() {
     if (!currentImageUrl) return;
-
     const btn = $('imageDownloadBtn');
     if (!btn) return;
 
     const original = btn.innerHTML;
     const filename = (currentImageTitle || 'image').replace(/[^\w\-]+/g, '_') + '.jpg';
-    const onIOS = isIOSDevice();
 
-    // ============================================
-    // iOS PATH — must call share() synchronously (no await before it)
-    // ============================================
-    if (onIOS && typeof navigator.share === 'function') {
-        // Use the prefetched blob if ready
-        let blob = currentImageBlob;
-
-        // If not ready yet, we can't share — but we can still do a fallback
-        // (the modal has likely been open long enough that the prefetch finished)
-        if (blob) {
-            try {
-                const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
-                const canShareFiles = typeof navigator.canShare === 'function'
-                    && navigator.canShare({ files: [file] });
-
-                if (canShareFiles) {
-                    // ⚠️ CRITICAL: no await before this call
-                    // Pass ONLY files — no title, no text (iOS quirk)
-                    const sharePromise = navigator.share({ files: [file] });
-
-                    // Attach handlers AFTER (share() returns a promise immediately)
-                    if (sharePromise && typeof sharePromise.catch === 'function') {
-                        sharePromise.catch((err) => {
-                            if (err && err.name === 'AbortError') return; // user cancelled
-                            console.warn('[Share] Failed:', err?.message);
-                            // Fallback: open in new tab
-                            window.open(currentImageUrl, '_blank', 'noopener,noreferrer');
-                        });
-                    }
-                    return; // share sheet is opening
-                }
-            } catch (shareErr) {
-                if (shareErr && shareErr.name === 'AbortError') return;
-                console.warn('[Share] Exception:', shareErr?.message);
-            }
-        }
-
-        // Blob not ready OR share failed — fallback to new tab
-        // (User can long-press → Save Image in the new tab)
-        window.open(currentImageUrl, '_blank', 'noopener,noreferrer');
-        return;
-    }
-
-    // ============================================
-    // NON-iOS PATH — standard download
-    // ============================================
     try {
+        btn.innerHTML = '<span class="material-icons">hourglass_empty</span> Downloading...';
         btn.disabled = true;
-        btn.innerHTML = `<span class="material-icons">hourglass_empty</span> Downloading…`;
 
         const res = await fetch(currentImageUrl, { mode: 'cors' });
-        if (!res.ok) throw new Error('fetch-failed');
+        if (!res.ok) throw new Error('fetch failed');
         const blob = await res.blob();
 
         const url = URL.createObjectURL(blob);
@@ -286,17 +227,16 @@ async function downloadCurrentImage() {
         a.remove();
         URL.revokeObjectURL(url);
 
-    } catch (err) {
-        console.warn('[Download] Failed:', err?.message);
-        try {
-            window.open(currentImageUrl, '_blank', 'noopener,noreferrer');
-        } catch (_) {}
+    } catch (_) {
+        // Fallback: open in new tab
+        window.open(currentImageUrl, '_blank', 'noopener,noreferrer');
 
     } finally {
         btn.innerHTML = original;
         btn.disabled = false;
     }
 }
+    
 
   // ============================================
   // REFRESH
@@ -889,40 +829,17 @@ async function downloadCurrentImage() {
     document.body.style.overflow = 'auto';
   }
 
-  let currentImageBlob = null;
-let currentImageBlobPromise = null;
-
-function viewImage(url, title, desc, subject) {
+  function viewImage(url, title, desc, subject) {
     currentImageUrl = url;
     currentImageTitle = title;
-    currentImageBlob = null;
-    currentImageBlobPromise = null;
-
     $('modalImage').src = url;
     $('imageModalTitle').textContent = title;
     $('imageModalDescription').textContent = `${subject || ''}${desc ? ' • ' + desc : ''}`;
-
-    // Update button label
-    const btn = $('imageDownloadBtn');
-    if (btn) {
-        const onIOS = isIOSDevice();
-        btn.innerHTML = `<span class="material-icons">${onIOS ? 'ios_share' : 'download'}</span> ${onIOS ? 'Save Image' : 'Download'}`;
-    }
-
-    // PREFETCH the blob in the background while the user looks at the image
-    if (isIOSDevice() && currentImageUrl) {
-        currentImageBlobPromise = fetch(currentImageUrl, { mode: 'cors' })
-            .then((res) => res.ok ? res.blob() : null)
-            .then((blob) => {
-                currentImageBlob = blob;
-                return blob;
-            })
-            .catch(() => null);
-    }
-
     $('imageModal').style.display = 'flex';
     document.body.style.overflow = 'hidden';
 }
+    
+    
   function closeImageModal() {
     $('imageModal').style.display = 'none';
     $('modalImage').src = '';
