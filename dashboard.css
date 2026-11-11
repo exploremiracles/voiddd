@@ -2922,7 +2922,7 @@ img, video, iframe {
 }
 
 /* ============================================
-   COVER FLOW VIEW
+   COVER FLOW VIEW — bug-free spacing
    ============================================ */
 .coverflow-view .content-grid,
 .coverflow-view .posts-container {
@@ -2939,7 +2939,7 @@ img, video, iframe {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: clamp(380px, 60vh, 540px);      /* ← increased from 340–500 */
+    height: clamp(420px, 62vh, 580px);     /* taller to fit card + dots */
     perspective: 1400px;
     perspective-origin: 50% 40%;
     margin: 1rem 0 2rem;
@@ -2947,7 +2947,7 @@ img, video, iframe {
     -webkit-user-select: none;
     touch-action: pan-y;
     overflow: hidden;
-    padding-bottom: 56px;                    /* ← reserve space for dots */
+    padding-bottom: 72px;                   /* reserved space for dots */
     box-sizing: border-box;
 }
 
@@ -2957,10 +2957,10 @@ img, video, iframe {
     height: 100%;
     transform-style: preserve-3d;
     transition: transform 0.3s ease;
-    /* Shift the cards up by half the reserved space */
-    margin-bottom: 56px;
+    margin-bottom: 72px;                    /* shift cards above the dots */
 }
 
+/* Card base */
 .coverflow-card {
     position: absolute;
     top: 50%;
@@ -3018,7 +3018,6 @@ img, video, iframe {
 .coverflow-thumb-pdf {
     background: linear-gradient(135deg, var(--surface-muted), color-mix(in srgb, var(--accent) 8%, var(--surface-muted)));
 }
-
 .coverflow-thumb-pdf .material-icons {
     font-size: 4rem !important;
     color: var(--accent);
@@ -3027,7 +3026,6 @@ img, video, iframe {
 .coverflow-thumb-post {
     background: linear-gradient(135deg, var(--surface-muted), color-mix(in srgb, var(--text-secondary) 8%, var(--surface-muted)));
 }
-
 .coverflow-thumb-post .material-icons {
     font-size: 3.5rem !important;
     color: var(--text-secondary);
@@ -3056,15 +3054,15 @@ img, video, iframe {
     opacity: 1;
 }
 
-/* Info */
+/* Info — no more overflow into dots */
 .coverflow-info {
-    padding: 1rem;
+    padding: 0.85rem 1rem 1rem;
     flex: 1;
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
     overflow: hidden;
-    /* margin-top: auto pushes actions to bottom */
+    min-height: 0;
 }
 
 .coverflow-title {
@@ -3073,7 +3071,7 @@ img, video, iframe {
     color: var(--text);
     line-height: 1.3;
     display: -webkit-box;
-    -webkit-line-clamp: 3;
+    -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
     word-break: break-word;
@@ -3089,21 +3087,21 @@ img, video, iframe {
     overflow: hidden;
 }
 
-/* Action buttons inside coverflow card */
+/* Action buttons — inside the card */
 .coverflow-actions {
     display: flex;
-    gap: 0.4rem;
+    gap: 0.5rem;
     margin-top: auto;
-    padding-top: 0.5rem;
+    padding-top: 0.35rem;
 }
 
 .coverflow-action {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
-    min-width: 36px;
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
     background: var(--surface-muted);
     border: 1.5px solid var(--border);
     border-radius: 50%;
@@ -3118,7 +3116,6 @@ img, video, iframe {
     background: var(--accent);
     border-color: var(--accent);
     color: var(--accent-contrast);
-    transform: translateY(-1px);
 }
 
 .coverflow-action.active {
@@ -3127,20 +3124,13 @@ img, video, iframe {
     color: white;
 }
 
-.coverflow-action.active:hover {
-    background: var(--success);
-    filter: brightness(1.1);
-}
-
 .coverflow-action .material-icons {
-    font-size: 18px;
+    font-size: 16px;
 }
 
-/* Only show action buttons on the focused card */
 .coverflow-card:not([aria-selected="true"]) .coverflow-actions {
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.3s ease;
 }
 
 .coverflow-card[aria-selected="true"] .coverflow-actions {
@@ -3148,10 +3138,10 @@ img, video, iframe {
     pointer-events: auto;
 }
 
-/* Nav arrows */
+/* Nav arrows — vertically centered on the CARD, not the wrapper */
 .coverflow-nav {
     position: absolute;
-    top: 50%;
+    top: calc((100% - 72px) / 2);   /* center of the card area, not wrapper */
     transform: translateY(-50%);
     width: 48px;
     height: 48px;
@@ -3187,10 +3177,10 @@ img, video, iframe {
 .coverflow-prev { left: clamp(8px, 3vw, 32px); }
 .coverflow-next { right: clamp(8px, 3vw, 32px); }
 
-/* Pagination dots */
+/* Dots — in the reserved padding area, below cards */
 .coverflow-dots {
     position: absolute;
-    bottom: 16px;      /* sits in the reserved 56px space */
+    bottom: 16px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
@@ -3227,7 +3217,7 @@ img, video, iframe {
     border-radius: 4px;
 }
 
-/* Counter */
+/* Counter — top center, above cards */
 .coverflow-counter {
     position: absolute;
     top: 16px;
@@ -3244,23 +3234,22 @@ img, video, iframe {
     font-variant-numeric: tabular-nums;
 }
 
-/* Empty state inside coverflow */
 .coverflow-view .empty-state {
     display: block;
     padding: 4rem 1rem;
 }
 
-/* ============================================
-   COVER FLOW — RESPONSIVE
-   ============================================ */
+/* Responsive */
 @media (max-width: 768px) {
     .coverflow-wrapper {
-        height: clamp(320px, 50vh, 420px);
+        height: clamp(400px, 55vh, 500px);
         perspective: 1000px;
+        padding-bottom: 64px;
     }
 
     .coverflow-track {
         width: 240px;
+        margin-bottom: 64px;
     }
 
     .coverflow-card {
@@ -3276,12 +3265,9 @@ img, video, iframe {
     .coverflow-nav {
         width: 40px;
         height: 40px;
+        top: calc((100% - 64px) / 2);
     }
-
-    .coverflow-nav .material-icons {
-        font-size: 24px;
-    }
-
+    .coverflow-nav .material-icons { font-size: 24px; }
     .coverflow-prev { left: 4px; }
     .coverflow-next { right: 4px; }
 
@@ -3292,34 +3278,38 @@ img, video, iframe {
 }
 
 @media (max-width: 400px) {
-    .coverflow-track { width: 210px; }
+    .coverflow-wrapper {
+        height: 440px;
+        padding-bottom: 60px;
+    }
+    .coverflow-track {
+        width: 210px;
+        margin-bottom: 60px;
+    }
     .coverflow-card {
         width: 210px;
         height: 310px;
         margin-left: -105px;
         margin-top: -155px;
     }
-
     .coverflow-title { font-size: 0.85rem; }
-    .coverflow-info { padding: 0.75rem; }
-
-    .coverflow-nav { width: 34px; height: 34px; }
+    .coverflow-info { padding: 0.65rem 0.75rem 0.75rem; }
+    .coverflow-nav { width: 34px; height: 34px; top: calc((100% - 60px) / 2); }
     .coverflow-nav .material-icons { font-size: 20px; }
 }
 
-/* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
     .coverflow-card,
     .coverflow-dot,
-    .coverflow-nav {
-        transition: none !important;
-    }
+    .coverflow-nav { transition: none !important; }
 }
 
-/* Print: hide coverflow, fall back to list */
 @media print {
     .coverflow-wrapper { display: none !important; }
 }
+
+
+
 /* ============================================
    STORYTELLING SCROLL VIEW
    ============================================ */
