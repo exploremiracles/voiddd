@@ -855,13 +855,16 @@
       card.style.zIndex = String(zIndex);
 
       card.innerHTML = generateCoverflowCardContent(item);
-      card.addEventListener('click', () => {
-        if (i === coverflowIndex) {
-          handleCoverflowOpen(item);
-        } else {
-          setCoverflowIndex(i);
-        }
-      });
+      card.addEventListener('click', (e) => {
+    // Don't trigger card action if clicked on action button
+    if (e.target.closest('[data-watched-id], [data-note-id]')) return;
+
+    if (i === coverflowIndex) {
+        handleCoverflowOpen(item);
+    } else {
+        setCoverflowIndex(i);
+    }
+});
 
       track.appendChild(card);
     });
@@ -1047,73 +1050,91 @@ function generateStorySectionContent(item, index) {
     `;
 }
 
-  function generateCoverflowCardContent(item) {
+function generateCoverflowCardContent(item) {
     const title = escapeHtml(item.title || '');
+    const titleAttr = escapeAttr(item.title || '');
     const subject = escapeHtml(item.subject || '');
+    const itemIdAttr = escapeAttr(item.id);
 
     if (currentTab === 'videos') {
-      const vid = extractYouTubeId(item.videoUrl);
-      const thumb = vid ? `https://img.youtube.com/vi/${vid}/hqdefault.jpg` : '';
-      const duration = escapeHtml(item.duration || '');
-      return `
-        <div class="coverflow-thumb">
-          ${thumb ? `<img src="${thumb}" loading="lazy" alt="">` : ''}
-          ${duration ? `<span class="video-duration">${duration}</span>` : ''}
-          ${item.videoUrl ? '<div class="coverflow-play"><span class="material-icons">play_arrow</span></div>' : ''}
-        </div>
-        <div class="coverflow-info">
-          <div class="coverflow-title">${title}</div>
-          ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
-        </div>
-      `;
+        const vid = extractYouTubeId(item.videoUrl);
+        const thumb = vid ? `https://img.youtube.com/vi/${vid}/hqdefault.jpg` : '';
+        const duration = escapeHtml(item.duration || '');
+        const watched = typeof isVideoWatched === 'function' ? isVideoWatched(item.id) : false;
+
+        return `
+            <div class="coverflow-thumb">
+                ${thumb ? `<img src="${thumb}" loading="lazy" alt="">` : ''}
+                ${duration ? `<span class="video-duration">${duration}</span>` : ''}
+                ${item.videoUrl ? '<div class="coverflow-play"><span class="material-icons">play_arrow</span></div>' : ''}
+            </div>
+            <div class="coverflow-info">
+                <div class="coverflow-title">${title}</div>
+                ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
+                <div class="coverflow-actions">
+                    <button class="coverflow-action ${watched ? 'active' : ''}"
+                            data-watched-id="${itemIdAttr}"
+                            data-watched-title="${titleAttr}"
+                            aria-label="${watched ? 'Unmark watched' : 'Mark as watched'}">
+                        <span class="material-icons">${watched ? 'check_circle' : 'check_circle_outline'}</span>
+                    </button>
+                    <button class="coverflow-action"
+                            data-note-id="${itemIdAttr}"
+                            data-note-title="${titleAttr}"
+                            aria-label="Open note">
+                        <span class="material-icons">sticky_note_2</span>
+                    </button>
+                </div>
+            </div>
+        `;
     }
     if (currentTab === 'pdfs') {
-      return `
-        <div class="coverflow-thumb coverflow-thumb-pdf">
-          <span class="material-icons">picture_as_pdf</span>
-        </div>
-        <div class="coverflow-info">
-          <div class="coverflow-title">${title}</div>
-          ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
-        </div>
-      `;
+        return `
+            <div class="coverflow-thumb coverflow-thumb-pdf">
+                <span class="material-icons">picture_as_pdf</span>
+            </div>
+            <div class="coverflow-info">
+                <div class="coverflow-title">${title}</div>
+                ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
+            </div>
+        `;
     }
     if (currentTab === 'images') {
-      const imgSrc = item.imageUrl || '';
-      if (!imgSrc) {
+        const imgSrc = item.imageUrl || '';
+        if (!imgSrc) {
+            return `
+                <div class="coverflow-thumb coverflow-thumb-post">
+                    <span class="material-icons">image</span>
+                </div>
+                <div class="coverflow-info">
+                    <div class="coverflow-title">${title}</div>
+                    ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
+                </div>
+            `;
+        }
         return `
-          <div class="coverflow-thumb coverflow-thumb-post">
-            <span class="material-icons">image</span>
-          </div>
-          <div class="coverflow-info">
-            <div class="coverflow-title">${title}</div>
-            ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
-          </div>
+            <div class="coverflow-thumb">
+                <img src="${escapeAttr(imgSrc)}" loading="lazy" alt="">
+            </div>
+            <div class="coverflow-info">
+                <div class="coverflow-title">${title}</div>
+                ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
+            </div>
         `;
-      }
-      return `
-        <div class="coverflow-thumb">
-          <img src="${escapeAttr(imgSrc)}" loading="lazy" alt="">
-        </div>
-        <div class="coverflow-info">
-          <div class="coverflow-title">${title}</div>
-          ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
-        </div>
-      `;
     }
     if (currentTab === 'posts') {
-      return `
-        <div class="coverflow-thumb coverflow-thumb-post">
-          <span class="material-icons">article</span>
-        </div>
-        <div class="coverflow-info">
-          <div class="coverflow-title">${title}</div>
-          ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
-        </div>
-      `;
+        return `
+            <div class="coverflow-thumb coverflow-thumb-post">
+                <span class="material-icons">article</span>
+            </div>
+            <div class="coverflow-info">
+                <div class="coverflow-title">${title}</div>
+                ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
+            </div>
+        `;
     }
     return `<div class="coverflow-info"><div class="coverflow-title">${title}</div></div>`;
-  }
+}
 
   function handleCoverflowOpen(item) {
     if (currentTab === 'videos' && item.videoUrl) {
