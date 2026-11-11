@@ -563,6 +563,12 @@
     const area = $('contentArea');
     if (!area) return;
 
+       // Disconnect story observer when reloading content
+    if (typeof storyObserver !== 'undefined' && storyObserver) {
+        storyObserver.disconnect();
+        storyObserver = null;
+    }
+
     const myToken = token !== undefined ? token : ++contentLoadToken;
     const tabAtStart = currentTab;
     const classAtStart = selectedClass;
@@ -743,6 +749,11 @@
       return;
     }
 
+    if (area.classList.contains('story-view')) {
+    renderStoryView();
+    return;
+}
+
     area.querySelector('.load-more-btn:not(.modal-content .load-more-btn)')?.remove();
 
     let container;
@@ -892,6 +903,149 @@
     counter.textContent = `${coverflowIndex + 1} / ${total}`;
     wrapper.appendChild(counter);
   }
+
+  // ============================================
+// STORYTELLING SCROLL VIEW
+// ============================================
+let storyObserver = null;
+
+function renderStoryView() {
+    const area = $('contentArea');
+    if (!area) return;
+
+    // Clean up previous observer
+    if (storyObserver) {
+        storyObserver.disconnect();
+        storyObserver = null;
+    }
+
+    area.querySelector('.story-wrapper')?.remove();
+
+    if (!cachedData.length) return;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'story-wrapper';
+
+    cachedData.forEach((item, i) => {
+        const section = document.createElement('section');
+        section.className = 'story-section';
+        section.dataset.storyIndex = String(i);
+        section.innerHTML = generateStorySectionContent(item, i);
+        wrapper.appendChild(section);
+    });
+
+    area.appendChild(wrapper);
+
+    // Wire CTA buttons
+    wrapper.querySelectorAll('[data-story-action]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const idx = parseInt(btn.dataset.storyIndex, 10);
+            const item = cachedData[idx];
+            if (item) handleCoverflowOpen(item);   // reuse existing opener
+        });
+    });
+
+    // Intersection observer for reveal animation
+    if ('IntersectionObserver' in window) {
+        storyObserver = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('story-visible');
+                    storyObserver.unobserve(entry.target);
+                }
+            });
+        }, {
+            rootMargin: '0px 0px -15% 0px',
+            threshold: 0.12
+        });
+
+        wrapper.querySelectorAll('.story-section').forEach((el) => {
+            storyObserver.observe(el);
+        });
+    } else {
+        // Fallback: show everything
+        wrapper.querySelectorAll('.story-section').forEach((el) => {
+            el.classList.add('story-visible');
+        });
+    }
+}
+
+function generateStorySectionContent(item, index) {
+    const title = escapeHtml(item.title || 'Untitled');
+    const subject = escapeHtml(item.subject || '');
+    const description = escapeHtml(item.description || item.content || '');
+    const indexLabel = String(index + 1).padStart(2, '0');
+
+    let imageHtml = '';
+    let metaLine = '';
+    let ctaLabel = '';
+    let ctaIcon = '';
+
+    if (currentTab === 'videos') {
+        const vid = extractYouTubeId(item.videoUrl);
+        const thumb = vid ? `https://img.youtube.com/vi/${vid}/maxresdefault.jpg` : '';
+        // Fallback to hqdefault if maxres not available
+        imageHtml = thumb
+            ? `<img src="${thumb}" loading="lazy" alt=""
+                    onerror="this.onerror=null;this.src='https://img.youtube.com/vi/${vid}/hqdefault.jpg';">`
+            : '<div class="story-placeholder"><span class="material-icons">play_circle</span></div>';
+        metaLine = subject;
+        ctaLabel = 'Watch Lecture';
+        ctaIcon = 'play_arrow';
+    } else if (currentTab === 'pdfs') {
+        imageHtml = '<div class="story-placeholder"><span class="material-icons">picture_as_pdf</span></div>';
+        metaLine = subject;
+        ctaLabel = 'Read PDF';
+        ctaIcon = 'open_in_new';
+    } else if (currentTab === 'images') {
+        imageHtml = item.imageUrl
+            ? `<img src="${escapeAttr(item.imageUrl)}" loading="lazy" alt="">`
+            : '<div class="story-placeholder"><span class="material-icons">image</span></div>';
+        metaLine = subject;
+        ctaLabel = 'View Full Image';
+        ctaIcon = 'zoom_in';
+    } else if (currentTab === 'posts') {
+        imageHtml = '<div class="story-placeholder"><span class="material-icons">article</span></div>';
+        metaLine = subject;
+        ctaLabel = item.url ? 'Read More' : '';
+        ctaIcon = 'arrow_forward';
+    }
+
+    const classLabel = Array.isArray(item.class)
+        ? item.class.join(' · ')
+        : (item.class || '');
+
+    const metaParts = [subject, classLabel].filter(Boolean);
+
+    return `
+        <div class="story-image-wrap">
+            ${imageHtml}
+            <div class="story-image-overlay"></div>
+        </div>
+
+        <div class="story-content">
+            <div class="story-index">${indexLabel}</div>
+            <h2 class="story-title">${title}</h2>
+            ${metaParts.length ? `
+                <div class="story-meta">
+                    ${metaParts.map((p, idx) => `
+                        ${idx > 0 ? '<span class="story-meta-dot">·</span>' : ''}
+                        <span class="story-meta-item">${escapeHtml(p)}</span>
+                    `).join('')}
+                </div>
+            ` : ''}
+            ${description ? `<p class="story-description">${description}</p>` : ''}
+            ${ctaLabel ? `
+                <button class="story-cta"
+                        data-story-action
+                        data-story-index="${index}">
+                    <span class="material-icons">${ctaIcon}</span>
+                    <span>${ctaLabel}</span>
+                </button>
+            ` : ''}
+        </div>
+    `;
+}
 
   function generateCoverflowCardContent(item) {
     const title = escapeHtml(item.title || '');
@@ -1051,6 +1205,12 @@
     displayedCount = 0;
     coverflowIndex = 0;
     contentLoadToken++;
+   // Clean up story observer
+    if (storyObserver) {
+        storyObserver.disconnect();
+        storyObserver = null;
+    }
+    
     document.querySelectorAll('.sidebar-item').forEach((el) => {
       el.classList.toggle('active', el.dataset.tab === tab);
     });
@@ -1313,6 +1473,7 @@
 
   window.__CU_setCoverflowIndex = setCoverflowIndex;
   window.__CU_getCoverflowIndex = () => coverflowIndex;
+  window.__CU_renderStoryView = renderStoryView;
 
   // ============================================
   // MODAL DISMISS
