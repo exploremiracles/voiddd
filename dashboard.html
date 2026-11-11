@@ -108,8 +108,6 @@
         </aside>
 
         <main class="main-content">
-            
-
             <div class="mobile-top-bar">
                 <button class="mobile-menu-btn" onclick="openSidebar()" aria-label="Open menu">
                     <span class="material-icons">menu</span>
@@ -118,47 +116,62 @@
             </div>
 
             <div class="welcome-header">
-    <div class="welcome-left">
-        <h1 class="welcome-name" id="welcomeName">Welcome!</h1>
-        <p class="welcome-subtitle" id="welcomeSubtitle">Your learning journey continues</p>
-    </div>
-    <div class="header-actions">
-        <button class="theme-btn" onclick="toggleThemeMenu()" aria-label="Change theme" title="Change Theme">
-            <span class="material-icons" id="themeIcon">light_mode</span>
-        </button>
-        <button class="preferences-btn" onclick="togglePreferencesMenu()" aria-label="Preferences" title="Preferences">
-            <span class="material-icons">settings</span>
-        </button>
-        <button class="refresh-btn" id="refreshBtn" onclick="refreshAllContent()" aria-label="Refresh content">
-            <span class="material-icons">refresh</span>
-            <span>Refresh</span>
-        </button>
-        <button class="logout-btn" onclick="showLogoutDialog()" aria-label="Logout">
-            <span class="material-icons">logout</span>
-            <span>Logout</span>
-        </button>
-    </div>
-</div>
+                <div class="welcome-left">
+                    <h1 class="welcome-name" id="welcomeName">Welcome!</h1>
+                    <p class="welcome-subtitle" id="welcomeSubtitle">Your learning journey continues</p>
+                </div>
+                <div class="header-actions">
+                    <button class="theme-btn" onclick="toggleThemeMenu()" aria-label="Change theme" title="Change Theme">
+                        <span class="material-icons" id="themeIcon">light_mode</span>
+                    </button>
+                    <button class="preferences-btn" onclick="togglePreferencesMenu()" aria-label="Preferences" title="Preferences">
+                        <span class="material-icons">settings</span>
+                    </button>
+                    <button class="refresh-btn" id="refreshBtn" onclick="refreshAllContent()" aria-label="Refresh content">
+                        <span class="material-icons">refresh</span>
+                        <span>Refresh</span>
+                    </button>
+                    <button class="logout-btn" onclick="showLogoutDialog()" aria-label="Logout">
+                        <span class="material-icons">logout</span>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </div>
 
-            <!-- ========== PRESENCE WIDGET — "Studying right now" ========== -->
-            <div id="presenceWidget" class="presence-widget" hidden>
-                <button class="presence-pill" id="presencePill"
-                        aria-haspopup="listbox" aria-expanded="false"
-                        aria-label="Students studying now">
-                    <div class="presence-avatars" id="presenceAvatars"></div>
-                    <div class="presence-meta">
-                        <span class="presence-dot" aria-hidden="true"></span>
-                        <span class="presence-count" id="presenceCount">0 studying</span>
-                    </div>
-                </button>
+            <!-- ========== TOP STATUS ROW: progress (left) + presence (right) ========== -->
+            <div class="status-row">
+                <!-- Minimal lecture progress — left side -->
+                <div class="progress-pill" id="videoProgressContainer" hidden aria-live="polite">
+                    <span class="material-icons progress-pill-icon" aria-hidden="true">play_circle</span>
+                    <span class="progress-pill-count">
+                        <span id="watchedCount">0</span><span class="progress-pill-divider">/</span><span id="totalCount">0</span>
+                    </span>
+                    <span class="progress-pill-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="videoProgressBar">
+                        <span class="progress-pill-fill" id="videoProgressFill"></span>
+                    </span>
+                    <span class="progress-pill-pct" id="videoProgressPercentage">0%</span>
+                </div>
 
-                <div class="presence-dropdown" id="presenceDropdown"
-                     role="listbox" aria-label="Students currently studying">
-                    <div class="presence-dropdown-header">
-                        <span class="presence-live-dot" aria-hidden="true"></span>
-                        <span id="presenceHeaderText">Studying now</span>
+                <!-- Presence widget — right side -->
+                <div id="presenceWidget" class="presence-widget" hidden>
+                    <button class="presence-pill" id="presencePill"
+                            aria-haspopup="listbox" aria-expanded="false"
+                            aria-label="Students studying now">
+                        <div class="presence-avatars" id="presenceAvatars"></div>
+                        <div class="presence-meta">
+                            <span class="presence-dot" aria-hidden="true"></span>
+                            <span class="presence-count" id="presenceCount">0 studying</span>
+                        </div>
+                    </button>
+
+                    <div class="presence-dropdown" id="presenceDropdown"
+                         role="listbox" aria-label="Students currently studying">
+                        <div class="presence-dropdown-header">
+                            <span class="presence-live-dot" aria-hidden="true"></span>
+                            <span id="presenceHeaderText">Studying now</span>
+                        </div>
+                        <div class="presence-list" id="presenceList"></div>
                     </div>
-                    <div class="presence-list" id="presenceList"></div>
                 </div>
             </div>
 
@@ -167,28 +180,6 @@
                 <div class="class-chips" id="classChips" role="tablist"></div>
                 <div class="filter-label" id="subjectLabel" style="display:none;">Select Subject:</div>
                 <div class="subject-chips" id="subjectChips" style="display:none;" role="tablist"></div>
-            </div>
-
-            <div class="video-progress-container" id="videoProgressContainer" style="display:none;" aria-live="polite">
-                <div class="video-progress-header">
-                    <div class="video-progress-info">
-                        <span class="material-icons">play_circle</span>
-                        <span class="video-progress-label">Lecture Progress</span>
-                    </div>
-                    <div class="video-progress-count">
-                        <span id="watchedCount">0</span>
-                        <span class="count-divider">/</span>
-                        <span id="totalCount">0</span>
-                        <span class="count-label">lectures</span>
-                    </div>
-                </div>
-                <div class="video-progress-bar-wrapper">
-                    <div class="video-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="videoProgressBar">
-                        <div class="video-progress-fill" id="videoProgressFill"></div>
-                    </div>
-                    <div class="video-progress-percentage" id="videoProgressPercentage">0%</div>
-                </div>
-                <div class="video-progress-message" id="videoProgressMessage">Start watching to track your progress!</div>
             </div>
 
             <div id="contentArea" class="grid-view"></div>
