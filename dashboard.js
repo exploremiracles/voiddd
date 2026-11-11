@@ -30,7 +30,6 @@
     },
     ROUTES: { LOGIN: 'index.html' },
     PAGE_SIZE: 5,
-    // Session in localStorage is display-only. Rules + auth are source of truth.
     DISPLAY_SESSION_HINT_MS: 2 * 60 * 60 * 1000
   });
 
@@ -69,7 +68,6 @@
     return div.innerHTML;
   }
 
-  // Safe attribute escape for data-* values inside HTML strings
   function escapeAttr(text) {
     if (text == null) return '';
     return String(text)
@@ -196,13 +194,10 @@
     }, 3000);
   }
 
-
-
-// ============================================
-// DOWNLOAD / SAVE IMAGE (iOS-aware)
-// ============================================
-
-async function downloadCurrentImage() {
+  // ============================================
+  // DOWNLOAD IMAGE
+  // ============================================
+  async function downloadCurrentImage() {
     if (!currentImageUrl) return;
     const btn = $('imageDownloadBtn');
     if (!btn) return;
@@ -211,33 +206,29 @@ async function downloadCurrentImage() {
     const filename = (currentImageTitle || 'image').replace(/[^\w\-]+/g, '_') + '.jpg';
 
     try {
-        btn.innerHTML = '<span class="material-icons">hourglass_empty</span> Downloading...';
-        btn.disabled = true;
+      btn.innerHTML = '<span class="material-icons">hourglass_empty</span> Downloading...';
+      btn.disabled = true;
 
-        const res = await fetch(currentImageUrl, { mode: 'cors' });
-        if (!res.ok) throw new Error('fetch failed');
-        const blob = await res.blob();
+      const res = await fetch(currentImageUrl, { mode: 'cors' });
+      if (!res.ok) throw new Error('fetch failed');
+      const blob = await res.blob();
 
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        a.rel = 'noopener';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
     } catch (_) {
-        // Fallback: open in new tab
-        window.open(currentImageUrl, '_blank', 'noopener,noreferrer');
-
+      window.open(currentImageUrl, '_blank', 'noopener,noreferrer');
     } finally {
-        btn.innerHTML = original;
-        btn.disabled = false;
+      btn.innerHTML = original;
+      btn.disabled = false;
     }
-}
-    
+  }
 
   // ============================================
   // REFRESH
@@ -253,6 +244,7 @@ async function downloadCurrentImage() {
       subjectCache = {};
       cachedData = [];
       displayedCount = 0;
+      coverflowIndex = 0;
       classLoadToken++;
       contentLoadToken++;
       if (selectedClass) {
@@ -473,6 +465,7 @@ async function downloadCurrentImage() {
     selectedSubject = null;
     cachedData = [];
     displayedCount = 0;
+    coverflowIndex = 0;
 
     document.querySelectorAll('.class-chips .chip').forEach((chip) => {
       chip.classList.toggle('active', chip.dataset.class === cls);
@@ -486,7 +479,6 @@ async function downloadCurrentImage() {
       subjChips.innerHTML = '<span style="color:var(--text-secondary);font-size:0.8rem;">Loading...</span>';
     }
 
-    // Hide progress pill until content loads
     const progress = $('videoProgressContainer');
     if (progress) progress.hidden = true;
 
@@ -557,6 +549,7 @@ async function downloadCurrentImage() {
     selectedSubject = subject;
     cachedData = [];
     displayedCount = 0;
+    coverflowIndex = 0;
     document.querySelectorAll('.subject-chips .chip').forEach((c) => c.classList.remove('active'));
     if (btnEl) btnEl.classList.add('active');
     loadContent();
@@ -600,11 +593,11 @@ async function downloadCurrentImage() {
       });
 
       cachedData = data;
-displayedCount = 0;
-coverflowIndex = 0;   // ← reset focus on new load
-area.innerHTML = '';
-appendContent();
-updateVideoProgress(data);
+      displayedCount = 0;
+      coverflowIndex = 0;
+      area.innerHTML = '';
+      appendContent();
+      updateVideoProgress(data);
     } catch (err) {
       if (tabAtStart !== currentTab || classAtStart !== selectedClass) return;
       console.warn('Content load failed:', err.code);
@@ -637,7 +630,6 @@ updateVideoProgress(data);
     const title = escapeHtml(item.title || '');
     const titleAttr = escapeAttr(item.title || '');
     const subject = escapeHtml(item.subject || '');
-    const description = escapeHtml(item.description || '');
 
     if (currentTab === 'videos') {
       const vid = extractYouTubeId(item.videoUrl);
@@ -651,8 +643,10 @@ updateVideoProgress(data);
              data-item-title="${titleAttr}">
           <div class="video-thumbnail"
                role="button" tabindex="0"
-               onclick="playVideo('${escapeAttr(item.videoUrl || '')}','${titleAttr}','${escapeAttr(item.description || '')}')"
-               onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();playVideo('${escapeAttr(item.videoUrl || '')}','${titleAttr}','${escapeAttr(item.description || '')}');}">
+               data-action="play-video"
+               data-video-url="${escapeAttr(item.videoUrl || '')}"
+               data-video-title="${titleAttr}"
+               data-video-desc="${escapeAttr(item.description || '')}">
             ${thumb ? `<img src="${thumb}" loading="lazy" alt="">` : ''}
             ${duration ? `<span class="video-duration">${duration}</span>` : ''}
           </div>
@@ -692,8 +686,11 @@ updateVideoProgress(data);
       return `
         <div class="card" data-item-id="${escapeAttr(item.id)}" data-item-title="${titleAttr}"
              role="button" tabindex="0"
-             onclick="viewImage('${escapeAttr(item.imageUrl || '')}','${titleAttr}','${escapeAttr(item.description || '')}','${escapeAttr(item.subject || '')}')"
-             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();viewImage('${escapeAttr(item.imageUrl || '')}','${titleAttr}','${escapeAttr(item.description || '')}','${escapeAttr(item.subject || '')}');}">
+             data-action="view-image"
+             data-image-url="${escapeAttr(item.imageUrl || '')}"
+             data-image-title="${titleAttr}"
+             data-image-desc="${escapeAttr(item.description || '')}"
+             data-image-subject="${escapeAttr(item.subject || '')}">
           <img src="${escapeAttr(item.imageUrl || '')}" class="image-thumbnail" alt="${titleAttr}" loading="lazy">
           <div class="card-info">
             <div class="card-title">${title}</div>
@@ -742,9 +739,9 @@ updateVideoProgress(data);
     }
 
     if (area.classList.contains('coverflow-view')) {
-    renderCoverflow();
-    return;
-}
+      renderCoverflow();
+      return;
+    }
 
     area.querySelector('.load-more-btn:not(.modal-content .load-more-btn)')?.remove();
 
@@ -786,7 +783,6 @@ updateVideoProgress(data);
       area.appendChild(btn);
     }
 
-    // Refresh badge systems after new cards render
     if (typeof refreshWatchedBadges === 'function') {
       setTimeout(refreshWatchedBadges, 100);
     }
@@ -796,27 +792,24 @@ updateVideoProgress(data);
   }
 
   // ============================================
-// COVER FLOW VIEW
-// ============================================
-function renderCoverflow() {
+  // COVER FLOW VIEW
+  // ============================================
+  function renderCoverflow() {
     const area = $('contentArea');
     if (!area) return;
 
-    // Remove any existing coverflow
     area.querySelector('.coverflow-wrapper')?.remove();
 
     if (!cachedData.length) return;
 
     const total = cachedData.length;
 
-    // Clamp index
     if (coverflowIndex >= total) coverflowIndex = total - 1;
     if (coverflowIndex < 0) coverflowIndex = 0;
 
     const wrapper = document.createElement('div');
     wrapper.className = 'coverflow-wrapper';
 
-    // Track
     const track = document.createElement('div');
     track.className = 'coverflow-track';
     track.setAttribute('role', 'listbox');
@@ -827,60 +820,54 @@ function renderCoverflow() {
     const stepPx = cardWidth + gap;
 
     cachedData.forEach((item, i) => {
-        const offset = i - coverflowIndex;
-        const absOffset = Math.abs(offset);
+      const offset = i - coverflowIndex;
+      const absOffset = Math.abs(offset);
 
-        // Skip cards too far away — they'd stack on top of each other anyway
-        if (absOffset > 4) return;
+      if (absOffset > 4) return;
 
-        const card = document.createElement('div');
-        card.className = 'coverflow-card';
-        card.dataset.cfIndex = String(i);
-        card.setAttribute('role', 'option');
-        card.setAttribute('aria-selected', String(i === coverflowIndex));
-        card.setAttribute('tabindex', i === coverflowIndex ? '0' : '-1');
+      const card = document.createElement('div');
+      card.className = 'coverflow-card';
+      card.dataset.cfIndex = String(i);
+      card.setAttribute('role', 'option');
+      card.setAttribute('aria-selected', String(i === coverflowIndex));
+      card.setAttribute('tabindex', i === coverflowIndex ? '0' : '-1');
 
-        // Positioning
-        const tx = offset * stepPx * 0.85;   // horizontal spread
-        const tz = -absOffset * 180;          // push back in Z
-        const ry = offset === 0 ? 0 : (offset < 0 ? 40 : -40);
-        const scale = offset === 0 ? 1 : Math.max(0.72, 1 - absOffset * 0.12);
-        const opacity = offset === 0 ? 1 : Math.max(0.35, 1 - absOffset * 0.22);
-        const zIndex = 100 - absOffset;
+      const tx = offset * stepPx * 0.85;
+      const tz = -absOffset * 180;
+      const ry = offset === 0 ? 0 : (offset < 0 ? 40 : -40);
+      const scale = offset === 0 ? 1 : Math.max(0.72, 1 - absOffset * 0.12);
+      const opacity = offset === 0 ? 1 : Math.max(0.35, 1 - absOffset * 0.22);
+      const zIndex = 100 - absOffset;
 
-        card.style.transform = `translateX(${tx}px) translateZ(${tz}px) rotateY(${ry}deg) scale(${scale})`;
-        card.style.opacity = String(opacity);
-        card.style.zIndex = String(zIndex);
+      card.style.transform = `translateX(${tx}px) translateZ(${tz}px) rotateY(${ry}deg) scale(${scale})`;
+      card.style.opacity = String(opacity);
+      card.style.zIndex = String(zIndex);
 
-        card.innerHTML = generateCoverflowCardContent(item);
-        card.addEventListener('click', (e) => {
-            if (i === coverflowIndex) {
-                // Focused card — open it
-                handleCoverflowOpen(item);
-            } else {
-                // Not focused — focus it
-                setCoverflowIndex(i);
-            }
-        });
+      card.innerHTML = generateCoverflowCardContent(item);
+      card.addEventListener('click', () => {
+        if (i === coverflowIndex) {
+          handleCoverflowOpen(item);
+        } else {
+          setCoverflowIndex(i);
+        }
+      });
 
-        track.appendChild(card);
+      track.appendChild(card);
     });
 
     wrapper.appendChild(track);
 
-    // Pagination dots
     const dots = document.createElement('div');
     dots.className = 'coverflow-dots';
     cachedData.forEach((_, i) => {
-        const dot = document.createElement('button');
-        dot.className = 'coverflow-dot' + (i === coverflowIndex ? ' active' : '');
-        dot.setAttribute('aria-label', `Go to item ${i + 1}`);
-        dot.addEventListener('click', () => setCoverflowIndex(i));
-        dots.appendChild(dot);
+      const dot = document.createElement('button');
+      dot.className = 'coverflow-dot' + (i === coverflowIndex ? ' active' : '');
+      dot.setAttribute('aria-label', `Go to item ${i + 1}`);
+      dot.addEventListener('click', () => setCoverflowIndex(i));
+      dots.appendChild(dot);
     });
     wrapper.appendChild(dots);
 
-    // Nav buttons (subtle, for accessibility)
     const prevBtn = document.createElement('button');
     prevBtn.className = 'coverflow-nav coverflow-prev';
     prevBtn.setAttribute('aria-label', 'Previous item');
@@ -900,90 +887,103 @@ function renderCoverflow() {
 
     area.appendChild(wrapper);
 
-    // Show counter
     const counter = document.createElement('div');
     counter.className = 'coverflow-counter';
     counter.textContent = `${coverflowIndex + 1} / ${total}`;
     wrapper.appendChild(counter);
-}
+  }
 
-function generateCoverflowCardContent(item) {
+  function generateCoverflowCardContent(item) {
     const title = escapeHtml(item.title || '');
     const subject = escapeHtml(item.subject || '');
 
     if (currentTab === 'videos') {
-        const vid = extractYouTubeId(item.videoUrl);
-        const thumb = vid ? `https://img.youtube.com/vi/${vid}/hqdefault.jpg` : '';
-        const duration = escapeHtml(item.duration || '');
-        return `
-            <div class="coverflow-thumb">
-                ${thumb ? `<img src="${thumb}" loading="lazy" alt="">` : ''}
-                ${duration ? `<span class="video-duration">${duration}</span>` : ''}
-                ${item.videoUrl ? '<div class="coverflow-play"><span class="material-icons">play_arrow</span></div>' : ''}
-            </div>
-            <div class="coverflow-info">
-                <div class="coverflow-title">${title}</div>
-                ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
-            </div>
-        `;
+      const vid = extractYouTubeId(item.videoUrl);
+      const thumb = vid ? `https://img.youtube.com/vi/${vid}/hqdefault.jpg` : '';
+      const duration = escapeHtml(item.duration || '');
+      return `
+        <div class="coverflow-thumb">
+          ${thumb ? `<img src="${thumb}" loading="lazy" alt="">` : ''}
+          ${duration ? `<span class="video-duration">${duration}</span>` : ''}
+          ${item.videoUrl ? '<div class="coverflow-play"><span class="material-icons">play_arrow</span></div>' : ''}
+        </div>
+        <div class="coverflow-info">
+          <div class="coverflow-title">${title}</div>
+          ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
+        </div>
+      `;
     }
     if (currentTab === 'pdfs') {
-        return `
-            <div class="coverflow-thumb coverflow-thumb-pdf">
-                <span class="material-icons">picture_as_pdf</span>
-            </div>
-            <div class="coverflow-info">
-                <div class="coverflow-title">${title}</div>
-                ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
-            </div>
-        `;
+      return `
+        <div class="coverflow-thumb coverflow-thumb-pdf">
+          <span class="material-icons">picture_as_pdf</span>
+        </div>
+        <div class="coverflow-info">
+          <div class="coverflow-title">${title}</div>
+          ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
+        </div>
+      `;
     }
     if (currentTab === 'images') {
+      const imgSrc = item.imageUrl || '';
+      if (!imgSrc) {
         return `
-            <div class="coverflow-thumb">
-                <img src="${escapeAttr(item.imageUrl || '')}" loading="lazy" alt="">
-            </div>
-            <div class="coverflow-info">
-                <div class="coverflow-title">${title}</div>
-                ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
-            </div>
+          <div class="coverflow-thumb coverflow-thumb-post">
+            <span class="material-icons">image</span>
+          </div>
+          <div class="coverflow-info">
+            <div class="coverflow-title">${title}</div>
+            ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
+          </div>
         `;
+      }
+      return `
+        <div class="coverflow-thumb">
+          <img src="${escapeAttr(imgSrc)}" loading="lazy" alt="">
+        </div>
+        <div class="coverflow-info">
+          <div class="coverflow-title">${title}</div>
+          ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
+        </div>
+      `;
     }
     if (currentTab === 'posts') {
-        return `
-            <div class="coverflow-thumb coverflow-thumb-post">
-                <span class="material-icons">article</span>
-            </div>
-            <div class="coverflow-info">
-                <div class="coverflow-title">${title}</div>
-                ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
-            </div>
-        `;
+      return `
+        <div class="coverflow-thumb coverflow-thumb-post">
+          <span class="material-icons">article</span>
+        </div>
+        <div class="coverflow-info">
+          <div class="coverflow-title">${title}</div>
+          ${subject ? `<div class="coverflow-subject">${subject}</div>` : ''}
+        </div>
+      `;
     }
     return `<div class="coverflow-info"><div class="coverflow-title">${title}</div></div>`;
-}
+  }
 
-function handleCoverflowOpen(item) {
+  function handleCoverflowOpen(item) {
     if (currentTab === 'videos' && item.videoUrl) {
-        playVideo(item.videoUrl, item.title || '', item.description || '');
+      playVideo(item.videoUrl, item.title || '', item.description || '');
     } else if (currentTab === 'images' && item.imageUrl) {
-        viewImage(item.imageUrl, item.title || '', item.description || '', item.subject || '');
+      viewImage(item.imageUrl, item.title || '', item.description || '', item.subject || '');
     } else if (currentTab === 'pdfs' && item.pdfUrl) {
-        window.open(item.pdfUrl, '_blank', 'noopener,noreferrer');
+      window.open(item.pdfUrl, '_blank', 'noopener,noreferrer');
     } else if (currentTab === 'posts' && item.url) {
-        window.open(item.url, '_blank', 'noopener,noreferrer');
+      window.open(item.url, '_blank', 'noopener,noreferrer');
     }
-}
+  }
 
-function setCoverflowIndex(i) {
+  function setCoverflowIndex(i) {
     const total = cachedData.length;
     if (!total) return;
     coverflowIndex = Math.max(0, Math.min(total - 1, i));
     renderCoverflow();
-}
 
-// Expose for preferences.js
-window.__CU_setCoverflowIndex = setCoverflowIndex;
+    const selected = document.querySelector(`.coverflow-card[data-cf-index="${coverflowIndex}"]`);
+    if (selected) {
+      selected.focus({ preventScroll: true });
+    }
+  }
 
   // ============================================
   // YOUTUBE
@@ -1013,12 +1013,10 @@ window.__CU_setCoverflowIndex = setCoverflowIndex;
   }
   function toggleFullscreen() {
     const c = $('videoPlayerContainer');
-    // Only run on devices that actually support the Fullscreen API
     if (!c || typeof c.requestFullscreen !== 'function') return;
-    
     if (!document.fullscreenElement) c.requestFullscreen().catch(() => {});
     else document.exitFullscreen();
-}
+  }
   function closeVideoModal() {
     if (document.fullscreenElement) document.exitFullscreen();
     $('videoModal').style.display = 'none';
@@ -1034,9 +1032,7 @@ window.__CU_setCoverflowIndex = setCoverflowIndex;
     $('imageModalDescription').textContent = `${subject || ''}${desc ? ' • ' + desc : ''}`;
     $('imageModal').style.display = 'flex';
     document.body.style.overflow = 'hidden';
-}
-    
-    
+  }
   function closeImageModal() {
     $('imageModal').style.display = 'none';
     $('modalImage').src = '';
@@ -1053,12 +1049,12 @@ window.__CU_setCoverflowIndex = setCoverflowIndex;
     currentTab = tab;
     cachedData = [];
     displayedCount = 0;
+    coverflowIndex = 0;
     contentLoadToken++;
     document.querySelectorAll('.sidebar-item').forEach((el) => {
       el.classList.toggle('active', el.dataset.tab === tab);
     });
 
-    // Hide progress pill when switching away from videos
     const progress = $('videoProgressContainer');
     if (progress) progress.hidden = (tab !== 'videos' || !selectedClass);
 
@@ -1066,7 +1062,7 @@ window.__CU_setCoverflowIndex = setCoverflowIndex;
   }
 
   // ============================================
-  // VIDEO PROGRESS — now a compact pill
+  // VIDEO PROGRESS
   // ============================================
   function updateVideoProgress(allVideos) {
     const wrap = $('videoProgressContainer');
@@ -1098,9 +1094,9 @@ window.__CU_setCoverflowIndex = setCoverflowIndex;
     setTimeout(() => wrap.classList.remove('milestone'), 600);
     const msgs = {
       25: '25% Done!',
-      50: '50% Dome!',
+      50: '50% Done!',
       75: '75% Done!',
-      100: 'Completed!'
+      100: '100% Completed!'
     };
     if (msgs[pct]) showProgressToast(msgs[pct]);
   }
@@ -1138,9 +1134,35 @@ window.__CU_setCoverflowIndex = setCoverflowIndex;
   function onVideoUnwatched() { if (cachedData.length) updateVideoProgress(cachedData); }
 
   // ============================================
-  // NOTE / WATCH DELEGATION
+  // CARD CLICK DELEGATION
   // ============================================
   document.addEventListener('click', (e) => {
+    // Video card click
+    const videoEl = e.target.closest('[data-action="play-video"]');
+    if (videoEl) {
+      e.stopPropagation();
+      playVideo(
+        videoEl.dataset.videoUrl || '',
+        videoEl.dataset.videoTitle || '',
+        videoEl.dataset.videoDesc || ''
+      );
+      return;
+    }
+
+    // Image card click
+    const imageEl = e.target.closest('[data-action="view-image"]');
+    if (imageEl) {
+      e.stopPropagation();
+      viewImage(
+        imageEl.dataset.imageUrl || '',
+        imageEl.dataset.imageTitle || '',
+        imageEl.dataset.imageDesc || '',
+        imageEl.dataset.imageSubject || ''
+      );
+      return;
+    }
+
+    // Watched toggle
     const watchedEl = e.target.closest('[data-watched-id]');
     if (watchedEl) {
       e.stopPropagation();
@@ -1152,6 +1174,7 @@ window.__CU_setCoverflowIndex = setCoverflowIndex;
       return;
     }
 
+    // Note open
     const noteEl = e.target.closest('[data-note-id]');
     if (noteEl) {
       e.stopPropagation();
@@ -1171,15 +1194,77 @@ window.__CU_setCoverflowIndex = setCoverflowIndex;
     }
   });
 
+  // Keyboard activation for interactive elements
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
-    const watchedEl = e.target.closest?.('[data-watched-id]');
-    const noteEl = e.target.closest?.('[data-note-id]');
-    const target = watchedEl || noteEl;
-    if (!target) return;
+
+    const interactive = e.target.closest?.(
+      '[data-action="play-video"], [data-action="view-image"], [data-watched-id], [data-note-id]'
+    );
+    if (!interactive) return;
+
     e.preventDefault();
-    target.click();
+    interactive.click();
   });
+
+  // ============================================
+  // COVERFLOW KEYBOARD NAV
+  // ============================================
+  document.addEventListener('keydown', (e) => {
+    const area = $('contentArea');
+    if (!area || !area.classList.contains('coverflow-view')) return;
+    if (!cachedData.length) return;
+
+    if (e.target.matches('input, textarea, select')) return;
+
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      setCoverflowIndex(coverflowIndex - 1);
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      setCoverflowIndex(coverflowIndex + 1);
+    } else if (e.key === 'Enter') {
+      const focused = cachedData[coverflowIndex];
+      if (focused) {
+        e.preventDefault();
+        handleCoverflowOpen(focused);
+      }
+    }
+  });
+
+  // ============================================
+  // COVERFLOW SWIPE
+  // ============================================
+  (function setupCoverflowSwipe() {
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    document.addEventListener('touchstart', (e) => {
+      const area = $('contentArea');
+      if (!area || !area.classList.contains('coverflow-view')) return;
+      if (!cachedData.length) return;
+      if (e.touches.length !== 1) return;
+
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    document.addEventListener('touchend', (e) => {
+      const area = $('contentArea');
+      if (!area || !area.classList.contains('coverflow-view')) return;
+      if (!cachedData.length) return;
+      if (!e.changedTouches.length) return;
+
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+
+      if (Math.abs(dx) < 50) return;
+      if (Math.abs(dy) > Math.abs(dx) * 0.7) return;
+
+      if (dx < 0) setCoverflowIndex(coverflowIndex + 1);
+      else setCoverflowIndex(coverflowIndex - 1);
+    }, { passive: true });
+  })();
 
   // ============================================
   // GLOBAL HANDLERS
@@ -1225,11 +1310,12 @@ window.__CU_setCoverflowIndex = setCoverflowIndex;
     area.innerHTML = '';
     appendContent();
   };
-  
-window.__CU_setCoverflowIndex = setCoverflowIndex;
-window.__CU_getCoverflowIndex = () => coverflowIndex;
+
+  window.__CU_setCoverflowIndex = setCoverflowIndex;
+  window.__CU_getCoverflowIndex = () => coverflowIndex;
+
   // ============================================
-  // MODAL CLOSE
+  // MODAL DISMISS
   // ============================================
   document.getElementById('videoModal')?.addEventListener('click', function (e) {
     if (e.target === this) closeVideoModal();
@@ -1248,65 +1334,6 @@ window.__CU_getCoverflowIndex = () => coverflowIndex;
     }
   });
 
-  
-// Coverflow keyboard navigation
-document.addEventListener('keydown', (e) => {
-    const area = $('contentArea');
-    if (!area || !area.classList.contains('coverflow-view')) return;
-    if (!cachedData.length) return;
-
-    // Don't hijack keys when typing in an input
-    if (e.target.matches('input, textarea, select')) return;
-
-    if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        setCoverflowIndex(coverflowIndex - 1);
-    } else if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        setCoverflowIndex(coverflowIndex + 1);
-    } else if (e.key === 'Enter') {
-        const focused = cachedData[coverflowIndex];
-        if (focused) {
-            e.preventDefault();
-            handleCoverflowOpen(focused);
-        }
-    }
-});
-
-  // Coverflow swipe support (mobile)
-(function setupCoverflowSwipe() {
-    let touchStartX = 0;
-    let touchStartY = 0;
-    let isSwiping = false;
-
-    document.addEventListener('touchstart', (e) => {
-        const area = $('contentArea');
-        if (!area || !area.classList.contains('coverflow-view')) return;
-        if (!cachedData.length) return;
-        if (e.touches.length !== 1) return;
-
-        touchStartX = e.touches[0].clientX;
-        touchStartY = e.touches[0].clientY;
-        isSwiping = false;
-    }, { passive: true });
-
-    document.addEventListener('touchend', (e) => {
-        const area = $('contentArea');
-        if (!area || !area.classList.contains('coverflow-view')) return;
-        if (!cachedData.length) return;
-        if (!e.changedTouches.length) return;
-
-        const dx = e.changedTouches[0].clientX - touchStartX;
-        const dy = e.changedTouches[0].clientY - touchStartY;
-
-        // Must be primarily horizontal AND long enough
-        if (Math.abs(dx) < 50) return;
-        if (Math.abs(dy) > Math.abs(dx) * 0.7) return; // vertical scroll, ignore
-
-        if (dx < 0) setCoverflowIndex(coverflowIndex + 1);
-        else setCoverflowIndex(coverflowIndex - 1);
-    }, { passive: true });
-})();
   // ============================================
   // BOOT
   // ============================================
