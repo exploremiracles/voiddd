@@ -471,8 +471,9 @@
       subjChips.innerHTML = '<span style="color:var(--text-secondary);font-size:0.8rem;">Loading...</span>';
     }
 
+    // Hide progress pill until content loads
     const progress = $('videoProgressContainer');
-    if (progress) progress.style.display = currentTab === 'videos' ? 'block' : 'none';
+    if (progress) progress.hidden = true;
 
     await loadAvailableSubjects(cls, token);
     if (token !== classLoadToken) return;
@@ -628,7 +629,6 @@
       const duration = escapeHtml(item.duration || '');
       const watched = typeof isVideoWatched === 'function' ? isVideoWatched(item.id) : false;
 
-      // Note indicator shows generic "Note" until notes.js updates it
       return `
         <div class="card ${watched ? 'watched-card' : ''}"
              data-item-id="${escapeAttr(item.id)}"
@@ -842,23 +842,24 @@
       el.classList.toggle('active', el.dataset.tab === tab);
     });
 
+    // Hide progress pill when switching away from videos
     const progress = $('videoProgressContainer');
-    if (progress) progress.style.display = tab === 'videos' && selectedClass ? 'block' : 'none';
+    if (progress) progress.hidden = (tab !== 'videos' || !selectedClass);
 
     if (selectedClass) loadContent();
   }
 
   // ============================================
-  // VIDEO PROGRESS
+  // VIDEO PROGRESS — now a compact pill
   // ============================================
   function updateVideoProgress(allVideos) {
     const wrap = $('videoProgressContainer');
     if (!wrap) return;
     if (currentTab !== 'videos' || !allVideos || allVideos.length === 0) {
-      wrap.style.display = 'none';
+      wrap.hidden = true;
       return;
     }
-    wrap.style.display = 'block';
+    wrap.hidden = false;
 
     const total = allVideos.length;
     const watched = allVideos.filter((v) => typeof isVideoWatched === 'function' && isVideoWatched(v.id)).length;
@@ -871,21 +872,7 @@
     const bar = $('videoProgressBar');
     if (bar) bar.setAttribute('aria-valuenow', String(pct));
 
-    updateProgressMessage(watched, total, pct);
     if ([25, 50, 75, 100].includes(pct)) celebrateMilestone(pct);
-  }
-
-  function updateProgressMessage(watched, total, pct) {
-    const el = $('videoProgressMessage');
-    if (!el) return;
-    let m = '';
-    if (watched === 0) m = '🎬 Start watching to track your progress!';
-    else if (pct < 25) m = `🎯 Great start! ${total - watched} more lectures to go!`;
-    else if (pct < 50) m = `🚀 You're ${pct}% done. Keep going!`;
-    else if (pct < 75) m = `💪 Halfway there! ${total - watched} lectures remaining.`;
-    else if (pct < 100) m = `🔥 Almost there! Just ${total - watched} left!`;
-    else m = '🏆 Congratulations! You completed all lectures!';
-    el.textContent = m;
   }
 
   function celebrateMilestone(pct) {
@@ -937,7 +924,6 @@
   // ============================================
   // NOTE / WATCH DELEGATION
   // ============================================
-  // Central click handler for cards — safer than inline onclick with user data.
   document.addEventListener('click', (e) => {
     const watchedEl = e.target.closest('[data-watched-id]');
     if (watchedEl) {
@@ -958,7 +944,6 @@
       if (typeof window.openNote === 'function') {
         window.openNote(id, title);
       } else {
-        // notes.js not loaded yet — retry once after a tick
         setTimeout(() => {
           if (typeof window.openNote === 'function') {
             window.openNote(id, title);
@@ -970,7 +955,6 @@
     }
   });
 
-  // Keyboard activation for watched/note buttons
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
     const watchedEl = e.target.closest?.('[data-watched-id]');
