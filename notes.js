@@ -6,13 +6,14 @@
  *   openNote(videoId, videoTitle)   — open the note editor
  *   hasNote(videoId)                — boolean, does the current user have a note
  *   getNoteCount()                  — total notes
+ *   refreshNoteBadges()             — re-sync all badges
  */
 
 (function () {
   'use strict';
 
   const COLLECTION = 'notes';
-  const MAX_CHARS = 1500;           // ~200 words
+  const MAX_CHARS = 1500;
   const WORD_LIMIT = 200;
   const DOC_ID_SEPARATOR = '__';
   const SAVE_DEBOUNCE_MS = 800;
@@ -22,7 +23,7 @@
   let currentVideoId = null;
   let currentVideoTitle = '';
   let saveTimer = null;
-  let notesCache = new Map();       // videoId -> { content, updatedAt }
+  let notesCache = new Map();
   let isReady = false;
   let snapshotUnsub = null;
 
@@ -44,8 +45,13 @@
     return text.trim().split(/\s+/).filter(Boolean).length;
   }
 
+  function hasContent(videoId) {
+    const entry = notesCache.get(videoId);
+    return !!(entry && entry.content && entry.content.trim().length > 0);
+  }
+
   // ============================================
-  // INIT — wait for dashboard auth, then load
+  // INIT
   // ============================================
   async function init() {
     await new Promise((resolve) => {
@@ -125,20 +131,53 @@
   }
 
   // ============================================
-  // BADGE on video cards
+  // BADGE SYNC — across all layouts
   // ============================================
   function refreshAllNoteBadges() {
+    // 1. Grid / List cards
     document.querySelectorAll('[data-item-id]').forEach((card) => {
       const videoId = card.dataset.itemId;
       if (!videoId) return;
       updateCardBadge(card, videoId);
     });
+
+    // 2. Cover Flow action buttons
+    document.querySelectorAll('.coverflow-card').forEach((card) => {
+      const noteBtn = card.querySelector('[data-note-id]');
+      if (!noteBtn) return;
+      const videoId = noteBtn.dataset.noteId;
+      if (!videoId) return;
+      const has = hasContent(videoId);
+      noteBtn.classList.toggle('has-note', has);
+      noteBtn.setAttribute('title', has ? 'View note' : 'Add note');
+      noteBtn.setAttribute('aria-label', has ? 'View note' : 'Add note');
+    });
+
+    // 3. Story View action buttons
+    document.querySelectorAll('.story-section').forEach((section) => {
+      const noteBtn = section.querySelector('[data-note-id]');
+      if (!noteBtn) return;
+      const videoId = noteBtn.dataset.noteId;
+      if (!videoId) return;
+      const has = hasContent(videoId);
+      noteBtn.classList.toggle('has-note', has);
+      noteBtn.setAttribute('title', has ? 'View note' : 'Add note');
+      noteBtn.setAttribute('aria-label', has ? 'View note' : 'Add note');
+      const icon = noteBtn.querySelector('.material-icons');
+      if (icon) icon.textContent = has ? 'sticky_note_2' : 'sticky_note_2';
+    });
+
+    // 4. Tell dashboard to refresh its own action-button visuals
+    if (typeof window.__CU_refreshCoverflow === 'function') {
+      // No-op unless coverflow view is active; safe either way
+      // (Commented to avoid unnecessary re-renders on every badge change)
+    }
   }
 
   function updateCardBadge(card, videoId) {
     const indicator = card.querySelector('.note-indicator');
     if (!indicator) return;
-    const has = notesCache.has(videoId) && notesCache.get(videoId).content.trim().length > 0;
+    const has = hasContent(videoId);
 
     if (has) {
       indicator.classList.add('has-note');
@@ -156,7 +195,7 @@
   }
 
   // ============================================
-  // MODAL — paper cutout design
+  // MODAL
   // ============================================
   function ensureModal() {
     if ($(MODAL_ID)) return;
@@ -218,7 +257,6 @@
     `;
     document.body.appendChild(modal);
 
-    // Event wiring
     $('noteCloseBtn').addEventListener('click', closeModal);
     $('noteSaveBtn').addEventListener('click', () => saveNote(true));
     $('noteClearBtn').addEventListener('click', clearNote);
@@ -250,7 +288,6 @@
     counter.classList.toggle('over-limit', words > WORD_LIMIT);
     counter.classList.toggle('near-limit', words > WORD_LIMIT * 0.8 && words <= WORD_LIMIT);
 
-    // Enforce word limit by trimming trailing words
     if (words > WORD_LIMIT) {
       const trimmed = textarea.value.trim().split(/\s+/).slice(0, WORD_LIMIT).join(' ');
       textarea.value = trimmed;
@@ -259,7 +296,6 @@
   }
 
   function autoGrow(textarea) {
-    // Reset then measure — allows shrinking when text is deleted
     textarea.style.height = 'auto';
     textarea.style.height = Math.min(textarea.scrollHeight, window.innerHeight * 0.5) + 'px';
   }
@@ -276,10 +312,7 @@
   // ============================================
   async function openNote(videoId, videoTitle) {
     if (!isReady) {
-      // Try one more time to init if user is ready
-      if (auth.currentUser) {
-        await init();
-      }
+      if (auth.currentUser) await init();
       if (!isReady) {
         window.showToast?.('Please wait, loading...', 'error');
         return;
@@ -305,7 +338,6 @@
     overlay.classList.add('active');
     document.body.style.overflow = 'hidden';
 
-    // Focus with a small delay so the animation doesn't steal it
     setTimeout(() => textarea.focus(), 250);
   }
 
@@ -315,7 +347,6 @@
     overlay.classList.remove('active');
     document.body.style.overflow = 'auto';
 
-    // Flush pending save on close
     if (saveTimer) {
       clearTimeout(saveTimer);
       saveTimer = null;
@@ -342,13 +373,13 @@
     const docId = docIdFor(currentUserId, currentVideoId);
     const docRef = db.collection(COLLECTION).doc(docId);
 
-    // If empty and no existing note → skip
     if (!content) {
       if (notesCache.has(currentVideoId)) {
         try {
           await docRef.delete();
           notesCache.delete(currentVideoId);
           refreshAllNoteBadges();
+          refreshExternalBadges();
           setSaveStatus('Cleared');
           if (explicit) window.showToast?.('Note cleared', 'info');
         } catch (err) {
@@ -389,6 +420,7 @@
 
       setSaveStatus('Saved ✓', 'saved');
       refreshAllNoteBadges();
+      refreshExternalBadges();
 
       if (explicit) {
         window.showToast?.('Note saved', 'success');
@@ -415,12 +447,14 @@
       await db.collection(COLLECTION).doc(docId).delete();
       notesCache.delete(currentVideoId);
       refreshAllNoteBadges();
+      refreshExternalBadges();
       setSaveStatus('Cleared');
       window.showToast?.('Note cleared', 'info');
     } catch (err) {
       if (err.code === 'not-found') {
         notesCache.delete(currentVideoId);
         refreshAllNoteBadges();
+        refreshExternalBadges();
         setSaveStatus('Cleared');
         return;
       }
@@ -430,14 +464,27 @@
   }
 
   // ============================================
+  // EXTERNAL REFRESH — tell coverflow + story to update
+  // ============================================
+  function refreshExternalBadges() {
+    // Coverflow view: re-render to update button states
+    if (typeof window.__CU_refreshCoverflow === 'function') {
+      window.__CU_refreshCoverflow();
+    }
+    // Story view: update watched + note buttons without re-rendering sections
+    if (typeof window.__CU_refreshStoryActions === 'function') {
+      window.__CU_refreshStoryActions();
+    }
+  }
+
+  // ============================================
   // PUBLIC API
   // ============================================
   window.openNote = openNote;
-  window.hasNote = (videoId) => notesCache.has(videoId) && notesCache.get(videoId).content.trim().length > 0;
+  window.hasNote = (videoId) => hasContent(videoId);
   window.getNoteCount = () => notesCache.size;
   window.refreshNoteBadges = refreshAllNoteBadges;
 
-  // Boot after DOM ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
