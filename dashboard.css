@@ -2690,3 +2690,307 @@ img, video, iframe {
     }
 }
 
+/* ============================================
+   PRESENCE — "Studying right now" widget
+   ============================================ */
+.presence-widget {
+    position: relative;
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 0.75rem;
+    z-index: 100;
+}
+
+.presence-pill {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 14px 6px 6px;
+    min-height: 44px;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 999px;
+    cursor: pointer;
+    font-family: inherit;
+    color: var(--text);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--shadow-sm);
+    position: relative;
+}
+
+.presence-pill:hover {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.presence-pill[aria-expanded="true"] {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+}
+
+/* Overlapping avatar stack */
+.presence-avatars {
+    display: flex;
+    align-items: center;
+    padding-left: 2px;
+}
+
+.presence-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: white;
+    border: 2px solid var(--surface);
+    margin-left: -8px;
+    position: relative;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+    text-transform: uppercase;
+    user-select: none;
+}
+
+.presence-avatar:first-child {
+    margin-left: 0;
+}
+
+.presence-pill:hover .presence-avatar {
+    transform: translateX(-2px);
+}
+
+.presence-pill:hover .presence-avatar:first-child {
+    transform: translateX(0);
+}
+
+/* When more than 4, show "+N" avatar */
+.presence-avatar.presence-avatar-more {
+    background: var(--surface-muted);
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+/* Meta text */
+.presence-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    padding-left: 4px;
+}
+
+.presence-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+    animation: presencePulse 2s infinite;
+}
+
+@keyframes presencePulse {
+    0%   { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+    70%  { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.presence-count {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Dropdown */
+.presence-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 280px;
+    max-width: calc(100vw - 40px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow-lg);
+    z-index: 500;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.presence-dropdown.open {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: all;
+}
+
+.presence-dropdown-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: var(--surface-muted);
+    border-bottom: 1px solid var(--border);
+}
+
+.presence-live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+    animation: presencePulse 2s infinite;
+}
+
+.presence-list {
+    max-height: 320px;
+    overflow-y: auto;
+    padding: 4px 0;
+}
+
+.presence-list-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    transition: background-color 0.15s ease;
+}
+
+.presence-list-item:hover {
+    background: var(--surface-muted);
+}
+
+.presence-list-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+    text-transform: uppercase;
+}
+
+.presence-list-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.presence-list-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.presence-list-time {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    margin-top: 1px;
+}
+
+.presence-list-you {
+    display: inline-block;
+    padding: 1px 6px;
+    margin-left: 4px;
+    border-radius: 6px;
+    background: var(--accent);
+    color: var(--accent-contrast);
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    vertical-align: middle;
+}
+
+.presence-empty {
+    padding: 24px 16px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+}
+
+.presence-empty .material-icons {
+    display: block;
+    font-size: 1.8rem;
+    color: var(--border);
+    margin-bottom: 6px;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .presence-widget {
+        margin-bottom: 0.5rem;
+    }
+
+    .presence-pill {
+        padding: 4px 10px 4px 4px;
+        gap: 8px;
+        min-height: 40px;
+    }
+
+    .presence-avatar {
+        width: 26px;
+        height: 26px;
+        font-size: 0.68rem;
+        margin-left: -7px;
+    }
+
+    .presence-meta {
+        font-size: 0.72rem;
+    }
+
+    .presence-dropdown {
+        right: 0;
+        left: auto;
+        min-width: 260px;
+    }
+}
+
+@media (max-width: 400px) {
+    .presence-avatar {
+        width: 24px;
+        height: 24px;
+        font-size: 0.65rem;
+        margin-left: -6px;
+    }
+
+    .presence-meta {
+        font-size: 0.68rem;
+    }
+
+    .presence-dropdown {
+        min-width: 220px;
+    }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .presence-dot,
+    .presence-live-dot {
+        animation: none !important;
+    }
+    .presence-dropdown,
+    .presence-pill,
+    .presence-avatar {
+        transition: none !important;
+    }
+}
