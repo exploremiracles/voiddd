@@ -14,7 +14,7 @@
 // ============================================
 
 // Bump these on every deploy. Or inject __BUILD__ at build time.
-const VERSION = 'v2.1.19';
+const VERSION = 'v2.1.29';
 const STATIC_CACHE = `cu-static-${VERSION}`;
 const RUNTIME_CACHE = `cu-runtime-${VERSION}`;
 const IMAGE_CACHE = `cu-images-${VERSION}`;
@@ -23,14 +23,14 @@ const NETWORK_TIMEOUT_MS = 3000;
 
 // Assets that MUST be available offline (only public, non-sensitive)
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/dashboard.html',
-  '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/favicon.png'
-  // NOTE: admin.html removed — never cache admin pages
+    '/',
+    '/index.html',
+    '/dashboard.html',
+    '/scrapbook.html',      // ← ADD
+    '/manifest.json',
+    '/icon-192.png',
+    '/icon-512.png',
+    '/favicon.png'
 ];
 
 // ============================================
