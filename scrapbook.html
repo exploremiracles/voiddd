@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="default">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Scrapbook — Campus Unfolded</title>
+    <meta name="theme-color" content="#DFDDD3" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0d1117" media="(prefers-color-scheme: dark)">
+
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self';
+                   script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com;
+                   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+                   font-src 'self' https://fonts.gstatic.com;
+                   img-src 'self' data: blob: https:;
+                   connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com;
+                   object-src 'none';
+                   base-uri 'self';">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Inter:wght@300;400;500;600;700&family=Caveat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+
+    <!-- Inline theme — no FOUC -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('enlighten_theme') || 'default';
+          document.documentElement.setAttribute('data-theme', t);
+        } catch (e) {}
+      })();
+    </script>
+
+    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="scrapbook.css">
+</head>
+<body>
+
+    <noscript>
+        <div style="padding:2rem;text-align:center;font-family:sans-serif">
+            <h2>JavaScript required</h2>
+            <p>Please enable JavaScript to view your scrapbook.</p>
+        </div>
+    </noscript>
+
+    <!-- Auth gate -->
+    <div class="page-transition active" id="authGate" aria-live="polite">
+        <div class="transition-spinner"></div>
+        <div class="transition-text">Loading your scrapbook…</div>
+        <div class="transition-subtext">Just a moment</div>
+    </div>
+
+    <!-- Main -->
+    <div class="scrapbook-page" id="scrapbookRoot" hidden>
+        <!-- Top bar -->
+        <header class="scrapbook-header">
+            <div class="scrapbook-header-left">
+                <a href="dashboard.html" class="scrapbook-back-btn" aria-label="Back to dashboard">
+                    <span class="material-icons">arrow_back</span>
+                </a>
+                <div>
+                    <h1 class="scrapbook-title">My Scrapbook</h1>
+                    <p class="scrapbook-subtitle" id="scrapbookSubtitle">Your notes from every lecture, in one place</p>
+                </div>
+            </div>
+            <div class="scrapbook-header-actions">
+                <div class="scrapbook-stat">
+                    <span class="material-icons">sticky_note_2</span>
+                    <span id="noteCount">0</span>
+                    <span class="scrapbook-stat-label">notes</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Notes grid -->
+        <main class="scrapbook-main">
+            <div class="scrapbook-grid" id="scrapbookGrid"></div>
+
+            <!-- Load more -->
+            <button class="scrapbook-load-more" id="loadMoreBtn" style="display:none;">
+                <span class="material-icons">expand_more</span>
+                <span id="loadMoreText">Load More</span>
+            </button>
+
+            <!-- Empty state -->
+            <div class="scrapbook-empty" id="scrapbookEmpty" style="display:none;">
+                <span class="material-icons">auto_stories</span>
+                <h2>Your scrapbook is empty</h2>
+                <p>Start writing notes while watching videos. They'll all appear here.</p>
+                <a href="dashboard.html" class="scrapbook-empty-cta">
+                    <span class="material-icons">arrow_back</span>
+                    Go write your first note
+                </a>
+            </div>
+        </main>
+    </div>
+
+    <!-- Edit Note Modal -->
+    <div class="note-edit-modal" id="noteEditModal" role="dialog" aria-modal="true" aria-labelledby="noteEditTitle">
+        <div class="note-edit-modal-content">
+            <div class="note-paper note-paper-editing">
+                <div class="note-tape" aria-hidden="true"></div>
+
+                <div class="note-header">
+                    <div class="note-header-left">
+                        <span class="material-icons" aria-hidden="true">edit_note</span>
+                        <h3 id="noteEditTitle">Edit Note</h3>
+                    </div>
+                    <button class="note-close-btn" id="noteEditCloseBtn" aria-label="Close">
+                        <span class="material-icons">close</span>
+                    </button>
+                </div>
+
+                <div class="note-video-title" id="noteEditVideoTitle"></div>
+
+                <textarea
+                    id="noteEditTextarea"
+                    class="note-textarea"
+                    placeholder="What did you learn from this lecture?"
+                    maxlength="1500"
+                    spellcheck="true"></textarea>
+
+                <div class="note-footer">
+                    <div class="note-meta">
+                        <span class="note-word-count" id="noteEditWordCount">0 / 200 words</span>
+                    </div>
+                    <div class="note-actions">
+                        <button class="note-btn note-btn-clear" id="noteEditCancelBtn">
+                            <span class="material-icons">cancel</span>
+                            Cancel
+                        </button>
+                        <button class="note-btn note-btn-save" id="noteEditSaveBtn">
+                            <span class="material-icons">check</span>
+                            Save
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation -->
+    <div class="note-delete-overlay" id="noteDeleteModal" role="alertdialog" aria-modal="true" aria-labelledby="noteDeleteTitle">
+        <div class="note-delete-dialog">
+            <div class="note-delete-icon">
+                <span class="material-icons">delete_outline</span>
+            </div>
+            <h2 id="noteDeleteTitle">Delete this note?</h2>
+            <p id="noteDeleteMessage">This action cannot be undone.</p>
+            <div class="note-delete-buttons">
+                <button class="note-delete-cancel" id="noteDeleteCancelBtn">Cancel</button>
+                <button class="note-delete-confirm" id="noteDeleteConfirmBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="scrapbook-toast" id="scrapbookToast" role="alert" aria-live="assertive"></div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <script src="firebase-config.js"></script>
+    <script src="scrapbook.js" defer></script>
+</body>
+</html>
