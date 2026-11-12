@@ -46,11 +46,50 @@
     </noscript>
 
     <!-- Auth gate -->
-    <div class="page-transition active" id="authGate" aria-live="polite">
-        <div class="transition-spinner"></div>
-        <div class="transition-text">Loading your scrapbook…</div>
-        <div class="transition-subtext">Just a moment</div>
+    <!-- ========== AUTH GATE — Cinematic Verification ========== -->
+<div class="page-transition active" id="authGate" aria-live="polite">
+    <!-- Animated background -->
+    <div class="auth-gate-bg" aria-hidden="true">
+        <div class="auth-gate-blob auth-gate-blob-1"></div>
+        <div class="auth-gate-blob auth-gate-blob-2"></div>
+        <div class="auth-gate-blob auth-gate-blob-3"></div>
+        <div class="auth-gate-grid"></div>
     </div>
+
+    <!-- Content -->
+    <div class="auth-gate-content">
+        <!-- Logo with orbit -->
+        <div class="auth-gate-logo-stage">
+            <div class="auth-gate-orbit">
+                <span class="auth-gate-orbit-dot"></span>
+                <span class="auth-gate-orbit-dot"></span>
+                <span class="auth-gate-orbit-dot"></span>
+            </div>
+            <div class="auth-gate-logo-core">
+                <img src="intro.png" alt="" class="auth-gate-logo-img"
+                     onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                <span class="material-icons auth-gate-logo-fallback" style="display:none;">auto_stories</span>
+            </div>
+        </div>
+
+        <!-- Brand -->
+        <h1 class="auth-gate-brand">
+            <span class="auth-gate-brand-word">Campus</span>
+            <span class="auth-gate-brand-word auth-gate-brand-word-accent">Unfolded</span>
+        </h1>
+
+        <!-- Status pill -->
+        <div class="auth-gate-status">
+            <span class="auth-gate-status-dot"></span>
+            <span class="auth-gate-status-text" id="authGateStatus">Opening your scrapbook</span>
+        </div>
+
+        <!-- Progress -->
+        <div class="auth-gate-progress">
+            <div class="auth-gate-progress-bar" id="authGateProgressBar"></div>
+        </div>
+    </div>
+</div>
 
     <!-- Main -->
     <div class="scrapbook-page" id="scrapbookRoot" hidden>
