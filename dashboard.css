@@ -512,6 +512,42 @@ img, video, iframe {
     color: var(--menu-fg);
     font-size: 0.95rem;
     background: var(--menu-bg);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.preferences-menu-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    color: var(--menu-fg);
+    opacity: 0.7;
+    transition: opacity 0.2s ease, background-color 0.2s ease;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.preferences-menu-close:hover {
+    opacity: 1;
+    background: var(--menu-hover);
+}
+
+.preferences-menu-close:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    opacity: 1;
+}
+
+.preferences-menu-close .material-icons {
+    font-size: 18px;
 }
 
 .theme-option,
