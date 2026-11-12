@@ -35,6 +35,31 @@
 
   const TABS = ['videos', 'pdfs', 'images', 'posts'];
 
+
+// ============================================
+// AUTH GATE ANIMATION
+// ============================================
+function startAuthGateAnimation() {
+    const statusEl = $('authGateStatus');
+    const progressBar = $('authGateProgressBar');
+    if (!statusEl && !progressBar) return;
+
+    const STAGES = [
+        { text: 'Verifying your access', delay: 0,    progress: 20 },
+        { text: 'Checking permissions',  delay: 500,  progress: 45 },
+        { text: 'Loading your content',  delay: 1000, progress: 70 },
+        { text: 'Almost ready',          delay: 1500, progress: 90 }
+    ];
+
+    STAGES.forEach(({ text, delay, progress }) => {
+        setTimeout(() => {
+            if (statusEl) statusEl.textContent = text;
+            if (progressBar) progressBar.style.width = `${progress}%`;
+        }, delay);
+    });
+}
+  
+
   // ============================================
   // STATE
   // ============================================
@@ -99,18 +124,26 @@
     const gate = $('authGate')
       || document.querySelector('.page-transition.active')
       || $('campusLoader');
+
+    // Complete progress bar first
+    const progressBar = $('authGateProgressBar');
+    if (progressBar) progressBar.style.width = '100%';
+
+    // Then exit after a short delay
     if (gate) {
-      gate.classList.remove('active');
-      gate.style.display = 'none';
+        setTimeout(() => {
+            gate.classList.add('exiting');
+            setTimeout(() => {
+                gate.classList.remove('active');
+                gate.classList.remove('exiting');
+                gate.style.display = 'none';
+            }, 500);
+        }, 200);
     }
-    const loader = $('campusLoader');
-    if (loader && loader !== gate) {
-      loader.classList.remove('active');
-      loader.style.display = 'none';
-    }
+
     $('dashboardRoot')?.removeAttribute('hidden');
     document.body.style.overflow = 'auto';
-  }
+}
 
   function failClosed(message, reason) {
     if (message) {
@@ -1392,6 +1425,7 @@
   // BOOT
   // ============================================
   document.addEventListener('DOMContentLoaded', () => {
+    startAuthGateAnimation();
     bootstrapAuth();
-  });
+});
 })();
