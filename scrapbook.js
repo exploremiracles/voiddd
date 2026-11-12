@@ -293,7 +293,7 @@
     });
   }
 
-  function renderNoteCard(note, index) {
+function renderNoteCard(note, index) {
     const colorIndex = index % CONFIG.PAPER_COLORS;
     const title = escapeHtml(note.videoTitle || 'Untitled video');
     const content = escapeHtml(note.content || '');
@@ -306,10 +306,10 @@
         <div class="scrapbook-card-tape" aria-hidden="true"></div>
 
         <div class="scrapbook-card-title-row">
-          <a class="scrapbook-card-video" href="dashboard.html" title="Back to dashboard">
+          <div class="scrapbook-card-video" data-color="${colorIndex}">
             <span class="material-icons">play_circle</span>
             <span class="scrapbook-card-video-text">${title}</span>
-          </a>
+          </div>
           <span class="scrapbook-card-time">${escapeHtml(time)}</span>
         </div>
 
@@ -330,7 +330,7 @@
         </div>
       </article>
     `;
-  }
+}
 
   // ============================================
   // LOAD MORE
