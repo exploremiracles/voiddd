@@ -94,10 +94,16 @@
   // ============================================
   function hideAuthGate() {
     const gate = $('authGate');
-    if (gate) gate.classList.remove('active');
+    if (gate) {
+        gate.classList.remove('active');
+        // Force-hide as a safety net (in case CSS overrides `opacity: 0`)
+        gate.style.display = 'none';
+        gate.style.opacity = '0';
+        gate.style.pointerEvents = 'none';
+    }
     $('scrapbookRoot')?.removeAttribute('hidden');
     document.body.style.overflow = 'auto';
-  }
+}
 
   function redirectToLogin() {
     try { localStorage.removeItem('session'); } catch (_) {}
@@ -132,9 +138,20 @@
       }
 
       isUserReady = true;
-      await loadNotes();
-      startRealtimeListener();
-      hideAuthGate();
+
+try {
+  await loadNotes();
+} catch (err) {
+  console.warn('[Scrapbook] Load notes failed:', err);
+}
+
+try {
+  startRealtimeListener();
+} catch (err) {
+  console.warn('[Scrapbook] Realtime listener failed:', err);
+}
+
+hideAuthGate();
 
       // Update header
       const nameEl = $('scrapbookSubtitle');
