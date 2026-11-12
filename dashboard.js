@@ -327,6 +327,32 @@
   }
 
   // ============================================
+// BACK BUTTON LOGOUT
+// ============================================
+function setupBackButtonLogout() {
+    // Only set up once per session
+    if (window.__backLogoutSetup) return;
+    window.__backLogoutSetup = true;
+
+    // Push a duplicate history entry so pressing back doesn't leave the page
+    try {
+        history.pushState({ cu_dashboard: true }, '', location.href);
+    } catch (_) {}
+
+    // Handle back button: if user tries to leave, trigger logout flow
+    window.addEventListener('popstate', (e) => {
+        // If the browser fires popstate on dashboard, it means the user
+        // pressed back from a state where dashboard is still shown.
+        // We push them back forward (so they stay) and prompt logout.
+        try {
+            history.pushState({ cu_dashboard: true }, '', location.href);
+        } catch (_) {}
+
+        // Show logout dialog
+        showLogoutDialog();
+    });
+}
+  // ============================================
   // SIDEBAR
   // ============================================
   function openSidebar() {
@@ -444,6 +470,7 @@
       startWhitelistListener(email);
       hideAuthGate();
       markUserReady();
+      setupBackButtonLogout();
     }, (err) => {
       console.warn('Auth state error:', err);
       failClosed('Authentication error. Please sign in again.');
@@ -1424,5 +1451,17 @@
   document.addEventListener('DOMContentLoaded', () => {
     startAuthGateAnimation();
     bootstrapAuth();
-  });
+
+    // Intercept in-app navigation — use replaceState so back button
+    // returns to login, not to previous app pages
+    document.addEventListener('click', (e) => {
+        const navLink = e.target.closest('a[data-nav]');
+        if (!navLink) return;
+        // Let browser handle normal navigation
+        // But mark that we navigated within the app so dashboard knows
+        try {
+            sessionStorage.setItem('cu_navigated_from_dashboard', '1');
+        } catch (_) {}
+    });
+});
 })();
