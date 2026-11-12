@@ -31,34 +31,10 @@
     ROUTES: { LOGIN: 'index.html' },
     PAGE_SIZE: 5,
     DISPLAY_SESSION_HINT_MS: 2 * 60 * 60 * 1000,
+    AUTH_GATE_MIN_MS: 2200
   });
 
   const TABS = ['videos', 'pdfs', 'images', 'posts'];
-
-
-// ============================================
-// AUTH GATE ANIMATION
-// ============================================
-function startAuthGateAnimation() {
-    const statusEl = $('authGateStatus');
-    const progressBar = $('authGateProgressBar');
-    if (!statusEl && !progressBar) return;
-
-    const STAGES = [
-        { text: 'Verifying your access', delay: 0,    progress: 20 },
-        { text: 'Checking permissions',  delay: 500,  progress: 45 },
-        { text: 'Loading your content',  delay: 1000, progress: 70 },
-        { text: 'Almost ready',          delay: 1500, progress: 90 }
-    ];
-
-    STAGES.forEach(({ text, delay, progress }) => {
-        setTimeout(() => {
-            if (statusEl) statusEl.textContent = text;
-            if (progressBar) progressBar.style.width = `${progress}%`;
-        }, delay);
-    });
-}
-  
 
   // ============================================
   // STATE
@@ -80,8 +56,7 @@ function startAuthGateAnimation() {
   let classLoadToken = 0;
   let contentLoadToken = 0;
   let coverflowIndex = 0;
-
-
+  let authGateStartedAt = 0;
 
   // ============================================
   // UTIL
@@ -118,6 +93,31 @@ function startAuthGateAnimation() {
   }
 
   // ============================================
+  // AUTH GATE ANIMATION
+  // ============================================
+  function startAuthGateAnimation() {
+    authGateStartedAt = Date.now();
+
+    const statusEl = $('authGateStatus');
+    const progressBar = $('authGateProgressBar');
+    if (!statusEl && !progressBar) return;
+
+    const STAGES = [
+      { text: 'Verifying your access', delay: 0,    progress: 20 },
+      { text: 'Checking permissions',  delay: 500,  progress: 45 },
+      { text: 'Loading your content',  delay: 1000, progress: 70 },
+      { text: 'Almost ready',          delay: 1500, progress: 90 }
+    ];
+
+    STAGES.forEach(({ text, delay, progress }) => {
+      setTimeout(() => {
+        if (statusEl) statusEl.textContent = text;
+        if (progressBar) progressBar.style.width = `${progress}%`;
+      }, delay);
+    });
+  }
+
+  // ============================================
   // AUTH GATE
   // ============================================
   function hideAuthGate() {
@@ -125,25 +125,33 @@ function startAuthGateAnimation() {
       || document.querySelector('.page-transition.active')
       || $('campusLoader');
 
-    // Complete progress bar first
-    const progressBar = $('authGateProgressBar');
-    if (progressBar) progressBar.style.width = '100%';
-
-    // Then exit after a short delay
-    if (gate) {
-        setTimeout(() => {
-            gate.classList.add('exiting');
-            setTimeout(() => {
-                gate.classList.remove('active');
-                gate.classList.remove('exiting');
-                gate.style.display = 'none';
-            }, 500);
-        }, 200);
-    }
-
     $('dashboardRoot')?.removeAttribute('hidden');
     document.body.style.overflow = 'auto';
-}
+
+    if (!gate) return;
+
+    // Ensure the animation has had at least AUTH_GATE_MIN_MS
+    const elapsed = Date.now() - authGateStartedAt;
+    const remaining = Math.max(0, CONFIG.AUTH_GATE_MIN_MS - elapsed);
+
+    setTimeout(() => {
+      // Snap progress to 100%
+      const progressBar = $('authGateProgressBar');
+      const statusEl = $('authGateStatus');
+      if (progressBar) progressBar.style.width = '100%';
+      if (statusEl) statusEl.textContent = 'Welcome back!';
+
+      // Exit animation
+      setTimeout(() => {
+        gate.classList.add('exiting');
+        setTimeout(() => {
+          gate.classList.remove('active');
+          gate.classList.remove('exiting');
+          gate.style.display = 'none';
+        }, 500);
+      }, 250);
+    }, remaining);
+  }
 
   function failClosed(message, reason) {
     if (message) {
@@ -598,8 +606,6 @@ function startAuthGateAnimation() {
     const area = $('contentArea');
     if (!area) return;
 
-    
-
     const myToken = token !== undefined ? token : ++contentLoadToken;
     const tabAtStart = currentTab;
     const classAtStart = selectedClass;
@@ -776,9 +782,9 @@ function startAuthGateAnimation() {
     }
 
     if (area.classList.contains('coverflow-view')) {
-  renderCoverflow();
-  return;
-}
+      renderCoverflow();
+      return;
+    }
 
     area.querySelector('.load-more-btn:not(.modal-content .load-more-btn)')?.remove();
 
@@ -882,7 +888,6 @@ function startAuthGateAnimation() {
 
       card.innerHTML = generateCoverflowCardContent(item);
       card.addEventListener('click', (e) => {
-        // Don't trigger card action if clicked on action button
         if (e.target.closest('[data-watched-id], [data-note-id]')) return;
 
         if (i === coverflowIndex) {
@@ -1031,9 +1036,6 @@ function startAuthGateAnimation() {
     }
   }
 
-
-
-
   // ============================================
   // HANDLE OPEN
   // ============================================
@@ -1115,8 +1117,6 @@ function startAuthGateAnimation() {
     displayedCount = 0;
     coverflowIndex = 0;
     contentLoadToken++;
-
-    
 
     document.querySelectorAll('.sidebar-item').forEach((el) => {
       el.classList.toggle('active', el.dataset.tab === tab);
@@ -1207,15 +1207,13 @@ function startAuthGateAnimation() {
     refreshAllViews();
   }
 
-  // Refresh current layout's watched indicators
   function refreshAllViews() {
-  const area = $('contentArea');
-  if (!area) return;
-  if (area.classList.contains('coverflow-view')) {
-    renderCoverflow();
+    const area = $('contentArea');
+    if (!area) return;
+    if (area.classList.contains('coverflow-view')) {
+      renderCoverflow();
+    }
   }
-}
-
 
   // ============================================
   // CARD CLICK DELEGATION
@@ -1397,7 +1395,6 @@ function startAuthGateAnimation() {
     }
   };
 
-
   window.__CU_setCoverflowIndex = setCoverflowIndex;
   window.__CU_getCoverflowIndex = () => coverflowIndex;
 
@@ -1427,5 +1424,5 @@ function startAuthGateAnimation() {
   document.addEventListener('DOMContentLoaded', () => {
     startAuthGateAnimation();
     bootstrapAuth();
-});
+  });
 })();
