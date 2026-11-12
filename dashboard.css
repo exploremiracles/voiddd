@@ -334,6 +334,32 @@ img, video, iframe {
     color: var(--sidebar-active-fg);
 }
 
+.sidebar-item-link {
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    min-height: var(--touch-min);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--transition);
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-bottom: 3px;
+    font-size: 0.9rem;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+}
+
+.sidebar-item-link:hover {
+    background: var(--surface-muted);
+    color: var(--text);
+}
+
 .sidebar-overlay {
     display: none;
     position: fixed;
