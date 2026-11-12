@@ -179,7 +179,14 @@ if (layoutName === 'coverflow') {
     })();
 
     let html = '';
-    html += '<div class="preferences-menu-header">Preferences</div>';
+html += `
+  <div class="preferences-menu-header">
+    <span>Preferences</span>
+    <button class="preferences-menu-close" id="prefMenuCloseBtn" aria-label="Close preferences" type="button">
+      <span class="material-icons">close</span>
+    </button>
+  </div>
+`;
 
     // ---- Text size slider ----
     html += '<div class="preferences-section-label">Text Size</div>';
@@ -222,14 +229,23 @@ if (layoutName === 'coverflow') {
     });
 
     menu.innerHTML = html;
-    document.body.appendChild(menu);
+document.body.appendChild(menu);
 
-    setupTextSizeSlider(menu, currentSize);
+setupTextSizeSlider(menu, currentSize);
 
-    menu.addEventListener('click', onPreferenceClick);
-    menu.addEventListener('keydown', onPreferenceKeydown);
+menu.addEventListener('click', onPreferenceClick);
+menu.addEventListener('keydown', onPreferenceKeydown);
 
-    return menu;
+// Wire up close button
+const closeBtn = menu.querySelector('#prefMenuCloseBtn');
+if (closeBtn) {
+  closeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closePreferencesMenu();
+  });
+}
+
+return menu;
   }
 
   // ============================================
