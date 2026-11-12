@@ -15,7 +15,13 @@
     ROUTES: { DASHBOARD: 'dashboard.html' },
     UPI_ID: 'exploremiracles2017@okaxis',
     SESSION_TTL_MS: 2 * 60 * 60 * 1000, // 2 hours (informational only)
-    TRANSITION_MS: 1400
+    TRANSITION_MS: 1400,
+      STATUS_SEQUENCE: [
+    { text: 'Verifying your access', delay: 0 },
+    { text: 'Securing your session', delay: 600 },
+    { text: 'Loading your courses', delay: 1200 },
+    { text: 'Almost there', delay: 1800 }
+  ]
   });
 
   // ============================================
@@ -66,15 +72,64 @@
   }
 
   function showPageTransition(studentName) {
-    const transition = $('pageTransition');
-    const transitionText = $('transitionText');
-    if (!transition) return;
-    if (studentName && transitionText) {
-      transitionText.textContent = `Welcome, ${studentName.split(' ')[0]}!`;
-    }
-    transition.classList.add('active');
-    transition.setAttribute('aria-hidden', 'false');
+  const transition = $('pageTransition');
+  if (!transition) return;
+
+  transition.classList.add('active');
+  transition.classList.remove('exiting');
+  transition.setAttribute('aria-hidden', 'false');
+
+  // Reset progress
+  const progressBar = $('transitionProgressBar');
+  const statusEl = $('transitionStatus');
+  const greetingEl = $('transitionGreeting');
+
+  if (progressBar) progressBar.style.width = '0%';
+  if (statusEl) statusEl.textContent = 'Verifying your access';
+  if (greetingEl) {
+    greetingEl.textContent = '';
+    greetingEl.classList.remove('show');
   }
+
+  // Animate progress bar
+  setTimeout(() => {
+    if (progressBar) progressBar.style.width = '25%';
+  }, 100);
+
+  // Cycle through status messages
+  const SEQUENCE = [
+    { text: 'Verifying your access', delay: 0,    progress: 25 },
+    { text: 'Securing your session', delay: 600,  progress: 50 },
+    { text: 'Loading your courses',  delay: 1200, progress: 75 },
+    { text: 'Almost there',          delay: 1800, progress: 100 }
+  ];
+
+  SEQUENCE.forEach(({ text, delay, progress }) => {
+    setTimeout(() => {
+      if (statusEl) statusEl.textContent = text;
+      if (progressBar) progressBar.style.width = `${progress}%`;
+    }, delay);
+  });
+
+  // Show greeting once progress completes
+  if (studentName) {
+    const firstName = studentName.split(' ')[0];
+    setTimeout(() => {
+      if (greetingEl) {
+        greetingEl.textContent = `Welcome, ${firstName}!`;
+        greetingEl.classList.add('show');
+      }
+    }, 2100);
+  }
+
+  // Exit animation + redirect
+  setTimeout(() => {
+    transition.classList.add('exiting');
+    setTimeout(() => {
+      window.location.href = CONFIG.ROUTES.DASHBOARD;
+    }, 500);
+  }, CONFIG.TRANSITION_MS);
+}
 
   // ============================================
   // THEME
@@ -240,11 +295,8 @@
     showSuccess('Signed in successfully!');
 
     const name = sessionData.displayName;
-    showPageTransition(name);
-
-    setTimeout(() => {
-      window.location.href = CONFIG.ROUTES.DASHBOARD;
-    }, CONFIG.TRANSITION_MS);
+showPageTransition(name);
+// Note: showPageTransition now handles its own redirect timing
   }
 
   async function safeSignOut() {
