@@ -59,7 +59,6 @@
   // APPLY
   // ============================================
   function loadPreferences() {
-    function loadPreferences() {
     const font = safeGet(STORAGE_KEYS.FONT, 'inter');
     let layout = safeGet(STORAGE_KEYS.LAYOUT, 'grid');
     // Migration: story view was removed — fall back to grid
