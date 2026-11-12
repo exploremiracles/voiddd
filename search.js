@@ -1,11 +1,11 @@
 /**
  * Campus Unfolded — Cross Search
- * Search across videos, PDFs, images, and posts.
+ * Search across videos, PDFs, and images (posts excluded).
  *
  * Behavior:
  * - Click result → opens content directly (modal / new tab)
  * - No scroll-to-card, no highlight flash
- * - Class/tab switching is only used to prime the dashboard when useful
+ * - Posts are intentionally excluded from search
  */
 
 (function () {
@@ -21,15 +21,13 @@
     CACHE_MAX_ENTRIES: 20,
     CACHE_STORAGE_KEY: 'enlighten_search_cache',
     LIMIT_PER_COLLECTION: 30,
-    POSTS_LIMIT: 50,
     MAX_CLASSES: 10
   });
 
   const TYPE_CONFIG = {
     video: { icon: 'play_circle',    label: 'Video', cls: 'video', tab: 'videos' },
     pdf:   { icon: 'picture_as_pdf', label: 'PDF',   cls: 'pdf',   tab: 'pdfs'   },
-    image: { icon: 'image',          label: 'Image', cls: 'image', tab: 'images' },
-    post:  { icon: 'article',        label: 'Post',  cls: 'post',  tab: 'posts'  }
+    image: { icon: 'image',          label: 'Image', cls: 'image', tab: 'images' }
   };
 
   // ============================================
@@ -180,7 +178,7 @@
           <div class="search-bar">
             <span class="material-icons search-icon" aria-hidden="true">search</span>
             <input type="text" class="search-input" id="searchInput"
-                   placeholder="Search videos, PDFs, images, posts..."
+                   placeholder="Search videos, PDFs, images..."
                    autocomplete="off" aria-label="Search content">
             <div class="search-spinner" id="searchSpinner"></div>
             <button class="search-clear" id="searchClear" aria-label="Clear search">
@@ -278,11 +276,11 @@
           return;
         }
 
-        const [videos, pdfs, images, posts] = await Promise.all([
+        // Posts excluded — only videos, pdfs, images
+        const [videos, pdfs, images] = await Promise.all([
           this.searchCollection('videos', classes),
           this.searchCollection('pdfs', classes),
-          this.searchCollection('images', classes),
-          this.searchPosts(classes)
+          this.searchCollection('images', classes)
         ]);
 
         if (runId !== this.searchRunId) return;
@@ -290,8 +288,7 @@
         const all = [
           ...videos.map((v) => ({ ...v, type: 'video' })),
           ...pdfs.map((p) => ({ ...p, type: 'pdf' })),
-          ...images.map((i) => ({ ...i, type: 'image' })),
-          ...posts.map((p) => ({ ...p, type: 'post' }))
+          ...images.map((i) => ({ ...i, type: 'image' }))
         ];
 
         const seen = new Set();
@@ -338,22 +335,6 @@
           console.warn('[Search] permission denied on', collectionName);
         } else {
           console.warn('[Search] error on', collectionName, err.code);
-        }
-        return [];
-      }
-    }
-
-    async searchPosts(allowedClasses) {
-      try {
-        const classes = allowedClasses.slice(0, CONFIG.MAX_CLASSES);
-        const snap = await db.collection('posts')
-          .where('class', 'array-contains-any', classes)
-          .limit(CONFIG.POSTS_LIMIT)
-          .get();
-        return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      } catch (err) {
-        if (err.code === 'permission-denied') {
-          console.warn('[Search] permission denied on posts');
         }
         return [];
       }
@@ -433,7 +414,9 @@
     }
 
     createResultElement(item) {
-      const cfg = TYPE_CONFIG[item.type] || TYPE_CONFIG.video;
+      const cfg = TYPE_CONFIG[item.type];
+      if (!cfg) return document.createDocumentFragment();
+
       const title = this.highlightText(item.title || 'Untitled', this.currentQuery);
       const meta = [];
       if (item.subject) meta.push({ icon: 'menu_book', text: item.subject });
@@ -498,7 +481,6 @@
       const cfg = TYPE_CONFIG[item.type];
       if (!cfg) return;
 
-      // Verify the student has access (safety net — rules enforce this too)
       const studentClasses = this._getStudentClasses();
       if (!studentClasses.length) {
         this.showToast('Your classes are still loading. Please wait or reload.', 'error');
@@ -518,7 +500,6 @@
         return;
       }
 
-      // Open directly — no scroll, no highlight
       try {
         if (item.type === 'video' && item.videoUrl) {
           if (typeof window.playVideo === 'function') {
@@ -539,14 +520,11 @@
           }
         } else if (item.type === 'pdf' && item.pdfUrl) {
           window.open(item.pdfUrl, '_blank', 'noopener,noreferrer');
-        } else if (item.type === 'post' && item.url) {
-          window.open(item.url, '_blank', 'noopener,noreferrer');
         } else {
           this.showToast('This content has no openable link yet', 'error');
           return;
         }
 
-        // Clear the search input so the dropdown doesn't reopen
         this.searchInput.value = '';
         this.clearBtn.classList.remove('visible');
       } catch (err) {
@@ -558,32 +536,6 @@
     // ----------------------------------------------------
     // TOASTS + EMPTY STATES
     // ----------------------------------------------------
-    showLoadingToast(message) {
-      this.hideLoadingToast();
-      const toast = document.createElement('div');
-      toast.className = 'search-loading-toast';
-      toast.style.cssText = `
-        position: fixed; bottom: 30px; left: 50%;
-        transform: translateX(-50%);
-        background: linear-gradient(135deg, #5a745f, #7c967a);
-        color: white; padding: 14px 24px; border-radius: 25px;
-        font-weight: 600; font-size: 0.85rem;
-        box-shadow: 0 10px 30px rgba(90,116,95,0.4);
-        z-index: 99999; display: flex; align-items: center; gap: 10px;
-        font-family: inherit;
-      `;
-      toast.innerHTML = `
-        <div style="width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);
-                    border-top-color:white;border-radius:50%;
-                    animation:spin 0.6s linear infinite;"></div>
-        <span>${message}</span>
-      `;
-      document.body.appendChild(toast);
-    }
-    hideLoadingToast() {
-      document.querySelector('.search-loading-toast')?.remove();
-    }
-
     showEmpty() {
       if (!this.searchResults) return;
       this.searchResults.innerHTML = `
