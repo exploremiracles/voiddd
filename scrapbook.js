@@ -21,8 +21,9 @@
     PAGE_SIZE: 5,
     MAX_CHARS: 1500,
     WORD_LIMIT: 200,
-    PAPER_COLORS: 5
-  });
+    PAPER_COLORS: 5,
+    AUTH_GATE_MIN_MS: 2200
+});
 
   // ============================================
   // STATE
@@ -35,6 +36,7 @@
   let editingDocId = null;
   let pendingDeleteDocId = null;
   let pendingDeleteVideoTitle = '';
+  let authGateStartedAt = 0;
 
   // ============================================
   // UTIL
@@ -92,17 +94,61 @@
   // ============================================
   // AUTH GATE
   // ============================================
-  function hideAuthGate() {
+  // ============================================
+// AUTH GATE ANIMATION
+// ============================================
+function startAuthGateAnimation() {
+    authGateStartedAt = Date.now();
+
+    const statusEl = $('authGateStatus');
+    const progressBar = $('authGateProgressBar');
+    if (!statusEl && !progressBar) return;
+
+    const STAGES = [
+        { text: 'Opening your scrapbook', delay: 0,    progress: 20 },
+        { text: 'Loading your notes',     delay: 500,  progress: 45 },
+        { text: 'Organizing your cards',  delay: 1000, progress: 70 },
+        { text: 'Almost ready',           delay: 1500, progress: 90 }
+    ];
+
+    STAGES.forEach(({ text, delay, progress }) => {
+        setTimeout(() => {
+            if (statusEl) statusEl.textContent = text;
+            if (progressBar) progressBar.style.width = `${progress}%`;
+        }, delay);
+    });
+}
+
+// ============================================
+// AUTH GATE
+// ============================================
+function hideAuthGate() {
     const gate = $('authGate');
-    if (gate) {
-        gate.classList.remove('active');
-        // Force-hide as a safety net (in case CSS overrides `opacity: 0`)
-        gate.style.display = 'none';
-        gate.style.opacity = '0';
-        gate.style.pointerEvents = 'none';
-    }
+
     $('scrapbookRoot')?.removeAttribute('hidden');
     document.body.style.overflow = 'auto';
+
+    if (!gate) return;
+
+    // Ensure animation has had at least AUTH_GATE_MIN_MS
+    const elapsed = Date.now() - authGateStartedAt;
+    const remaining = Math.max(0, CONFIG.AUTH_GATE_MIN_MS - elapsed);
+
+    setTimeout(() => {
+        const progressBar = $('authGateProgressBar');
+        const statusEl = $('authGateStatus');
+        if (progressBar) progressBar.style.width = '100%';
+        if (statusEl) statusEl.textContent = 'Welcome back!';
+
+        setTimeout(() => {
+            gate.classList.add('exiting');
+            setTimeout(() => {
+                gate.classList.remove('active');
+                gate.classList.remove('exiting');
+                gate.style.display = 'none';
+            }, 500);
+        }, 250);
+    }, remaining);
 }
 
   let pendingRedirectTimer = null;
@@ -578,8 +624,10 @@ function renderNoteCard(note, index) {
     });
 
     // Boot
-    if (typeof firebase !== 'undefined' && firebase.auth) {
-      bootstrap();
-    }
+    // Boot
+if (typeof firebase !== 'undefined' && firebase.auth) {
+    startAuthGateAnimation();
+    bootstrap();
+}
   });
 })();
