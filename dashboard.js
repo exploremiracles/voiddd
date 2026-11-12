@@ -307,14 +307,19 @@
   // ============================================
   // LOGOUT
   // ============================================
-  function showLogoutDialog() {
-    $('logoutDialogOverlay')?.classList.add('active');
+  function showLogoutDialog(openedByBack = false) {
+    const overlay = $('logoutDialogOverlay');
+    if (!overlay) return;
+    overlay.classList.add('active');
     document.body.style.overflow = 'hidden';
-  }
+    // Track how it was opened — used to prevent outside-click dismiss
+    window.__dialogOpenedByBack = !!openedByBack;
+}
   function closeLogoutDialog() {
     $('logoutDialogOverlay')?.classList.remove('active');
     document.body.style.overflow = 'auto';
-  }
+    window.__dialogOpenedByBack = false;
+}
   async function confirmLogout() {
     try {
       if (whitelistUnsubscribe) { try { whitelistUnsubscribe(); } catch (_) {} }
@@ -327,31 +332,67 @@
   }
 
   // ============================================
-// BACK BUTTON LOGOUT
+// BACK BUTTON LOGOUT — Sentinel Stack Pattern
+// ============================================
+// Keeps the user locked on the dashboard. When they press back:
+// - If dialog is NOT open → open it
+// - If dialog IS open → keep it open (back can't dismiss it)
+// Only the "Cancel" / "Logout" buttons can resolve the dialog.
 // ============================================
 function setupBackButtonLogout() {
-    // Only set up once per session
     if (window.__backLogoutSetup) return;
     window.__backLogoutSetup = true;
 
-    // Push a duplicate history entry so pressing back doesn't leave the page
+    // Push a sentinel state so we have something to "come back to"
+    // when the user presses back
     try {
-        history.pushState({ cu_dashboard: true }, '', location.href);
+        history.pushState({ cu_sentinel: true, ts: Date.now() }, '', location.href);
     } catch (_) {}
 
-    // Handle back button: if user tries to leave, trigger logout flow
-    window.addEventListener('popstate', (e) => {
-        // If the browser fires popstate on dashboard, it means the user
-        // pressed back from a state where dashboard is still shown.
-        // We push them back forward (so they stay) and prompt logout.
+    window.addEventListener('popstate', () => {
+        // Dialog is open — user is pressing back trying to escape.
+        // Keep dialog open, push another sentinel to block further back presses.
+        const dialogOpen = $('logoutDialogOverlay')?.classList.contains('active');
+
+        // Always push a new sentinel — this prevents leaving the dashboard
         try {
-            history.pushState({ cu_dashboard: true }, '', location.href);
+            history.pushState({ cu_sentinel: true, ts: Date.now() }, '', location.href);
         } catch (_) {}
 
-        // Show logout dialog
-        showLogoutDialog();
-    });
+        if (!dialogOpen) {
+    // First back press while dialog closed → open it (marked as back-opened)
+    showLogoutDialog(true);
 }
+        // If dialog was already open, we just keep it open (no new dialog call,
+        // no dismiss, no navigation)
+    });
+
+    // Prevent back from being pressed while dialog is open via keyboard shortcuts
+    // (Alt+Left on Windows, Cmd+[ on Mac) — the popstate handler above catches these,
+    // but we also guard the dialog itself by not allowing it to close on outside click
+    // when it was triggered by the back button.
+    interceptDialogOutsideClick();
+}
+
+// Override the outside-click behavior of the logout dialog so that
+// pressing back repeatedly doesn't accidentally close it
+function interceptDialogOutsideClick() {
+    const overlay = $('logoutDialogOverlay');
+    if (!overlay) return;
+
+    // Clone the overlay node's click handler to intercept before the existing handler runs
+    // The existing handler closes the dialog on outside click. We want to prevent that
+    // ONLY when the dialog was triggered by back button (not user clicking the Logout button).
+
+    // Solution: track whether the dialog was opened by back button
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay && window.__dialogOpenedByBack) {
+            // Prevent the outside click from closing the dialog
+            e.stopImmediatePropagation();
+        }
+    }, true); // ← capture phase, runs before other handlers
+}
+
   // ============================================
   // SIDEBAR
   // ============================================
