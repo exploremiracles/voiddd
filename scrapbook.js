@@ -105,20 +105,53 @@
     document.body.style.overflow = 'auto';
 }
 
-  function redirectToLogin() {
-    try { localStorage.removeItem('session'); } catch (_) {}
-    window.location.replace('index.html');
-  }
+  let pendingRedirectTimer = null;
+
+function redirectToLogin(delay = 0) {
+    // Cancel any previous pending redirect
+    if (pendingRedirectTimer) {
+        clearTimeout(pendingRedirectTimer);
+        pendingRedirectTimer = null;
+    }
+
+    const doRedirect = () => {
+        pendingRedirectTimer = null;
+        try { localStorage.removeItem('session'); } catch (_) {}
+        window.location.replace('index.html');
+    };
+
+    if (delay > 0) {
+        pendingRedirectTimer = setTimeout(doRedirect, delay);
+    } else {
+        doRedirect();
+    }
+}
+
+function cancelPendingRedirect() {
+    if (pendingRedirectTimer) {
+        clearTimeout(pendingRedirectTimer);
+        pendingRedirectTimer = null;
+    }
+}
 
   // ============================================
   // INIT
   // ============================================
   function bootstrap() {
     auth.onAuthStateChanged(async (user) => {
-      if (!user) {
-        redirectToLogin();
-        return;
-      }
+        // If no user on this fire, but currentUser is already set — use that
+        if (!user && auth.currentUser) {
+            user = auth.currentUser;
+        }
+
+        if (!user) {
+            // Delay redirect — Firebase might fire again with real user
+            redirectToLogin(500);
+            return;
+        }
+
+        // We have a user — cancel any pending redirect
+        cancelPendingRedirect();
 
       currentUser = user;
 
