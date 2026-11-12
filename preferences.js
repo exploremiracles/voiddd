@@ -20,8 +20,7 @@
   const LAYOUTS = {
     grid:      { name: 'Grid View',      icon: 'grid_view' },
     list:      { name: 'List View',      icon: 'view_list' },
-    coverflow: { name: 'Cover Flow',     icon: 'view_carousel' },
-    story:     { name: 'Story View',     icon: 'auto_stories' }   // ← ADD
+    coverflow: { name: 'Cover Flow',     icon: 'view_carousel' }
 };
 
   const TEXT_SIZES = [
@@ -60,8 +59,14 @@
   // APPLY
   // ============================================
   function loadPreferences() {
+    function loadPreferences() {
     const font = safeGet(STORAGE_KEYS.FONT, 'inter');
-    const layout = safeGet(STORAGE_KEYS.LAYOUT, 'grid');
+    let layout = safeGet(STORAGE_KEYS.LAYOUT, 'grid');
+    // Migration: story view was removed — fall back to grid
+    if (layout === 'story') {
+        layout = 'grid';
+        safeSet(STORAGE_KEYS.LAYOUT, 'grid');
+    }
     const ts = parseInt(safeGet(STORAGE_KEYS.TEXT_SIZE, String(DEFAULT_TEXT_SIZE)), 10);
     const textSize = Number.isInteger(ts) && ts >= 0 && ts <= 4 ? ts : DEFAULT_TEXT_SIZE;
 
@@ -83,23 +88,19 @@
     const contentArea = document.getElementById('contentArea');
     if (!contentArea) return;
 
-    contentArea.classList.remove('grid-view', 'list-view', 'coverflow-view', 'story-view');
-    const classMap = {
-        grid: 'grid-view',
-        list: 'list-view',
-        coverflow: 'coverflow-view',
-        story: 'story-view'
-    };
-    contentArea.classList.add(classMap[layoutName] || 'grid-view');
+    contentArea.classList.remove('grid-view', 'list-view', 'coverflow-view');
+const classMap = {
+    grid: 'grid-view',
+    list: 'list-view',
+    coverflow: 'coverflow-view'
+};
+contentArea.classList.add(classMap[layoutName] || 'grid-view');
 
-    // Reset scroll/focus for special modes
-    if (layoutName === 'coverflow') {
-        contentArea.scrollLeft = 0;
-        window.__CU_setCoverflowIndex?.(0);
-    }
-    if (layoutName === 'story') {
-        window.scrollTo({ top: 0, behavior: 'instant' });
-    }
+// Reset scroll/focus for coverflow
+if (layoutName === 'coverflow') {
+    contentArea.scrollLeft = 0;
+    window.__CU_setCoverflowIndex?.(0);
+}
 
     if (typeof window.__CU_rerenderContent === 'function') {
         window.__CU_rerenderContent();
