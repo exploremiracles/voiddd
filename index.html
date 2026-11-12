@@ -215,11 +215,53 @@
     </main>
 
     <!-- Page Transition -->
-    <div class="page-transition" id="pageTransition" aria-hidden="true">
-        <div class="transition-spinner"></div>
-        <div class="transition-text" id="transitionText">Welcome to Campus Unfolded!</div>
-        <div class="transition-subtext">Preparing your dashboard...</div>
+    <!-- Page Transition — Cinematic Auth Experience -->
+<div class="auth-transition" id="pageTransition" aria-hidden="true">
+    <!-- Animated background layer -->
+    <div class="auth-transition-bg" aria-hidden="true">
+        <div class="auth-blob auth-blob-1"></div>
+        <div class="auth-blob auth-blob-2"></div>
+        <div class="auth-blob auth-blob-3"></div>
+        <div class="auth-grid-overlay"></div>
     </div>
+
+    <!-- Center content -->
+    <div class="auth-transition-content">
+        <!-- Logo with orbit ring -->
+        <div class="auth-logo-stage">
+            <div class="auth-logo-orbit">
+                <span class="orbit-dot"></span>
+                <span class="orbit-dot"></span>
+                <span class="orbit-dot"></span>
+            </div>
+            <div class="auth-logo-core">
+                <img src="intro.png" alt="" class="auth-logo-img"
+                     onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                <span class="material-icons auth-logo-fallback" style="display:none;">auto_stories</span>
+            </div>
+        </div>
+
+        <!-- Brand name -->
+        <h1 class="auth-transition-brand">
+            <span class="brand-word">Campus</span>
+            <span class="brand-word brand-word-accent">Unfolded</span>
+        </h1>
+
+        <!-- Dynamic status -->
+        <div class="auth-status">
+            <span class="auth-status-dot"></span>
+            <span class="auth-status-text" id="transitionStatus">Verifying your access</span>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="auth-progress">
+            <div class="auth-progress-bar" id="transitionProgressBar"></div>
+        </div>
+
+        <!-- Greeting (appears after progress completes) -->
+        <div class="auth-greeting" id="transitionGreeting"></div>
+    </div>
+</div>
 
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
