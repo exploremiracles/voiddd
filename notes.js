@@ -152,26 +152,6 @@
       noteBtn.setAttribute('title', has ? 'View note' : 'Add note');
       noteBtn.setAttribute('aria-label', has ? 'View note' : 'Add note');
     });
-
-    // 3. Story View action buttons
-    document.querySelectorAll('.story-section').forEach((section) => {
-      const noteBtn = section.querySelector('[data-note-id]');
-      if (!noteBtn) return;
-      const videoId = noteBtn.dataset.noteId;
-      if (!videoId) return;
-      const has = hasContent(videoId);
-      noteBtn.classList.toggle('has-note', has);
-      noteBtn.setAttribute('title', has ? 'View note' : 'Add note');
-      noteBtn.setAttribute('aria-label', has ? 'View note' : 'Add note');
-      const icon = noteBtn.querySelector('.material-icons');
-      if (icon) icon.textContent = has ? 'sticky_note_2' : 'sticky_note_2';
-    });
-
-    // 4. Tell dashboard to refresh its own action-button visuals
-    if (typeof window.__CU_refreshCoverflow === 'function') {
-      // No-op unless coverflow view is active; safe either way
-      // (Commented to avoid unnecessary re-renders on every badge change)
-    }
   }
 
   function updateCardBadge(card, videoId) {
@@ -469,13 +449,9 @@
   function refreshExternalBadges() {
     // Coverflow view: re-render to update button states
     if (typeof window.__CU_refreshCoverflow === 'function') {
-      window.__CU_refreshCoverflow();
+        window.__CU_refreshCoverflow();
     }
-    // Story view: update watched + note buttons without re-rendering sections
-    if (typeof window.__CU_refreshStoryActions === 'function') {
-      window.__CU_refreshStoryActions();
-    }
-  }
+}
 
   // ============================================
   // PUBLIC API
