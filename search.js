@@ -2,13 +2,10 @@
  * Campus Unfolded — Cross Search
  * Search across videos, PDFs, images, and posts.
  *
- * Fixes applied:
- * - currentUser via window.__CU_getUser() (IIFE-safe)
- * - Class comparisons normalized to trimmed strings
- * - Access verified AFTER class chip click, before highlighting
- * - sessionStorage cache survives navigation
- * - array-contains-any for posts (1 query, not N)
- * - Layout-aware scroll/highlight for Grid, List, Cover Flow, Story
+ * Behavior:
+ * - Click result → opens content directly (modal / new tab)
+ * - No scroll-to-card, no highlight flash
+ * - Class/tab switching is only used to prime the dashboard when useful
  */
 
 (function () {
@@ -29,8 +26,8 @@
   });
 
   const TYPE_CONFIG = {
-    video: { icon: 'play_circle',   label: 'Video', cls: 'video', tab: 'videos' },
-    pdf:   { icon: 'picture_as_pdf', label: 'PDF',  cls: 'pdf',   tab: 'pdfs'   },
+    video: { icon: 'play_circle',    label: 'Video', cls: 'video', tab: 'videos' },
+    pdf:   { icon: 'picture_as_pdf', label: 'PDF',   cls: 'pdf',   tab: 'pdfs'   },
     image: { icon: 'image',          label: 'Image', cls: 'image', tab: 'images' },
     post:  { icon: 'article',        label: 'Post',  cls: 'post',  tab: 'posts'  }
   };
@@ -449,6 +446,7 @@
       const el = document.createElement('div');
       el.className = 'search-result-item';
       el.setAttribute('role', 'option');
+      el.setAttribute('tabindex', '0');
       el.innerHTML = `
         <div class="result-badge ${cfg.cls}">
           <span class="material-icons">${cfg.icon}</span>
@@ -467,6 +465,12 @@
         </div>
       `;
       el.addEventListener('click', () => this.handleResultClick(item));
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          this.handleResultClick(item);
+        }
+      });
       return el;
     }
 
@@ -487,224 +491,68 @@
     }
 
     // ----------------------------------------------------
-    // CLICK HANDLER
+    // CLICK → OPEN CONTENT DIRECTLY
     // ----------------------------------------------------
     async handleResultClick(item) {
       this.hideResults();
       const cfg = TYPE_CONFIG[item.type];
       if (!cfg) return;
 
+      // Verify the student has access (safety net — rules enforce this too)
       const studentClasses = this._getStudentClasses();
-
       if (!studentClasses.length) {
         this.showToast('Your classes are still loading. Please wait or reload.', 'error');
         return;
       }
 
-      let targetClass = null;
+      let hasAccess = false;
       if (item.class) {
         if (Array.isArray(item.class)) {
-          const match = item.class.find((c) =>
-            studentClasses.includes(normalizeClass(c))
-          );
-          targetClass = match || null;
+          hasAccess = item.class.some((c) => studentClasses.includes(normalizeClass(c)));
         } else {
-          targetClass = studentClasses.includes(normalizeClass(item.class))
-            ? item.class
-            : null;
+          hasAccess = studentClasses.includes(normalizeClass(item.class));
         }
       }
-
-      if (!targetClass) {
+      if (!hasAccess) {
         this.showToast('You do not have access to this content', 'error');
         return;
       }
 
-      // Switch tab first
-      if (typeof window.handleMobileTabClick === 'function') {
-        window.handleMobileTabClick(cfg.tab);
-      } else if (typeof switchTab === 'function') {
-        switchTab(cfg.tab);
-      }
-
-      await new Promise((r) => setTimeout(r, 350));
-
-      // Click the matching class chip
-      const chips = document.querySelectorAll('.class-chips .chip');
-      let chipToClick = null;
-      let alreadyActive = false;
-
-      chips.forEach((chip) => {
-        const cls = chip.dataset.class || chip.textContent.trim();
-        if (normalizeClass(cls) === normalizeClass(targetClass)) {
-          chipToClick = chip;
-          if (chip.classList.contains('active')) alreadyActive = true;
-        }
-      });
-
-      if (!chipToClick) {
-        this.showToast('That class is not available on this page.', 'error');
-        return;
-      }
-
-      if (!alreadyActive) {
-        chipToClick.click();
-        await new Promise((r) => setTimeout(r, 900));
-      }
-
-      // Verify class switch
-      let currentClass = null;
-      if (typeof window.__CU_getSelectedClass === 'function') {
-        currentClass = window.__CU_getSelectedClass();
-      }
-      if (!currentClass) {
-        const activeChip = document.querySelector('.class-chips .chip.active');
-        if (activeChip) {
-          currentClass = activeChip.dataset.class || activeChip.textContent.trim();
-        }
-      }
-
-      if (normalizeClass(currentClass) !== normalizeClass(targetClass)) {
-        this.showToast('Could not switch to that class. Please select it manually.', 'error');
-        return;
-      }
-
-      // Switch subject if applicable
-      if (item.subject) {
-        const subjectChips = document.querySelectorAll('.subject-chips .chip');
-        const normalizedSubject = String(item.subject).trim();
-        subjectChips.forEach((chip) => {
-          const subj = chip.dataset.subject || '';
-          if (subj && normalizeClass(subj) === normalizeClass(normalizedSubject)) {
-            if (!chip.classList.contains('active')) chip.click();
+      // Open directly — no scroll, no highlight
+      try {
+        if (item.type === 'video' && item.videoUrl) {
+          if (typeof window.playVideo === 'function') {
+            window.playVideo(item.videoUrl, item.title || '', item.description || '');
+          } else {
+            window.open(item.videoUrl, '_blank', 'noopener,noreferrer');
           }
-        });
-        await new Promise((r) => setTimeout(r, 400));
-      }
-
-      await new Promise((r) => setTimeout(r, 300));
-      this.scrollToAndHighlight(item);
-
-      this.searchInput.value = '';
-      this.clearBtn.classList.remove('visible');
-    }
-
-    // ----------------------------------------------------
-    // LAYOUT-AWARE SCROLL & HIGHLIGHT
-    // ----------------------------------------------------
-    scrollToAndHighlight(item) {
-      const contentArea = document.getElementById('contentArea');
-      if (!contentArea) {
-        this.showToast('Content area not found', 'error');
-        return;
-      }
-
-      const isCoverflow = contentArea.classList.contains('coverflow-view');
-      const isStory = contentArea.classList.contains('story-view');
-
-      // ---- COVER FLOW ----
-      if (isCoverflow) {
-        const idx = typeof cachedData !== 'undefined' && Array.isArray(cachedData)
-          ? cachedData.findIndex((d) => d.id === item.id)
-          : -1;
-
-        if (idx >= 0 && typeof window.__CU_setCoverflowIndex === 'function') {
-          this.showLoadingToast('Jumping to card...');
-          window.__CU_setCoverflowIndex(idx);
-
-          setTimeout(() => {
-            this.hideLoadingToast();
-            const card = document.querySelector(`.coverflow-card[data-cf-index="${idx}"]`);
-            if (card) {
-              card.classList.add('coverflow-search-highlight');
-              setTimeout(() => card.classList.remove('coverflow-search-highlight'), 2400);
-            }
-            this.showToast('Found!', 'success');
-          }, 400);
-          return;
-        }
-
-        this.showToast('Content not in this view. Try another class or layout.', 'error');
-        return;
-      }
-
-      // ---- STORY ----
-      if (isStory) {
-        const idx = typeof cachedData !== 'undefined' && Array.isArray(cachedData)
-          ? cachedData.findIndex((d) => d.id === item.id)
-          : -1;
-
-        if (idx >= 0) {
-          const section = document.querySelector(`.story-section[data-story-index="${idx}"]`);
-          if (section) {
-            this.showLoadingToast('Jumping to section...');
-            setTimeout(() => {
-              this.hideLoadingToast();
-              // Force reveal in case IntersectionObserver hasn't fired yet
-              section.classList.add('story-visible');
-              section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-              setTimeout(() => {
-                section.classList.add('story-search-highlight');
-                setTimeout(() => section.classList.remove('story-search-highlight'), 2400);
-              }, 500);
-
-              this.showToast('Found!', 'success');
-            }, 100);
-            return;
+        } else if (item.type === 'image' && item.imageUrl) {
+          if (typeof window.viewImage === 'function') {
+            window.viewImage(
+              item.imageUrl,
+              item.title || '',
+              item.description || '',
+              item.subject || ''
+            );
+          } else {
+            window.open(item.imageUrl, '_blank', 'noopener,noreferrer');
           }
+        } else if (item.type === 'pdf' && item.pdfUrl) {
+          window.open(item.pdfUrl, '_blank', 'noopener,noreferrer');
+        } else if (item.type === 'post' && item.url) {
+          window.open(item.url, '_blank', 'noopener,noreferrer');
+        } else {
+          this.showToast('This content has no openable link yet', 'error');
+          return;
         }
 
-        this.showToast('Content not in this view. Try another class or layout.', 'error');
-        return;
+        // Clear the search input so the dropdown doesn't reopen
+        this.searchInput.value = '';
+        this.clearBtn.classList.remove('visible');
+      } catch (err) {
+        console.warn('[Search] open failed:', err?.message);
+        this.showToast('Could not open content', 'error');
       }
-
-      // ---- GRID / LIST ----
-      let attempts = 0;
-      const maxAttempts = 30;
-      let autoLoads = 0;
-      const maxAutoLoads = 20;
-
-      this.showLoadingToast('Loading content...');
-
-      const tryFind = () => {
-        attempts++;
-        let card = null;
-        try {
-          card = document.querySelector(`[data-item-id="${CSS.escape(item.id)}"]`);
-        } catch (_) {
-          card = document.querySelector(`[data-item-id="${item.id}"]`);
-        }
-        if (card) {
-          this.hideLoadingToast();
-          this.highlightCard(card);
-          return;
-        }
-        const loadMore = document.querySelector('.load-more-btn:not(.modal-content .load-more-btn)');
-        if (loadMore && autoLoads < maxAutoLoads) {
-          autoLoads++;
-          loadMore.click();
-          setTimeout(tryFind, 200);
-          return;
-        }
-        if (attempts >= maxAttempts) {
-          this.hideLoadingToast();
-          this.showToast('Content not found. Try scrolling or reloading.', 'error');
-          return;
-        }
-        setTimeout(tryFind, 200);
-      };
-      setTimeout(tryFind, 400);
-    }
-
-    highlightCard(card) {
-      document.querySelectorAll('.golden-highlight').forEach((el) => el.classList.remove('golden-highlight'));
-      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setTimeout(() => {
-        card.classList.add('golden-highlight');
-        setTimeout(() => card.classList.remove('golden-highlight'), 3200);
-      }, 500);
-      this.showToast('Content found!', 'success');
     }
 
     // ----------------------------------------------------
