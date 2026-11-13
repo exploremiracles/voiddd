@@ -14,7 +14,7 @@
 // ============================================
 
 // Bump these on every deploy. Or inject __BUILD__ at build time.
-const VERSION = 'v2.2.1';
+const VERSION = 'v2.2.2';
 const STATIC_CACHE = `cu-static-${VERSION}`;
 const RUNTIME_CACHE = `cu-runtime-${VERSION}`;
 const IMAGE_CACHE = `cu-images-${VERSION}`;
@@ -26,7 +26,8 @@ const STATIC_ASSETS = [
     '/',
     '/index.html',
     '/dashboard.html',
-    '/scrapbook.html',      // ← ADD
+    '/scrapbook.html',
+    '/library.html',
     '/manifest.json',
     '/icon-192.png',
     '/icon-512.png',
