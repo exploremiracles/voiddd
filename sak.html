@@ -1356,52 +1356,76 @@
         // DATA LOADING
         // ============================================
         async function loadData(collection) {
-            const myToken = ++loadToken;
-            const contentArea = $('adminContent');
-            contentArea.innerHTML = loadingHtml('Loading...');
+    const myToken = ++loadToken;
+    const contentArea = $('adminContent');
+    contentArea.innerHTML = loadingHtml('Loading...');
 
-            try {
-                // For categories, use order sort
-                let query;
-                if (collection === 'libraryCategories') {
-                    query = db.collection(collection).orderBy('order', 'asc');
-                } else {
-                    query = db.collection(collection);
-                }
+    try {
+        const limit = CONFIG.PAGE_SIZE * 3;
+        let snapshot;
 
-                const limit = CONFIG.PAGE_SIZE * 3;
-                const snapshot = await query.limit(limit).get();
-
-                if (myToken !== loadToken) return;
-
-                cachedData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-
-                // Sort
-                if (collection === 'libraryCategories') {
-                    cachedData.sort((a, b) => (a.order || 0) - (b.order || 0));
-                } else {
-                    cachedData.sort((a, b) => {
-                        const ta = a.uploadedAt?.toMillis?.() || a.createdAt?.toMillis?.() || a.addedAt?.toMillis?.() || 0;
-                        const tb = b.uploadedAt?.toMillis?.() || b.createdAt?.toMillis?.() || b.addedAt?.toMillis?.() || 0;
-                        return tb - ta;
-                    });
-                }
-
-                displayedCount = 0;
-                contentArea.innerHTML = '';
-                appendData();
-            } catch (error) {
-                if (myToken !== loadToken) return;
-                console.error('[Admin] Load data error:', error.code, error.message);
-                contentArea.innerHTML = `
-                    <div class="empty-state">
-                        <span class="material-icons">error_outline</span>
-                        <h3>Failed to load data</h3>
-                        <p>${escapeHtml(error.code || error.message || 'Unknown error')}</p>
-                    </div>
-                `;
-            }
+        if (collection === 'libraryCategories') {
+            // Categories: order by 'order' asc
+            snapshot = await db.collection(collection)
+                .orderBy('order', 'asc')
+                .limit(limit)
+                .get();
+        } else if (collection === 'posts') {
+            // Posts: order by 'createdAt' desc
+            snapshot = await db.collection(collection)
+                .orderBy('createdAt', 'desc')
+                .limit(limit)
+                .get();
+        } else if (collection === 'whitelist') {
+            // Whitelist: no natural order, use default
+            snapshot = await db.collection(collection)
+                .limit(limit)
+                .get();
+        } else {
+            // Videos, PDFs, Images, Books: order by uploadedAt desc
+            snapshot = await db.collection(collection)
+                .orderBy('uploadedAt', 'desc')
+                .limit(limit)
+                .get();
         }
+
+        if (myToken !== loadToken) return;
+
+        cachedData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+        // Sort (kept as backup in case uploadedAt is missing)
+        if (collection === 'libraryCategories') {
+            cachedData.sort((a, b) => (a.order || 0) - (b.order || 0));
+        } else if (collection !== 'whitelist') {
+            cachedData.sort((a, b) => {
+                const ta = a.uploadedAt?.toMillis?.() || a.createdAt?.toMillis?.() || a.addedAt?.toMillis?.() || 0;
+                const tb = b.uploadedAt?.toMillis?.() || b.createdAt?.toMillis?.() || b.addedAt?.toMillis?.() || 0;
+                return tb - ta;
+            });
+        }
+
+        displayedCount = 0;
+        contentArea.innerHTML = '';
+        appendData();
+    } catch (error) {
+        if (myToken !== loadToken) return;
+        console.error('[Admin] Load data error:', error.code, error.message);
+
+        // Friendly message if index is missing
+        let errMsg = error.code || error.message || 'Unknown error';
+        if (error.code === 'failed-precondition') {
+            errMsg = 'Database index missing. Click the link in the browser console (F12) to create it, or add it in Firebase Console.';
+        }
+
+        contentArea.innerHTML = `
+            <div class="empty-state">
+                <span class="material-icons">error_outline</span>
+                <h3>Failed to load data</h3>
+                <p>${escapeHtml(errMsg)}</p>
+            </div>
+        `;
+    }
+}
 
         function appendData() {
             const contentArea = $('adminContent');
@@ -1691,43 +1715,56 @@
                 // Load categories for dropdown
                 modalBody.innerHTML = `<div class="empty-state"><div class="spinner spinner-lg"></div><p style="margin-top:0.75rem;">Loading categories...</p></div>`;
                 const cats = await loadCategoriesForForm();
+const canAddBook = cats.length > 0;
 
-                const categoryOptions = cats.length
-                    ? cats.map((c) => `<option value="${escapeAttr(c.name)}">${escapeHtml(c.displayName)}</option>`).join('')
-                    : '<option value="">No categories yet — create one first</option>';
+const categoryOptions = canAddBook
+    ? cats.map((c) => `<option value="${escapeAttr(c.name)}">${escapeHtml(c.displayName)}</option>`).join('')
+    : '<option value="">No categories yet</option>';
 
-                modalBody.innerHTML = `
-                    <input type="text" id="bookTitle" class="form-input" placeholder="Book Title" maxlength="200" required>
-                    <input type="text" id="bookAuthor" class="form-input" placeholder="Author" maxlength="100" required>
-                    <textarea id="bookDescription" class="form-textarea" placeholder="Description (2-3 sentences)" rows="3" maxlength="1000"></textarea>
+modalBody.innerHTML = `
+    ${!canAddBook ? `
+        <div style="padding:12px 14px; background:color-mix(in srgb, var(--warning) 12%, transparent); border:1px solid var(--warning); border-radius:var(--radius-sm); margin-bottom:0.75rem; font-size:0.82rem; color:var(--text); line-height:1.5;">
+            <strong style="display:block; margin-bottom:4px;">⚠️ Create a category first</strong>
+            Books need a category. Go to <strong>Library → Categories</strong> to add one, then come back here.
+        </div>
+    ` : ''}
+    <input type="text" id="bookTitle" class="form-input" placeholder="Book Title" maxlength="200" required>
+    <input type="text" id="bookAuthor" class="form-input" placeholder="Author" maxlength="100" required>
+    <textarea id="bookDescription" class="form-textarea" placeholder="Description (2-3 sentences)" rows="3" maxlength="1000"></textarea>
 
-                    <label class="form-label">Category:</label>
-                    <select id="bookCategory" class="form-select" required>
-                        <option value="">Select Category</option>
-                        ${categoryOptions}
-                    </select>
+    <label class="form-label">Category:</label>
+    <select id="bookCategory" class="form-select" required>
+        <option value="">Select Category</option>
+        ${categoryOptions}
+    </select>
 
-                    <label class="form-label">PDF URL:</label>
-                    <input type="url" id="bookPdfUrl" class="form-input" placeholder="https://...pdf" maxlength="500" required>
+    <label class="form-label">PDF URL:</label>
+    <input type="url" id="bookPdfUrl" class="form-input" placeholder="https://...pdf" maxlength="500" required>
 
-                    <label class="form-label">Cover Image URL (optional):</label>
-                    <input type="url" id="bookCoverImageUrl" class="form-input" placeholder="https://...jpg" maxlength="500">
-                    <p class="form-hint">Leave empty to use gradient + title fallback cover.</p>
+    <label class="form-label">Cover Image URL (optional):</label>
+    <input type="url" id="bookCoverImageUrl" class="form-input" placeholder="https://...jpg" maxlength="500">
+    <p class="form-hint">Leave empty to use gradient + title fallback cover.</p>
 
-                    <label class="form-label">Initial Downloads Count (usually 0):</label>
-                    <input type="number" id="bookDownloads" class="form-input" placeholder="0" min="0" max="999999" value="0">
+    <label class="form-label">Initial Downloads Count (usually 0):</label>
+    <input type="number" id="bookDownloads" class="form-input" placeholder="0" min="0" max="999999" value="0">
 
-                    <label class="toggle-switch" for="bookFeatured">
-                        <input type="checkbox" id="bookFeatured">
-                        <span class="toggle-track"></span>
-                        <span class="toggle-label">
-                            <span class="toggle-label-title">Featured</span>
-                            <span class="toggle-label-desc">Pins this book to the top of the Trending section.</span>
-                        </span>
-                    </label>
+    <label class="toggle-switch" for="bookFeatured">
+        <input type="checkbox" id="bookFeatured">
+        <span class="toggle-track"></span>
+        <span class="toggle-label">
+            <span class="toggle-label-title">Featured</span>
+            <span class="toggle-label-desc">Pins this book to the top of the Trending section.</span>
+        </span>
+    </label>
 
-                    <button class="btn btn-primary" onclick="addBook()" id="submitBtn" style="width:100%;">Add Book</button>
-                `;
+    <button class="btn btn-primary" 
+            onclick="addBook()" 
+            id="submitBtn" 
+            style="width:100%;" 
+            ${canAddBook ? '' : 'disabled title="Create a category first"'}>
+        Add Book
+    </button>
+`;
             } else if (currentTab === 'libraryCategories') {
                 $('modalTitle').textContent = 'Add Category';
                 // Suggest next order number
@@ -2428,30 +2465,34 @@
                 return;
             }
 
-            // Check for duplicate name
-            const duplicate = cachedData.find((c) => (c.name || '').toLowerCase() === name.toLowerCase());
-            if (duplicate) {
-                showToast(`Category "${name}" already exists`, 'error');
-                return;
-            }
+            // Generate slug doc ID
+const docId = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
-            isSubmitting = true;
-            const submitBtn = $('submitBtn');
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Adding...';
+isSubmitting = true;
+const submitBtn = $('submitBtn');
+submitBtn.disabled = true;
+submitBtn.textContent = 'Adding...';
 
-            try {
-                // Use slug-style doc ID for uniqueness
-                const docId = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+try {
+    // Check Firestore directly (not cache) — cache only has first 15
+    const existing = await db.collection('libraryCategories').doc(docId).get();
+    if (existing.exists) {
+        showToast(`Category "${name}" already exists`, 'error');
+        isSubmitting = false;
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Add Category';
+        return;
+    }
 
-                await db.collection('libraryCategories').doc(docId).set({
-                    name,
-                    displayName,
-                    icon,
-                    color,
-                    order,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+    await db.collection('libraryCategories').doc(docId).set({
+        name,
+        displayName,
+        icon,
+        color,
+        order,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    // ... (rest stays same)
 
                 showToast('Category added!');
                 closeModal();
