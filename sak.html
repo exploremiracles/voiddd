@@ -92,7 +92,7 @@
             }
         }
 
-        /* ============ LOGIN SCREEN ============ */
+        /* ============ LOGIN ============ */
         .login-screen {
             position: fixed;
             inset: 0;
@@ -238,6 +238,23 @@
         .admin-sidebar-item:hover { background: var(--surface-muted); color: var(--text); }
         .admin-sidebar-item.active { background: var(--text); color: var(--bg); }
 
+        .sidebar-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 8px 4px;
+            opacity: 0.6;
+        }
+
+        .sidebar-section-label {
+            padding: 8px 14px 4px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            opacity: 0.7;
+        }
+
         .sidebar-overlay {
             display: none;
             position: fixed;
@@ -370,6 +387,37 @@
             color: var(--text);
         }
 
+        .form-hint {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            margin-top: -0.5rem;
+            margin-bottom: 0.75rem;
+            line-height: 1.4;
+        }
+
+        .color-input-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 0.75rem;
+            align-items: center;
+        }
+
+        .color-input-row input[type="color"] {
+            width: 48px;
+            height: 44px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            padding: 4px;
+            background: var(--surface);
+            flex-shrink: 0;
+        }
+
+        .color-input-row input[type="text"] {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
         .class-checkboxes {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -398,7 +446,7 @@
             flex-shrink: 0;
         }
 
-        /* Toggle switch for active/inactive */
+        /* Toggle */
         .toggle-switch {
             display: flex;
             align-items: center;
@@ -564,11 +612,44 @@
         }
         .data-table tr:last-child td { border-bottom: none; }
 
-        /* Action buttons */
         .row-actions {
             display: flex;
             gap: 0.35rem;
             flex-wrap: wrap;
+        }
+
+        /* Book cover thumb */
+        .book-cover-thumb {
+            width: 40px;
+            height: 54px;
+            border-radius: 6px;
+            object-fit: cover;
+            background: var(--surface-muted);
+            display: block;
+        }
+
+        .book-cover-thumb-fallback {
+            width: 40px;
+            height: 54px;
+            border-radius: 6px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6rem;
+            font-weight: 700;
+        }
+
+        /* Category color swatch */
+        .category-color-swatch {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 6px;
+            border: 2px solid var(--border);
+            vertical-align: middle;
+            margin-right: 6px;
         }
 
         /* ============ STATS ============ */
@@ -753,7 +834,7 @@
         </div>
     </noscript>
 
-    <!-- Login Screen -->
+    <!-- Login -->
     <div class="login-screen" id="loginScreen">
         <div class="login-box">
             <div class="logo">Admin</div>
@@ -805,9 +886,13 @@
                 <button class="admin-sidebar-item active" data-tab="dashboard" onclick="handleMobileTabClick('dashboard')">
                     <span class="material-icons">dashboard</span><span>Dashboard</span>
                 </button>
+
+                <div class="sidebar-section-label">Students</div>
                 <button class="admin-sidebar-item" data-tab="whitelist" onclick="handleMobileTabClick('whitelist')">
                     <span class="material-icons">verified_user</span><span>Students</span>
                 </button>
+
+                <div class="sidebar-section-label">Content</div>
                 <button class="admin-sidebar-item" data-tab="videos" onclick="handleMobileTabClick('videos')">
                     <span class="material-icons">video_library</span><span>Videos</span>
                 </button>
@@ -819,6 +904,14 @@
                 </button>
                 <button class="admin-sidebar-item" data-tab="posts" onclick="handleMobileTabClick('posts')">
                     <span class="material-icons">article</span><span>Posts</span>
+                </button>
+
+                <div class="sidebar-section-label">Library</div>
+                <button class="admin-sidebar-item" data-tab="books" onclick="handleMobileTabClick('books')">
+                    <span class="material-icons">local_library</span><span>Books</span>
+                </button>
+                <button class="admin-sidebar-item" data-tab="libraryCategories" onclick="handleMobileTabClick('libraryCategories')">
+                    <span class="material-icons">category</span><span>Categories</span>
                 </button>
             </nav>
         </aside>
@@ -846,7 +939,7 @@
         </main>
     </div>
 
-    <!-- Modal (add / edit forms) -->
+    <!-- Modal -->
     <div class="modal-overlay" id="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal-content">
             <div class="modal-header">
@@ -857,7 +950,7 @@
         </div>
     </div>
 
-    <!-- Confirm dialog -->
+    <!-- Confirm -->
     <div class="modal-overlay" id="confirmOverlay" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle">
         <div class="modal-content" style="max-width: 400px;">
             <h2 class="modal-title" id="confirmTitle" style="margin-bottom: 0.75rem;">Confirm</h2>
@@ -896,7 +989,7 @@
 
         const CONFIG = Object.freeze({
             PAGE_SIZE: 5,
-            COLLECTIONS: ['whitelist', 'videos', 'pdfs', 'images', 'posts']
+            COLLECTIONS: ['whitelist', 'videos', 'pdfs', 'images', 'posts', 'books', 'libraryCategories']
         });
 
         const allClasses = [
@@ -907,6 +1000,19 @@
             'Geography','History','Economics','Social Science','General Knowledge',
             'Mathematics','Hindi','Urdu','Computer','Biology','Zoology','Physics',
             'Chemistry','Science','English','Current Affairs','Quant','Coding','AI'
+        ];
+
+        // Default category colors to pick from when creating
+        const CATEGORY_COLOR_PRESETS = [
+            '#5a745f', '#c96b8d', '#7c9c6b', '#6b8fc9', '#c98a5b',
+            '#8a6bc9', '#c9b56b', '#5b98a3', '#c96b6b', '#8a5b98'
+        ];
+
+        // Material icon suggestions for categories
+        const CATEGORY_ICON_SUGGESTIONS = [
+            'public', 'history_edu', 'science', 'bolt', 'eco', 'calculate',
+            'trending_up', 'menu_book', 'language', 'psychology', 'biotech',
+            'functions', 'translate', 'code', 'computer', 'palette', 'music_note'
         ];
 
         // ============================================
@@ -930,6 +1036,9 @@
         let wasAuthenticated = false;
         let confirmCallback = null;
         let editingStudentId = null;
+        let editingBookId = null;
+        let editingCategoryId = null;
+        let categoriesCache = []; // For the book form category dropdown
 
         // ============================================
         // UTIL
@@ -991,7 +1100,6 @@
             </div>`;
         }
 
-        // Convert Firestore Timestamp → <input type="date"> value (YYYY-MM-DD)
         function toDateInputValue(ts) {
             if (!ts) return '';
             let date;
@@ -1136,7 +1244,9 @@
                 videos: 'Video Management',
                 pdfs: 'PDF Management',
                 images: 'Image Management',
-                posts: 'Post Management'
+                posts: 'Post Management',
+                books: 'Book Management',
+                libraryCategories: 'Library Categories'
             };
             $('adminTitle').textContent = titles[tab] || 'Dashboard';
 
@@ -1156,12 +1266,14 @@
             contentArea.innerHTML = loadingHtml('Loading dashboard...');
 
             try {
-                const [wSnap, vSnap, pSnap, iSnap, poSnap] = await Promise.all([
+                const [wSnap, vSnap, pSnap, iSnap, poSnap, bSnap, cSnap] = await Promise.all([
                     db.collection('whitelist').where('active', '==', true).get(),
                     db.collection('videos').get(),
                     db.collection('pdfs').get(),
                     db.collection('images').get(),
-                    db.collection('posts').get()
+                    db.collection('posts').get(),
+                    db.collection('books').get(),
+                    db.collection('libraryCategories').get()
                 ]);
 
                 const stats = {
@@ -1169,7 +1281,9 @@
                     videos:   vSnap.size,
                     pdfs:     pSnap.size,
                     images:   iSnap.size,
-                    posts:    poSnap.size
+                    posts:    poSnap.size,
+                    books:    bSnap.size,
+                    categories: cSnap.size
                 };
 
                 console.log('[Admin] Dashboard stats:', stats);
@@ -1196,7 +1310,7 @@
             }
         }
 
-        function renderDashboardStats(contentArea, { students, videos, pdfs, images, posts }) {
+        function renderDashboardStats(contentArea, { students, videos, pdfs, images, posts, books, categories }) {
             contentArea.innerHTML = `
                 <div class="stats-grid">
                     <div class="stat-card">
@@ -1224,6 +1338,16 @@
                         <h2>${posts}</h2>
                         <p>Posts</p>
                     </div>
+                    <div class="stat-card">
+                        <span class="material-icons" aria-hidden="true">local_library</span>
+                        <h2>${books}</h2>
+                        <p>Books</p>
+                    </div>
+                    <div class="stat-card">
+                        <span class="material-icons" aria-hidden="true">category</span>
+                        <h2>${categories}</h2>
+                        <p>Categories</p>
+                    </div>
                 </div>
             `;
         }
@@ -1237,18 +1361,31 @@
             contentArea.innerHTML = loadingHtml('Loading...');
 
             try {
+                // For categories, use order sort
+                let query;
+                if (collection === 'libraryCategories') {
+                    query = db.collection(collection).orderBy('order', 'asc');
+                } else {
+                    query = db.collection(collection);
+                }
+
                 const limit = CONFIG.PAGE_SIZE * 3;
-                const snapshot = await db.collection(collection).limit(limit).get();
+                const snapshot = await query.limit(limit).get();
 
                 if (myToken !== loadToken) return;
 
                 cachedData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-                cachedData.sort((a, b) => {
-                    const ta = a.uploadedAt?.toMillis?.() || a.createdAt?.toMillis?.() || a.addedAt?.toMillis?.() || 0;
-                    const tb = b.uploadedAt?.toMillis?.() || b.createdAt?.toMillis?.() || b.addedAt?.toMillis?.() || 0;
-                    return tb - ta;
-                });
+                // Sort
+                if (collection === 'libraryCategories') {
+                    cachedData.sort((a, b) => (a.order || 0) - (b.order || 0));
+                } else {
+                    cachedData.sort((a, b) => {
+                        const ta = a.uploadedAt?.toMillis?.() || a.createdAt?.toMillis?.() || a.addedAt?.toMillis?.() || 0;
+                        const tb = b.uploadedAt?.toMillis?.() || b.createdAt?.toMillis?.() || b.addedAt?.toMillis?.() || 0;
+                        return tb - ta;
+                    });
+                }
 
                 displayedCount = 0;
                 contentArea.innerHTML = '';
@@ -1305,6 +1442,10 @@
                     headerRow = '<tr><th>Title</th><th>Class</th><th>Subject</th><th>Actions</th></tr>';
                 } else if (currentTab === 'posts') {
                     headerRow = '<tr><th>Title</th><th>Classes</th><th>Subject</th><th>Actions</th></tr>';
+                } else if (currentTab === 'books') {
+                    headerRow = '<tr><th>Cover</th><th>Title</th><th>Author</th><th>Category</th><th>Downloads</th><th>Actions</th></tr>';
+                } else if (currentTab === 'libraryCategories') {
+                    headerRow = '<tr><th>Color</th><th>Icon</th><th>Name</th><th>Display Name</th><th>Order</th><th>Actions</th></tr>';
                 }
 
                 thead.innerHTML = headerRow;
@@ -1338,10 +1479,7 @@
                         <td>${escapeHtml(expiryDisplay)}</td>
                         <td>
                             <div class="row-actions">
-                                <button class="btn btn-primary btn-sm"
-                                        data-edit-student="${escapeAttr(item.id)}">
-                                    Edit
-                                </button>
+                                <button class="btn btn-primary btn-sm" data-edit-student="${escapeAttr(item.id)}">Edit</button>
                                 <button class="btn ${item.active ? 'btn-warning' : 'btn-success'} btn-sm"
                                         data-toggle-active="${escapeAttr(item.id)}"
                                         data-toggle-current="${item.active ? 'true' : 'false'}">
@@ -1369,6 +1507,62 @@
                         <td>${escapeHtml(item.subject || '-')}</td>
                         <td><button class="btn btn-danger btn-sm" data-delete-id="${escapeAttr(item.id)}" data-delete-name="${escapeAttr(item.title || '')}">Delete</button></td>
                     `;
+                } else if (currentTab === 'books') {
+                    const coverHtml = item.coverImageUrl
+                        ? `<img src="${escapeAttr(item.coverImageUrl)}" class="book-cover-thumb" alt="${escapeAttr(item.title)}"
+                                onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                           <div class="book-cover-thumb-fallback" style="display:none;">${escapeHtml((item.title || 'B').charAt(0).toUpperCase())}</div>`
+                        : `<div class="book-cover-thumb-fallback">${escapeHtml((item.title || 'B').charAt(0).toUpperCase())}</div>`;
+                    const featuredBadge = item.featured
+                        ? '<span class="email-badge active" style="margin-left:6px;">Featured</span>'
+                        : '';
+
+                    tr.innerHTML = `
+                        <td>${coverHtml}</td>
+                        <td>
+                            <strong>${escapeHtml(item.title || '')}</strong>
+                            ${featuredBadge}
+                        </td>
+                        <td>${escapeHtml(item.author || '—')}</td>
+                        <td>${escapeHtml(item.category || '—')}</td>
+                        <td>${typeof item.downloads === 'number' ? item.downloads : 0}</td>
+                        <td>
+                            <div class="row-actions">
+                                <button class="btn btn-primary btn-sm" data-edit-book="${escapeAttr(item.id)}">Edit</button>
+                                <button class="btn btn-danger btn-sm"
+                                        data-delete-id="${escapeAttr(item.id)}"
+                                        data-delete-name="${escapeAttr(item.title || '')}">
+                                    Delete
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                } else if (currentTab === 'libraryCategories') {
+                    const color = item.color || '#5a745f';
+
+                    tr.innerHTML = `
+                        <td>
+                            <span class="category-color-swatch" style="background:${escapeAttr(color)};"></span>
+                            <code style="font-size:0.72rem;color:var(--text-secondary);">${escapeHtml(color)}</code>
+                        </td>
+                        <td>
+                            <span class="material-icons" style="color:${escapeAttr(color)};vertical-align:middle;">${escapeHtml(item.icon || 'category')}</span>
+                            <code style="font-size:0.72rem;color:var(--text-secondary);margin-left:4px;">${escapeHtml(item.icon || '')}</code>
+                        </td>
+                        <td>${escapeHtml(item.name || '')}</td>
+                        <td>${escapeHtml(item.displayName || item.name || '')}</td>
+                        <td>${typeof item.order === 'number' ? item.order : '—'}</td>
+                        <td>
+                            <div class="row-actions">
+                                <button class="btn btn-primary btn-sm" data-edit-category="${escapeAttr(item.id)}">Edit</button>
+                                <button class="btn btn-danger btn-sm"
+                                        data-delete-id="${escapeAttr(item.id)}"
+                                        data-delete-name="${escapeAttr(item.displayName || item.name || '')}">
+                                    Delete
+                                </button>
+                            </div>
+                        </td>
+                    `;
                 }
 
                 tbody.appendChild(tr);
@@ -1386,10 +1580,30 @@
         }
 
         // ============================================
+        // HELPERS — Load categories for book dropdown
+        // ============================================
+        async function loadCategoriesForForm() {
+            try {
+                const snap = await db.collection('libraryCategories').orderBy('order', 'asc').get();
+                categoriesCache = snap.docs.map((d) => ({
+                    id: d.id,
+                    name: d.data().name || '',
+                    displayName: d.data().displayName || d.data().name || ''
+                }));
+                return categoriesCache;
+            } catch (err) {
+                console.warn('[Admin] Failed to load categories:', err.code);
+                return [];
+            }
+        }
+
+        // ============================================
         // ADD FORMS
         // ============================================
-        function showAddForm() {
+        async function showAddForm() {
             editingStudentId = null;
+            editingBookId = null;
+            editingCategoryId = null;
             const modalBody = $('modalBody');
             $('modalTitle').textContent = 'Add New';
 
@@ -1472,13 +1686,319 @@
                     </select>
                     <button class="btn btn-primary" onclick="addPost()" id="submitBtn" style="width:100%;">Add Post</button>
                 `;
+            } else if (currentTab === 'books') {
+                $('modalTitle').textContent = 'Add Book';
+                // Load categories for dropdown
+                modalBody.innerHTML = `<div class="empty-state"><div class="spinner spinner-lg"></div><p style="margin-top:0.75rem;">Loading categories...</p></div>`;
+                const cats = await loadCategoriesForForm();
+
+                const categoryOptions = cats.length
+                    ? cats.map((c) => `<option value="${escapeAttr(c.name)}">${escapeHtml(c.displayName)}</option>`).join('')
+                    : '<option value="">No categories yet — create one first</option>';
+
+                modalBody.innerHTML = `
+                    <input type="text" id="bookTitle" class="form-input" placeholder="Book Title" maxlength="200" required>
+                    <input type="text" id="bookAuthor" class="form-input" placeholder="Author" maxlength="100" required>
+                    <textarea id="bookDescription" class="form-textarea" placeholder="Description (2-3 sentences)" rows="3" maxlength="1000"></textarea>
+
+                    <label class="form-label">Category:</label>
+                    <select id="bookCategory" class="form-select" required>
+                        <option value="">Select Category</option>
+                        ${categoryOptions}
+                    </select>
+
+                    <label class="form-label">PDF URL:</label>
+                    <input type="url" id="bookPdfUrl" class="form-input" placeholder="https://...pdf" maxlength="500" required>
+
+                    <label class="form-label">Cover Image URL (optional):</label>
+                    <input type="url" id="bookCoverImageUrl" class="form-input" placeholder="https://...jpg" maxlength="500">
+                    <p class="form-hint">Leave empty to use gradient + title fallback cover.</p>
+
+                    <label class="form-label">Initial Downloads Count (usually 0):</label>
+                    <input type="number" id="bookDownloads" class="form-input" placeholder="0" min="0" max="999999" value="0">
+
+                    <label class="toggle-switch" for="bookFeatured">
+                        <input type="checkbox" id="bookFeatured">
+                        <span class="toggle-track"></span>
+                        <span class="toggle-label">
+                            <span class="toggle-label-title">Featured</span>
+                            <span class="toggle-label-desc">Pins this book to the top of the Trending section.</span>
+                        </span>
+                    </label>
+
+                    <button class="btn btn-primary" onclick="addBook()" id="submitBtn" style="width:100%;">Add Book</button>
+                `;
+            } else if (currentTab === 'libraryCategories') {
+                $('modalTitle').textContent = 'Add Category';
+                // Suggest next order number
+                const nextOrder = cachedData.length ? Math.max(...cachedData.map(c => c.order || 0)) + 1 : 1;
+
+                modalBody.innerHTML = `
+                    <label class="form-label">Internal Name (used to match books):</label>
+                    <input type="text" id="categoryName" class="form-input" placeholder="e.g. Geography" maxlength="50" required>
+                    <p class="form-hint">Must match the "category" field on books exactly.</p>
+
+                    <label class="form-label">Display Name (what students see):</label>
+                    <input type="text" id="categoryDisplayName" class="form-input" placeholder="e.g. Geography" maxlength="50" required>
+
+                    <label class="form-label">Icon (Material icon name):</label>
+                    <input type="text" id="categoryIcon" class="form-input" placeholder="public" maxlength="50" value="category">
+                    <p class="form-hint">
+                        Suggestions: ${CATEGORY_ICON_SUGGESTIONS.slice(0, 8).map(i => `<code>${i}</code>`).join(', ')}.
+                        <a href="https://fonts.google.com/icons" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Browse all icons →</a>
+                    </p>
+
+                    <label class="form-label">Color:</label>
+                    <div class="color-input-row">
+                        <input type="color" id="categoryColorPicker" value="#5a745f">
+                        <input type="text" id="categoryColor" class="form-input" placeholder="#5a745f" maxlength="7" value="#5a745f">
+                    </div>
+                    <p class="form-hint">Presets: ${CATEGORY_COLOR_PRESETS.map(c => `<code style="color:${c};font-weight:700;">${c}</code>`).join(' ')}</p>
+
+                    <label class="form-label">Order (sort position):</label>
+                    <input type="number" id="categoryOrder" class="form-input" placeholder="1" min="1" value="${nextOrder}">
+
+                    <button class="btn btn-primary" onclick="addCategory()" id="submitBtn" style="width:100%;">Add Category</button>
+                `;
+
+                // Sync color picker with text input
+                const colorPicker = $('categoryColorPicker');
+                const colorInput = $('categoryColor');
+                if (colorPicker && colorInput) {
+                    colorPicker.addEventListener('input', () => {
+                        colorInput.value = colorPicker.value;
+                    });
+                    colorInput.addEventListener('input', () => {
+                        const val = colorInput.value.trim();
+                        if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+                            colorPicker.value = val;
+                        }
+                    });
+                }
             }
 
             $('modalOverlay').style.display = 'flex';
             document.body.style.overflow = 'hidden';
 
-            const firstInput = modalBody.querySelector('input, select, textarea');
+            const firstInput = modalBody.querySelector('input:not([type="color"]), select, textarea');
             firstInput?.focus();
+        }
+
+        // ============================================
+        // EDIT BOOK FORM
+        // ============================================
+        async function showEditBookForm(bookId) {
+            const book = cachedData.find((b) => b.id === bookId);
+            if (!book) {
+                showToast('Book not found — try refreshing', 'error');
+                return;
+            }
+
+            editingBookId = bookId;
+            const modalBody = $('modalBody');
+            $('modalTitle').textContent = 'Edit Book';
+            modalBody.innerHTML = `<div class="empty-state"><div class="spinner spinner-lg"></div><p style="margin-top:0.75rem;">Loading categories...</p></div>`;
+
+            const cats = await loadCategoriesForForm();
+            const categoryOptions = cats.map((c) => {
+                const selected = c.name === book.category ? 'selected' : '';
+                return `<option value="${escapeAttr(c.name)}" ${selected}>${escapeHtml(c.displayName)}</option>`;
+            }).join('');
+
+            modalBody.innerHTML = `
+                <input type="text" id="editBookTitle" class="form-input" placeholder="Book Title" maxlength="200" required value="${escapeAttr(book.title || '')}">
+                <input type="text" id="editBookAuthor" class="form-input" placeholder="Author" maxlength="100" required value="${escapeAttr(book.author || '')}">
+                <textarea id="editBookDescription" class="form-textarea" placeholder="Description" rows="3" maxlength="1000">${escapeHtml(book.description || '')}</textarea>
+
+                <label class="form-label">Category:</label>
+                <select id="editBookCategory" class="form-select" required>
+                    <option value="">Select Category</option>
+                    ${categoryOptions}
+                </select>
+
+                <label class="form-label">PDF URL:</label>
+                <input type="url" id="editBookPdfUrl" class="form-input" placeholder="https://...pdf" maxlength="500" required value="${escapeAttr(book.pdfUrl || '')}">
+
+                <label class="form-label">Cover Image URL (optional):</label>
+                <input type="url" id="editBookCoverImageUrl" class="form-input" placeholder="https://...jpg" maxlength="500" value="${escapeAttr(book.coverImageUrl || '')}">
+
+                <label class="form-label">Downloads Count:</label>
+                <input type="number" id="editBookDownloads" class="form-input" min="0" max="999999" value="${typeof book.downloads === 'number' ? book.downloads : 0}">
+
+                <label class="toggle-switch" for="editBookFeatured">
+                    <input type="checkbox" id="editBookFeatured" ${book.featured ? 'checked' : ''}>
+                    <span class="toggle-track"></span>
+                    <span class="toggle-label">
+                        <span class="toggle-label-title">Featured</span>
+                        <span class="toggle-label-desc">Pins this book to the top of the Trending section.</span>
+                    </span>
+                </label>
+
+                <div style="display:flex; gap:0.5rem; margin-top:0.25rem;">
+                    <button class="btn btn-secondary" onclick="closeModal()" style="flex:1;">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveBookEdits()" id="submitBtn" style="flex:2;">Save Changes</button>
+                </div>
+            `;
+
+            $('modalOverlay').style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        async function saveBookEdits() {
+            if (isSubmitting || !editingBookId) return;
+
+            const title = $('editBookTitle').value.trim();
+            const author = $('editBookAuthor').value.trim();
+            const description = $('editBookDescription').value.trim();
+            const category = $('editBookCategory').value;
+            const pdfUrl = $('editBookPdfUrl').value.trim();
+            const coverImageUrl = $('editBookCoverImageUrl').value.trim();
+            const downloads = parseInt($('editBookDownloads').value, 10) || 0;
+            const featured = $('editBookFeatured').checked;
+
+            if (!title || !author || !category || !pdfUrl) {
+                showToast('Please fill title, author, category and PDF URL', 'error');
+                return;
+            }
+
+            isSubmitting = true;
+            const submitBtn = $('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving...';
+
+            try {
+                await db.collection('books').doc(editingBookId).update({
+                    title,
+                    author,
+                    description,
+                    category,
+                    pdfUrl,
+                    coverImageUrl,
+                    downloads,
+                    featured,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                showToast('Book updated');
+                closeModal();
+                editingBookId = null;
+                switchTab('books');
+            } catch (error) {
+                console.error('[Admin] Update book error:', error.code);
+                showToast('Failed to update: ' + (error.code || 'unknown error'), 'error');
+            } finally {
+                isSubmitting = false;
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Save Changes';
+            }
+        }
+
+        // ============================================
+        // EDIT CATEGORY FORM
+        // ============================================
+        function showEditCategoryForm(categoryId) {
+            const cat = cachedData.find((c) => c.id === categoryId);
+            if (!cat) {
+                showToast('Category not found — try refreshing', 'error');
+                return;
+            }
+
+            editingCategoryId = categoryId;
+            const modalBody = $('modalBody');
+            $('modalTitle').textContent = 'Edit Category';
+
+            const currentColor = cat.color || '#5a745f';
+
+            modalBody.innerHTML = `
+                <label class="form-label">Internal Name:</label>
+                <input type="text" id="editCategoryName" class="form-input" maxlength="50" required value="${escapeAttr(cat.name || '')}">
+                <p class="form-hint">Changing this won't update existing books — you'll need to re-tag them.</p>
+
+                <label class="form-label">Display Name:</label>
+                <input type="text" id="editCategoryDisplayName" class="form-input" maxlength="50" required value="${escapeAttr(cat.displayName || cat.name || '')}">
+
+                <label class="form-label">Icon:</label>
+                <input type="text" id="editCategoryIcon" class="form-input" maxlength="50" value="${escapeAttr(cat.icon || 'category')}">
+
+                <label class="form-label">Color:</label>
+                <div class="color-input-row">
+                    <input type="color" id="editCategoryColorPicker" value="${escapeAttr(currentColor)}">
+                    <input type="text" id="editCategoryColor" class="form-input" maxlength="7" value="${escapeAttr(currentColor)}">
+                </div>
+
+                <label class="form-label">Order:</label>
+                <input type="number" id="editCategoryOrder" class="form-input" min="1" value="${typeof cat.order === 'number' ? cat.order : 1}">
+
+                <div style="display:flex; gap:0.5rem; margin-top:0.25rem;">
+                    <button class="btn btn-secondary" onclick="closeModal()" style="flex:1;">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveCategoryEdits()" id="submitBtn" style="flex:2;">Save Changes</button>
+                </div>
+            `;
+
+            // Sync color picker
+            const colorPicker = $('editCategoryColorPicker');
+            const colorInput = $('editCategoryColor');
+            if (colorPicker && colorInput) {
+                colorPicker.addEventListener('input', () => {
+                    colorInput.value = colorPicker.value;
+                });
+                colorInput.addEventListener('input', () => {
+                    const val = colorInput.value.trim();
+                    if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+                        colorPicker.value = val;
+                    }
+                });
+            }
+
+            $('modalOverlay').style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        async function saveCategoryEdits() {
+            if (isSubmitting || !editingCategoryId) return;
+
+            const name = $('editCategoryName').value.trim();
+            const displayName = $('editCategoryDisplayName').value.trim();
+            const icon = $('editCategoryIcon').value.trim() || 'category';
+            const color = $('editCategoryColor').value.trim();
+            const order = parseInt($('editCategoryOrder').value, 10) || 1;
+
+            if (!name || !displayName) {
+                showToast('Please fill name and display name', 'error');
+                return;
+            }
+            if (!/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                showToast('Color must be a valid hex code like #5a745f', 'error');
+                return;
+            }
+
+            isSubmitting = true;
+            const submitBtn = $('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving...';
+
+            try {
+                await db.collection('libraryCategories').doc(editingCategoryId).update({
+                    name,
+                    displayName,
+                    icon,
+                    color,
+                    order,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                showToast('Category updated');
+                closeModal();
+                editingCategoryId = null;
+                switchTab('libraryCategories');
+            } catch (error) {
+                console.error('[Admin] Update category error:', error.code);
+                showToast('Failed to update: ' + (error.code || 'unknown error'), 'error');
+            } finally {
+                isSubmitting = false;
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Save Changes';
+            }
         }
 
         // ============================================
@@ -1604,7 +2124,7 @@
         }
 
         // ============================================
-        // TOGGLE ACTIVE (quick action — no modal)
+        // TOGGLE ACTIVE
         // ============================================
         async function toggleStudentActive(studentId, currentlyActive) {
             const student = cachedData.find((s) => s.id === studentId);
@@ -1639,6 +2159,8 @@
             document.body.style.overflow = 'auto';
             isSubmitting = false;
             editingStudentId = null;
+            editingBookId = null;
+            editingCategoryId = null;
         }
 
         // ============================================
@@ -1840,18 +2362,132 @@
             }
         }
 
+        async function addBook() {
+            if (isSubmitting) return;
+
+            const title = $('bookTitle').value.trim();
+            const author = $('bookAuthor').value.trim();
+            const description = $('bookDescription').value.trim();
+            const category = $('bookCategory').value;
+            const pdfUrl = $('bookPdfUrl').value.trim();
+            const coverImageUrl = $('bookCoverImageUrl').value.trim();
+            const downloads = parseInt($('bookDownloads').value, 10) || 0;
+            const featured = $('bookFeatured').checked;
+
+            if (!title || !author || !category || !pdfUrl) {
+                showToast('Please fill title, author, category and PDF URL', 'error');
+                return;
+            }
+
+            isSubmitting = true;
+            const submitBtn = $('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Adding...';
+
+            try {
+                await db.collection('books').add({
+                    title,
+                    author,
+                    description,
+                    category,
+                    pdfUrl,
+                    coverImageUrl,
+                    downloads,
+                    featured,
+                    uploadedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                showToast('Book added!');
+                closeModal();
+                switchTab('books');
+            } catch (error) {
+                console.error('[Admin] Add book error:', error.code);
+                showToast('Failed to add book: ' + (error.code || 'unknown error'), 'error');
+            } finally {
+                isSubmitting = false;
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Add Book';
+            }
+        }
+
+        async function addCategory() {
+            if (isSubmitting) return;
+
+            const name = $('categoryName').value.trim();
+            const displayName = $('categoryDisplayName').value.trim();
+            const icon = $('categoryIcon').value.trim() || 'category';
+            const color = $('categoryColor').value.trim();
+            const order = parseInt($('categoryOrder').value, 10) || 1;
+
+            if (!name || !displayName) {
+                showToast('Please fill name and display name', 'error');
+                return;
+            }
+            if (!/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                showToast('Color must be a valid hex code like #5a745f', 'error');
+                return;
+            }
+
+            // Check for duplicate name
+            const duplicate = cachedData.find((c) => (c.name || '').toLowerCase() === name.toLowerCase());
+            if (duplicate) {
+                showToast(`Category "${name}" already exists`, 'error');
+                return;
+            }
+
+            isSubmitting = true;
+            const submitBtn = $('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Adding...';
+
+            try {
+                // Use slug-style doc ID for uniqueness
+                const docId = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+                await db.collection('libraryCategories').doc(docId).set({
+                    name,
+                    displayName,
+                    icon,
+                    color,
+                    order,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                showToast('Category added!');
+                closeModal();
+                switchTab('libraryCategories');
+            } catch (error) {
+                console.error('[Admin] Add category error:', error.code);
+                showToast('Failed to add category: ' + (error.code || 'unknown error'), 'error');
+            } finally {
+                isSubmitting = false;
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Add Category';
+            }
+        }
+
         // ============================================
         // DELEGATED CLICK HANDLER
         // ============================================
         document.addEventListener('click', (e) => {
-            // Edit student
-            const editBtn = e.target.closest('[data-edit-student]');
-            if (editBtn) {
-                showEditStudentForm(editBtn.dataset.editStudent);
+            const editStudentBtn = e.target.closest('[data-edit-student]');
+            if (editStudentBtn) {
+                showEditStudentForm(editStudentBtn.dataset.editStudent);
                 return;
             }
 
-            // Toggle active
+            const editBookBtn = e.target.closest('[data-edit-book]');
+            if (editBookBtn) {
+                showEditBookForm(editBookBtn.dataset.editBook);
+                return;
+            }
+
+            const editCategoryBtn = e.target.closest('[data-edit-category]');
+            if (editCategoryBtn) {
+                showEditCategoryForm(editCategoryBtn.dataset.editCategory);
+                return;
+            }
+
             const toggleBtn = e.target.closest('[data-toggle-active]');
             if (toggleBtn) {
                 toggleStudentActive(
@@ -1861,7 +2497,6 @@
                 return;
             }
 
-            // Delete
             const deleteBtn = e.target.closest('[data-delete-id]');
             if (deleteBtn) {
                 requestDelete(currentTab, deleteBtn.dataset.deleteId, deleteBtn.dataset.deleteName || deleteBtn.dataset.deleteId);
@@ -1917,7 +2552,11 @@
         window.handleMobileTabClick = handleMobileTabClick;
         window.showAddForm = showAddForm;
         window.showEditStudentForm = showEditStudentForm;
+        window.showEditBookForm = showEditBookForm;
+        window.showEditCategoryForm = showEditCategoryForm;
         window.saveStudentEdits = saveStudentEdits;
+        window.saveBookEdits = saveBookEdits;
+        window.saveCategoryEdits = saveCategoryEdits;
         window.toggleStudentActive = toggleStudentActive;
         window.closeModal = closeModal;
         window.addToWhitelist = addToWhitelist;
@@ -1925,6 +2564,8 @@
         window.addPDF = addPDF;
         window.addImage = addImage;
         window.addPost = addPost;
+        window.addBook = addBook;
+        window.addCategory = addCategory;
     })();
     </script>
 </body>
