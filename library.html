@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="default">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Library — Campus Unfolded</title>
+    <meta name="description" content="Books and research papers for every class and subject.">
+    <meta name="theme-color" content="#DFDDD3" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0d1117" media="(prefers-color-scheme: dark)">
+
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self';
+                   script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com;
+                   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+                   font-src 'self' https://fonts.gstatic.com;
+                   img-src 'self' data: blob: https:;
+                   connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com;
+                   frame-src https://*.firebaseapp.com;
+                   object-src 'none';
+                   base-uri 'self';">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Campus Unfolded">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Inter:wght@300;400;500;600;700&family=Caveat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('enlighten_theme') || 'default';
+          document.documentElement.setAttribute('data-theme', t);
+        } catch (e) {}
+      })();
+    </script>
+
+    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="library.css">
+</head>
+<body>
+
+    <noscript>
+        <div style="padding:2rem;text-align:center;font-family:sans-serif">
+            <h2>JavaScript required</h2>
+            <p>Please enable JavaScript to access the library.</p>
+        </div>
+    </noscript>
+
+    <!-- AUTH GATE — Cinematic (same as dashboard/scrapbook) -->
+    <div class="page-transition active" id="authGate" aria-live="polite">
+        <div class="auth-gate-bg" aria-hidden="true">
+            <div class="auth-gate-blob auth-gate-blob-1"></div>
+            <div class="auth-gate-blob auth-gate-blob-2"></div>
+            <div class="auth-gate-blob auth-gate-blob-3"></div>
+            <div class="auth-gate-grid"></div>
+        </div>
+        <div class="auth-gate-content">
+            <div class="auth-gate-logo-stage">
+                <div class="auth-gate-orbit">
+                    <span class="auth-gate-orbit-dot"></span>
+                    <span class="auth-gate-orbit-dot"></span>
+                    <span class="auth-gate-orbit-dot"></span>
+                </div>
+                <div class="auth-gate-logo-core">
+                    <img src="ns.png" alt="" class="auth-gate-logo-img"
+                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                    <span class="material-icons auth-gate-logo-fallback" style="display:none;">local_library</span>
+                </div>
+            </div>
+            <h1 class="auth-gate-brand">
+                <span class="auth-gate-brand-word">VOID</span>
+                <span class="auth-gate-brand-word auth-gate-brand-word-accent">Kashmir</span>
+            </h1>
+            <div class="auth-gate-status">
+                <span class="auth-gate-status-dot"></span>
+                <span class="auth-gate-status-text" id="authGateStatus">Opening the library</span>
+            </div>
+            <div class="auth-gate-progress">
+                <div class="auth-gate-progress-bar" id="authGateProgressBar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main -->
+    <div class="library-page" id="libraryRoot" hidden>
+
+        <!-- Top bar -->
+        <header class="library-top-bar">
+            <a href="dashboard.html" class="library-home-btn" aria-label="Back to home">
+                <span class="material-icons">home</span>
+                <span class="library-home-label">Home</span>
+            </a>
+            <h1 class="library-title">Library</h1>
+            <div class="library-top-actions">
+                <button class="library-icon-btn" id="libraryThemeBtn" aria-label="Change theme" title="Change theme">
+                    <span class="material-icons">light_mode</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Categories — horizontal scroll -->
+        <section class="library-section" aria-labelledby="libraryCategoriesTitle">
+            <div class="library-section-header">
+                <h2 class="library-section-title" id="libraryCategoriesTitle">Explore</h2>
+                <span class="library-section-hint">Swipe to browse</span>
+            </div>
+            <div class="library-categories" id="libraryCategories" role="tablist"></div>
+        </section>
+
+        <!-- Trending — with animated grid background -->
+        <section class="library-trending-section" aria-labelledby="libraryTrendingTitle">
+            <div class="library-trending-bg" aria-hidden="true">
+                <div class="library-trending-grid"></div>
+            </div>
+            <div class="library-trending-content">
+                <div class="library-section-header">
+                    <h2 class="library-section-title" id="libraryTrendingTitle">
+                        <span class="material-icons">local_fire_department</span>
+                        Trending Now
+                    </h2>
+                </div>
+                <div class="library-trending-scroll" id="libraryTrending"></div>
+            </div>
+        </section>
+
+        <!-- All Books -->
+        <section class="library-section" aria-labelledby="libraryBooksTitle">
+            <div class="library-section-header">
+                <h2 class="library-section-title" id="libraryBooksTitle">All Books</h2>
+                <span class="library-section-hint" id="libraryBooksCount"></span>
+            </div>
+            <div class="library-books-grid" id="libraryBooks"></div>
+            <div class="library-sentinel" id="librarySentinel"></div>
+            <div class="library-empty" id="libraryEmpty" style="display:none;">
+                <span class="material-icons">menu_book</span>
+                <h3>No books yet</h3>
+                <p>Books will appear here once they're added.</p>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- Toast -->
+    <div class="scrapbook-toast" id="libraryToast" role="alert" aria-live="assertive"></div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <script src="firebase-config.js"></script>
+    <script src="library.js" defer></script>
+</body>
+</html>
