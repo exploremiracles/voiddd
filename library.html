@@ -145,6 +145,48 @@
 
     </div>
 
+    <!-- Book Detail Drawer -->
+<div class="book-drawer-overlay" id="bookDrawerOverlay" aria-hidden="true">
+    <div class="book-drawer" id="bookDrawer" role="dialog" aria-modal="true" aria-labelledby="bookDrawerTitle">
+        <div class="book-drawer-handle" aria-hidden="true"></div>
+
+        <button class="book-drawer-close" id="bookDrawerClose" aria-label="Close">
+            <span class="material-icons">close</span>
+        </button>
+
+        <div class="book-drawer-body">
+            <div class="book-drawer-cover-wrap">
+                <div class="book-drawer-cover" id="bookDrawerCover"></div>
+            </div>
+
+            <div class="book-drawer-info">
+                <div class="book-drawer-category" id="bookDrawerCategory"></div>
+                <h2 class="book-drawer-title" id="bookDrawerTitle"></h2>
+                <p class="book-drawer-author" id="bookDrawerAuthor"></p>
+
+                <div class="book-drawer-meta">
+                    <div class="book-drawer-meta-item">
+                        <span class="material-icons">download</span>
+                        <span id="bookDrawerDownloads">0</span>
+                        <span class="book-drawer-meta-label">downloads</span>
+                    </div>
+                </div>
+
+                <p class="book-drawer-desc" id="bookDrawerDesc"></p>
+
+                <div class="book-drawer-actions">
+                    <a href="#" target="_blank" rel="noopener noreferrer"
+                       class="book-drawer-download-btn"
+                       id="bookDrawerDownloadBtn">
+                        <span class="material-icons">download</span>
+                        <span>Download PDF</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
     <!-- Toast -->
     <div class="scrapbook-toast" id="libraryToast" role="alert" aria-live="assertive"></div>
 
