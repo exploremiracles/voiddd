@@ -852,6 +852,289 @@
     }
 }
 
+/* ============ BOOK DETAIL DRAWER ============ */
+.book-drawer-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0);
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+    z-index: 9999;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    pointer-events: none;
+    transition: background 0.35s ease, backdrop-filter 0.35s ease;
+}
+
+.book-drawer-overlay.active {
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    pointer-events: auto;
+}
+
+.book-drawer {
+    width: 100%;
+    max-width: 560px;
+    max-height: 88vh;
+    max-height: 88dvh;
+    background: var(--surface);
+    border-radius: 24px 24px 0 0;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.25);
+    transform: translateY(100%);
+    transition: transform 0.4s cubic-bezier(0.34, 1.4, 0.64, 1);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.book-drawer-overlay.active .book-drawer {
+    transform: translateY(0);
+}
+
+.book-drawer-handle {
+    width: 44px;
+    height: 5px;
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--text) 25%, transparent);
+    margin: 10px auto 4px;
+    flex-shrink: 0;
+}
+
+.book-drawer-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--text) 10%, transparent);
+    border: none;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 2;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.book-drawer-close:hover {
+    background: color-mix(in srgb, var(--text) 18%, transparent);
+    transform: rotate(90deg);
+}
+
+.book-drawer-close .material-icons {
+    font-size: 20px;
+}
+
+.book-drawer-body {
+    padding: 0 1.5rem 1.75rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+.book-drawer-cover-wrap {
+    display: flex;
+    justify-content: center;
+    padding: 0.5rem 0 1.25rem;
+}
+
+.book-drawer-cover {
+    width: 140px;
+    aspect-ratio: 3 / 4;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
+    background: linear-gradient(
+        135deg,
+        var(--accent) 0%,
+        var(--accent-hover, var(--accent)) 100%
+    );
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.book-drawer-cover::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    width: 12px;
+    background: linear-gradient(
+        to right,
+        rgba(0, 0, 0, 0.28) 0%,
+        rgba(0, 0, 0, 0.08) 50%,
+        transparent 100%
+    );
+    z-index: 2;
+    pointer-events: none;
+}
+
+.book-drawer-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.book-drawer-cover .material-icons {
+    font-size: 3rem;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.book-drawer-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.book-drawer-category {
+    display: inline-block;
+    width: fit-content;
+    padding: 3px 10px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    color: var(--accent);
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.book-drawer-category:empty {
+    display: none;
+}
+
+.book-drawer-title {
+    font-family: var(--font-heading);
+    font-size: clamp(1.25rem, 4vw, 1.6rem);
+    font-weight: 900;
+    color: var(--text);
+    line-height: 1.25;
+    margin: 0;
+    word-break: break-word;
+}
+
+.book-drawer-author {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin: 0;
+}
+
+.book-drawer-meta {
+    display: flex;
+    gap: 1rem;
+    margin: 0.35rem 0;
+    flex-wrap: wrap;
+}
+
+.book-drawer-meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.book-drawer-meta-item .material-icons {
+    font-size: 16px;
+    color: var(--accent);
+}
+
+.book-drawer-meta-label {
+    font-weight: 500;
+    color: var(--text-secondary);
+    opacity: 0.85;
+}
+
+.book-drawer-desc {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0.35rem 0 0.75rem;
+    word-break: break-word;
+}
+
+.book-drawer-desc:empty {
+    display: none;
+}
+
+.book-drawer-actions {
+    display: flex;
+    gap: 0.6rem;
+    margin-top: auto;
+    padding-top: 0.75rem;
+    position: sticky;
+    bottom: 0;
+    background: linear-gradient(
+        to top,
+        var(--surface) 60%,
+        color-mix(in srgb, var(--surface) 0%, transparent) 100%
+    );
+}
+
+.book-drawer-download-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex: 1;
+    padding: 13px 20px;
+    background: linear-gradient(
+        135deg,
+        var(--accent),
+        var(--accent-hover, var(--accent))
+    );
+    color: var(--accent-contrast);
+    border: none;
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 35%, transparent);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.book-drawer-download-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.book-drawer-download-btn:active {
+    transform: translateY(0);
+}
+
+.book-drawer-download-btn[aria-disabled="true"] {
+    opacity: 0.5;
+    pointer-events: none;
+    filter: grayscale(0.4);
+}
+
+@media (max-width: 480px) {
+    .book-drawer-body {
+        padding: 0 1.1rem 1.4rem;
+    }
+    .book-drawer-cover {
+        width: 110px;
+    }
+    .book-drawer-title {
+        font-size: 1.2rem;
+    }
+    .book-drawer-desc {
+        font-size: 0.82rem;
+    }
+}
+
 /* ============ REDUCED MOTION ============ */
 @media (prefers-reduced-motion: reduce) {
     .library-trending-grid {
@@ -879,6 +1162,12 @@
         animation: none !important;
         opacity: 1;
         transform: none;
+    }
+   .book-drawer,
+    .book-drawer-overlay,
+    .book-drawer-close,
+    .book-drawer-download-btn {
+        transition: none !important;
     }
 }
 
