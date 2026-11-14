@@ -55,6 +55,7 @@
   let sentinelObserver = null;
   let isLoadingMore = false;
   let initialLoadComplete = false;
+  let activeDrawerBook = null;
 
   const $ = (id) => document.getElementById(id);
 
@@ -537,18 +538,10 @@
       if (card.dataset.wired === 'true') return;
       card.dataset.wired = 'true';
       card.addEventListener('click', (e) => {
-        // Ignore if clicking the download button
-        if (e.target.closest('[data-download-book-id]')) return;
-        const bookId = card.dataset.bookId;
-        const book = allBooks.find((b) => b.id === bookId);
-        if (!book) return;
-        if (!book.pdfUrl) {
-          showToast('PDF not available yet', 'error');
-          return;
-        }
-        incrementDownloadCount(bookId);
-        window.open(book.pdfUrl, '_blank', 'noopener,noreferrer');
-      });
+  // Ignore if clicking the download button
+  if (e.target.closest('[data-download-book-id]')) return;
+  openBookDrawer(card.dataset.bookId);
+});
 
       card.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -614,6 +607,107 @@
     renderBooks();
   }
 
+
+  // ============================================
+// BOOK DETAIL DRAWER
+// ============================================
+function openBookDrawer(bookId) {
+  const book = allBooks.find((b) => b.id === bookId);
+  if (!book) return;
+
+  activeDrawerBook = book;
+
+  const overlay = $('bookDrawerOverlay');
+  if (!overlay) return;
+
+  // Populate
+  const cover = $('bookDrawerCover');
+  if (cover) {
+    if (book.coverImageUrl) {
+      cover.innerHTML = `<img src="${escapeAttr(book.coverImageUrl)}" alt="${escapeHtml(book.title)}"
+        onerror="this.style.display='none';this.parentElement.innerHTML='<span class=\\'material-icons\\'>menu_book</span>';">
+      `;
+    } else {
+      cover.innerHTML = `<span class="material-icons">menu_book</span>`;
+    }
+  }
+
+  const catEl = $('bookDrawerCategory');
+  if (catEl) catEl.textContent = book.category || '';
+
+  const titleEl = $('bookDrawerTitle');
+  if (titleEl) titleEl.textContent = book.title || 'Untitled';
+
+  const authorEl = $('bookDrawerAuthor');
+  if (authorEl) authorEl.textContent = book.author ? `by ${book.author}` : '';
+
+  const downloadsEl = $('bookDrawerDownloads');
+  if (downloadsEl) downloadsEl.textContent = book.downloads || 0;
+
+  const descEl = $('bookDrawerDesc');
+  if (descEl) descEl.textContent = book.description || '';
+
+  const dlBtn = $('bookDrawerDownloadBtn');
+  if (dlBtn) {
+    if (book.pdfUrl) {
+      dlBtn.href = book.pdfUrl;
+      dlBtn.removeAttribute('aria-disabled');
+      dlBtn.querySelector('span:last-child').textContent = 'Download PDF';
+    } else {
+      dlBtn.href = '#';
+      dlBtn.setAttribute('aria-disabled', 'true');
+      dlBtn.querySelector('span:last-child').textContent = 'Not available';
+    }
+  }
+
+  // Show
+  overlay.classList.add('active');
+  overlay.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeBookDrawer() {
+  const overlay = $('bookDrawerOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('active');
+  overlay.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+  activeDrawerBook = null;
+}
+
+function setupBookDrawer() {
+  const overlay = $('bookDrawerOverlay');
+  const closeBtn = $('bookDrawerClose');
+  const dlBtn = $('bookDrawerDownloadBtn');
+
+  if (!overlay) return;
+
+  // Close button
+  closeBtn?.addEventListener('click', closeBookDrawer);
+
+  // Overlay click (outside drawer)
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeBookDrawer();
+  });
+
+  // ESC key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && overlay.classList.contains('active')) {
+      closeBookDrawer();
+    }
+  });
+
+  // Download button inside drawer
+  dlBtn?.addEventListener('click', (e) => {
+    if (!activeDrawerBook || !activeDrawerBook.pdfUrl) {
+      e.preventDefault();
+      showToast('PDF not available yet', 'error');
+      return;
+    }
+    incrementDownloadCount(activeDrawerBook.id);
+    // let the <a> open normally
+  });
+}
   // ============================================
   // INFINITE SCROLL
   // ============================================
@@ -640,8 +734,9 @@
   // BOOT
   // ============================================
   document.addEventListener('DOMContentLoaded', () => {
-    startAuthGateAnimation();
-    setupThemeToggle();
+  startAuthGateAnimation();
+  setupThemeToggle();
+  setupBookDrawer();
 
     if (typeof firebase !== 'undefined' && firebase.auth) {
       bootstrap();
