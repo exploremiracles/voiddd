@@ -10,12 +10,13 @@
 
     <meta http-equiv="Content-Security-Policy"
           content="default-src 'self';
-                   script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com;
-                   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-                   font-src 'self' https://fonts.gstatic.com;
+                   script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com https://cdnjs.cloudflare.com;
+                   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com;
+                   font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com;
                    img-src 'self' data: blob: https:;
-                   connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com;
-                   frame-src https://*.firebaseapp.com;
+                   connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://cdnjs.cloudflare.com;
+                   frame-src 'self' blob: https://*.firebaseapp.com;
+                   worker-src 'self' blob:;
                    object-src 'none';
                    base-uri 'self';">
     <meta name="referrer" content="strict-origin-when-cross-origin">
@@ -143,6 +144,42 @@
             </div>
         </section>
 
+        <!-- PDF Reader Modal -->
+        <div class="library-reader-overlay" id="libraryReaderOverlay" aria-hidden="true">
+            <div class="library-reader" role="dialog" aria-modal="true" aria-labelledby="libraryReaderTitle">
+                <header class="library-reader-header">
+                    <div class="library-reader-meta">
+                        <h2 class="library-reader-title" id="libraryReaderTitle">Loading…</h2>
+                        <span class="library-reader-page" id="libraryReaderPage"></span>
+                    </div>
+                    <div class="library-reader-actions">
+                        <a class="library-reader-btn" id="libraryReaderDownload" download>
+                            <span class="material-icons">download</span>
+                        </a>
+                        <button class="library-reader-btn" id="libraryReaderClose" aria-label="Close reader">
+                            <span class="material-icons">close</span>
+                        </button>
+                    </div>
+                </header>
+                <div class="library-reader-body" id="libraryReaderBody">
+                    <div class="library-reader-loading" id="libraryReaderLoading">
+                        <div class="library-reader-spinner"></div>
+                        <p>Loading PDF…</p>
+                    </div>
+                    <div class="library-reader-pages" id="libraryReaderPages"></div>
+                </div>
+                <footer class="library-reader-footer">
+                    <button class="library-reader-nav" id="libraryReaderPrev" aria-label="Previous page">
+                        <span class="material-icons">chevron_left</span>
+                    </button>
+                    <span class="library-reader-nav-label" id="libraryReaderNavLabel">— / —</span>
+                    <button class="library-reader-nav" id="libraryReaderNext" aria-label="Next page">
+                        <span class="material-icons">chevron_right</span>
+                    </button>
+                </footer>
+            </div>
+        </div>
+
     </div>
 
     <!-- Toast -->
@@ -152,6 +189,9 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <!-- PDF.js (v3.11.174 — last non-module build with pdfjsLib global) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
     <script src="firebase-config.js"></script>
     <script src="library.js" defer></script>
