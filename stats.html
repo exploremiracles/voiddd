@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="default">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Reading Stats — Campus Unfolded</title>
+    <meta name="theme-color" content="#DFDDD3">
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self';
+                   script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com;
+                   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+                   font-src 'self' https://fonts.gstatic.com;
+                   img-src 'self' data: blob: https:;
+                   connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com;
+                   frame-src https://*.firebaseapp.com;
+                   object-src 'none';
+                   base-uri 'self';">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="stats.css">
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('enlighten_theme') || 'default';
+          document.documentElement.setAttribute('data-theme', t);
+        } catch (e) {}
+      })();
+    </script>
+</head>
+<body>
+
+    <!-- Auth Gate -->
+    <div class="page-transition active" id="authGate" aria-live="polite">
+        <div class="auth-gate-bg" aria-hidden="true">
+            <div class="auth-gate-blob auth-gate-blob-1"></div>
+            <div class="auth-gate-blob auth-gate-blob-2"></div>
+            <div class="auth-gate-blob auth-gate-blob-3"></div>
+            <div class="auth-gate-grid"></div>
+        </div>
+        <div class="auth-gate-content">
+            <div class="auth-gate-logo-stage">
+                <div class="auth-gate-orbit"><span class="auth-gate-orbit-dot"></span><span class="auth-gate-orbit-dot"></span><span class="auth-gate-orbit-dot"></span></div>
+                <div class="auth-gate-logo-core">
+                    <img src="ns.png" alt="" class="auth-gate-logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                    <span class="material-icons auth-gate-logo-fallback" style="display:none;">insights</span>
+                </div>
+            </div>
+            <h1 class="auth-gate-brand"><span class="auth-gate-brand-word">Campus</span><span class="auth-gate-brand-word auth-gate-brand-word-accent">Unfolded</span></h1>
+            <div class="auth-gate-status"><span class="auth-gate-status-dot"></span><span class="auth-gate-status-text" id="authGateStatus">Loading your stats</span></div>
+            <div class="auth-gate-progress"><div class="auth-gate-progress-bar" id="authGateProgressBar"></div></div>
+        </div>
+    </div>
+
+    <div class="stats-page" id="statsRoot" hidden>
+
+        <!-- Top bar -->
+        <header class="stats-top-bar">
+            <a href="library.html" class="stats-back-btn" aria-label="Back">
+                <span class="material-icons">arrow_back</span>
+            </a>
+            <h1 class="stats-title">Reading Stats</h1>
+            <div style="width:42px"></div>
+        </header>
+
+        <!-- Goal card -->
+        <section class="stats-card stats-goal-card">
+            <div class="stats-goal-header">
+                <h2>Daily Goal</h2>
+                <button class="stats-edit-goal-btn" id="statsEditGoalBtn">
+                    <span class="material-icons">edit</span>
+                    <span>Edit</span>
+                </button>
+            </div>
+            <div class="stats-goal-ring-wrap">
+                <svg class="stats-goal-ring" viewBox="0 0 120 120">
+                    <circle cx="60" cy="60" r="52" class="stats-goal-ring-bg"/>
+                    <circle cx="60" cy="60" r="52" class="stats-goal-ring-fg" id="statsGoalRing"/>
+                </svg>
+                <div class="stats-goal-center">
+                    <div class="stats-goal-percent" id="statsGoalPercent">0%</div>
+                    <div class="stats-goal-minutes" id="statsGoalMinutes">0 / 30 min</div>
+                </div>
+            </div>
+            <p class="stats-goal-msg" id="statsGoalMsg">Start reading to reach your daily goal.</p>
+        </section>
+
+        <!-- Stats grid -->
+        <section class="stats-grid">
+            <div class="stats-card stats-mini">
+                <span class="material-icons stats-mini-icon">local_fire_department</span>
+                <div class="stats-mini-value" id="statsStreak">0</div>
+                <div class="stats-mini-label">Day streak</div>
+            </div>
+            <div class="stats-card stats-mini">
+                <span class="material-icons stats-mini-icon">schedule</span>
+                <div class="stats-mini-value" id="statsTodayMin">0m</div>
+                <div class="stats-mini-label">Today</div>
+            </div>
+            <div class="stats-card stats-mini">
+                <span class="material-icons stats-mini-icon">date_range</span>
+                <div class="stats-mini-value" id="statsWeekMin">0m</div>
+                <div class="stats-mini-label">This week</div>
+            </div>
+            <div class="stats-card stats-mini">
+                <span class="material-icons stats-mini-icon">menu_book</span>
+                <div class="stats-mini-value" id="statsBooksCount">0</div>
+                <div class="stats-mini-label">Books started</div>
+            </div>
+        </section>
+
+        <!-- Weekly chart -->
+        <section class="stats-card">
+            <h2 class="stats-section-title">Last 7 days</h2>
+            <div class="stats-week-chart" id="statsWeekChart"></div>
+        </section>
+
+        <!-- Recent reading -->
+        <section class="stats-card">
+            <h2 class="stats-section-title">Recent reading</h2>
+            <div class="stats-recent-list" id="statsRecentList"></div>
+            <div class="stats-empty" id="statsRecentEmpty" hidden>
+                <span class="material-icons">auto_stories</span>
+                <p>No reading yet</p>
+                <small>Open a book from the library to start tracking your progress.</small>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- Goal edit modal -->
+    <div class="stats-modal-overlay" id="statsGoalModal" hidden>
+        <div class="stats-modal">
+            <div class="stats-modal-header">
+                <h3>Set daily goal</h3>
+                <button class="stats-icon-btn" id="statsGoalModalClose">
+                    <span class="material-icons">close</span>
+                </button>
+            </div>
+            <div class="stats-modal-body">
+                <label class="stats-modal-label">Minutes per day</label>
+                <input type="number" class="stats-goal-input" id="statsGoalInput" min="5" max="300" step="5" value="30">
+                <p class="stats-modal-hint">Choose between 5 and 300 minutes.</p>
+            </div>
+            <div class="stats-modal-footer">
+                <button class="stats-text-btn" id="statsGoalCancelBtn">Cancel</button>
+                <button class="stats-text-btn stats-text-btn-primary" id="statsGoalSaveBtn">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="stats.js" defer></script>
+</body>
+</html>
