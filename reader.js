@@ -190,27 +190,46 @@
     // PDF LOADING
     // ============================================
     async function loadPdf(url) {
-        const loading = $('readerLoading');
-        const error = $('readerError');
-        if (loading) loading.hidden = false;
-        if (error) error.hidden = true;
+    const loading = $('readerLoading');
+    const error = $('readerError');
+    if (loading) loading.hidden = false;
+    if (error) error.hidden = true;
 
-        try {
-            const loadingTask = pdfjsLib.getDocument(url);
-            pdfDoc = await loadingTask.promise;
-            totalPages = pdfDoc.numPages;
+    let timeoutId = null;
+    const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('PDF load timeout')), 20000);
+    });
 
-            if (loading) loading.hidden = true;
+    try {
+        const loadingTask = pdfjsLib.getDocument(url);
+        pdfDoc = await Promise.race([loadingTask.promise, timeoutPromise]);
+        if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; }
+        totalPages = pdfDoc.numPages;
 
-            applyReadingMode(readingMode, true);
-            updateProgressUI();
-            buildThumbnails();
-        } catch (err) {
-            console.error('[Reader] PDF load failed:', err);
-            if (loading) loading.hidden = true;
-            if (error) error.hidden = false;
+        if (loading) loading.hidden = true;
+
+        applyReadingMode(readingMode, true);
+        updateProgressUI();
+        buildThumbnails();
+    } catch (err) {
+        if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; }
+        console.error('[Reader] PDF load failed:', err);
+        if (loading) loading.hidden = true;
+        if (error) {
+            error.hidden = false;
+            const p = error.querySelector('p');
+            if (p) {
+                if (err.message === 'PDF load timeout') {
+                    p.textContent = 'The PDF is taking too long to load. Check your connection and try again.';
+                } else if (err.name === 'MissingPDFException' || err.name === 'InvalidPDFException') {
+                    p.textContent = 'This PDF could not be opened. It may have been moved or removed.';
+                } else {
+                    p.textContent = 'The PDF may be unavailable. Try again later.';
+                }
+            }
         }
     }
+}
 
     // ============================================
     // READING MODE SWITCH
@@ -756,38 +775,59 @@
     // PROGRESS
     // ============================================
     async function loadProgress() {
-        progressRef = db.collection(CONFIG.COLLECTIONS.READING_PROGRESS).doc(progressDocId());
-        try {
-            const doc = await progressRef.get();
-            if (doc.exists) {
-                progressData = doc.data();
-                applyProgressData(progressData);
-            } else {
-                const initial = {
-                    userId: currentUserId,
-                    bookId: bookId,
-                    lastPage: 1,
-                    maxPageReached: 1,
-                    totalPages: totalPages,
-                    progressPercent: 0,
-                    bookmarks: [],
-                    notes: [],
-                    totalReadingMs: 0,
-                    lastReadAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                };
-                await progressRef.set(initial);
-                progressData = initial;
-            }
-        } catch (err) {
-            console.warn('[Reader] Progress load failed:', err.code);
+    progressRef = db.collection(CONFIG.COLLECTIONS.READING_PROGRESS).doc(progressDocId());
+
+    // Step 1: try to read existing progress. Non-fatal if it fails.
+    try {
+        const doc = await progressRef.get();
+        if (doc.exists) {
+            progressData = doc.data();
+            applyProgressData(progressData);
         }
+    } catch (err) {
+        console.warn('[Reader] Progress read failed:', err.code);
+    }
+
+    // Step 2: best-effort create (don't await in the critical path — but we do want
+    // the doc to exist before onSnapshot, so we do await with a hard timeout).
+    if (!progressData) {
+        const initial = {
+            userId: currentUserId,
+            bookId: bookId,
+            lastPage: 1,
+            maxPageReached: 1,
+            totalPages: totalPages || 1,
+            progressPercent: 0,
+            bookmarks: [],
+            notes: [],
+            totalReadingMs: 0,
+            lastReadAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        try {
+            await Promise.race([
+                progressRef.set(initial),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+            ]);
+            progressData = initial;
+        } catch (err) {
+            console.warn('[Reader] Progress create skipped:', err.code || err.message);
+            // Fallback: use the in-memory shape so bookmark/note mutations have something to work with
+            progressData = initial;
+        }
+    }
+
+    // Step 3: live sync — only if we have ref data. Wrap so it can never hang.
+    try {
         progressUnsubscribe = progressRef.onSnapshot((snap) => {
             if (!snap.exists) return;
             progressData = snap.data();
             applyProgressData(progressData, true);
         }, (err) => console.warn('[Reader] Progress sync error:', err.code));
+    } catch (err) {
+        console.warn('[Reader] Progress listener failed:', err.code);
     }
+}
 
     function applyProgressData(data, fromSnapshot) {
         if (!fromSnapshot) {
@@ -1347,41 +1387,54 @@
     // ============================================
     // BOOT
     // ============================================
-    async function bootstrap() {
-        const params = new URLSearchParams(window.location.search);
-        bookId = params.get('book');
-        if (!bookId) {
-            window.location.replace('library.html');
-            return;
-        }
+async function bootstrap() {
+    const params = new URLSearchParams(window.location.search);
+    bookId = params.get('book');
+    if (!bookId) {
+        window.location.replace('library.html');
+        return;
+    }
 
-        loadPrefs();
-        applyTheme(readerTheme);
-        applyBrightness(brightness);
-        const brightSlider = $('readerBrightness');
-        if (brightSlider) brightSlider.value = brightness;
-        document.querySelectorAll('.reader-zoom-btn').forEach((b) => {
-            b.classList.toggle('active', b.dataset.zoomMode === zoomMode);
-        });
-        document.querySelectorAll('.reader-mode-btn').forEach((b) => {
-            b.classList.toggle('active', b.dataset.mode === readingMode);
-        });
-        mainEl()?.setAttribute('data-mode', readingMode);
+    loadPrefs();
+    applyTheme(readerTheme);
+    applyBrightness(brightness);
+    const brightSlider = $('readerBrightness');
+    if (brightSlider) brightSlider.value = brightness;
+    document.querySelectorAll('.reader-zoom-btn').forEach((b) => {
+        b.classList.toggle('active', b.dataset.zoomMode === zoomMode);
+    });
+    document.querySelectorAll('.reader-mode-btn').forEach((b) => {
+        b.classList.toggle('active', b.dataset.mode === readingMode);
+    });
+    mainEl()?.setAttribute('data-mode', readingMode);
 
-        setupToolbarCustomization();
-        applyToolbarVisibility();
-        wireControls();
-        setupSidebar();
-        setupSwipe();
+    setupToolbarCustomization();
+    applyToolbarVisibility();
+    wireControls();
+    setupSidebar();
+    setupSwipe();
 
-        auth.onAuthStateChanged(async (user) => {
+    auth.onAuthStateChanged(async (user) => {
+        // If we somehow reach here twice, don't double-boot
+        if (window.__readerBooted) return;
+
+        let gateHidden = false;
+        const safeHideGate = () => {
+            if (gateHidden) return;
+            gateHidden = true;
+            try { hideAuthGate(); } catch (_) {}
+        };
+
+        try {
             if (!user) {
                 window.location.replace('index.html');
                 return;
             }
             currentUser = user;
             currentUserId = user.uid;
+            window.__readerBooted = true;
 
+            // --- 1. whitelist ---
             try {
                 const email = (user.email || '').toLowerCase();
                 const doc = await db.collection(CONFIG.COLLECTIONS.WHITELIST).doc(email).get();
@@ -1396,11 +1449,12 @@
                 return;
             }
 
+            // --- 2. book doc ---
             try {
                 const bookDoc = await db.collection(CONFIG.COLLECTIONS.BOOKS).doc(bookId).get();
                 if (!bookDoc.exists) {
                     $('readerError').hidden = false;
-                    hideAuthGate();
+                    safeHideGate();
                     return;
                 }
                 bookData = bookDoc.data();
@@ -1408,30 +1462,47 @@
                 if (titleEl) titleEl.textContent = bookData.title || 'Untitled';
                 if (!bookData.pdfUrl) {
                     $('readerError').hidden = false;
-                    hideAuthGate();
+                    safeHideGate();
                     return;
                 }
-                await loadProgress();
-                updatePageIndicator();
             } catch (err) {
                 console.warn('[Reader] Book fetch failed:', err.code);
                 $('readerError').hidden = false;
-                hideAuthGate();
+                safeHideGate();
                 return;
             }
 
-            await loadPdf(bookData.pdfUrl);
-            startSessionTimer();
-            setupHistory();
-            showResumeToast();
-            showSwipeHintOnce();
+            // --- 3. HIDE GATE NOW — critical fix ---
+            // The gate should not wait for progress or PDF loading.
+            safeHideGate();
 
-            hideAuthGate();
-        }, (err) => {
-            console.warn('[Reader] Auth error:', err);
-            window.location.replace('index.html');
-        });
-    }
+            // --- 4. progress: fire-and-forget ---
+            loadProgress()
+                .then(() => updatePageIndicator())
+                .catch((err) => console.warn('[Reader] Progress init failed:', err));
+
+            // --- 5. session/history start immediately ---
+            try { startSessionTimer(); } catch (_) {}
+            try { setupHistory(); } catch (_) {}
+            try { showResumeToast(); } catch (_) {}
+            try { showSwipeHintOnce(); } catch (_) {}
+
+            // --- 6. PDF load (uses its own spinner) ---
+            try {
+                await loadPdf(bookData.pdfUrl);
+            } catch (err) {
+                console.warn('[Reader] PDF load failed:', err);
+            }
+
+        } catch (err) {
+            console.error('[Reader] Bootstrap crashed:', err);
+            safeHideGate();
+        }
+    }, (err) => {
+        console.warn('[Reader] Auth error:', err);
+        window.location.replace('index.html');
+    });
+}
 
     document.addEventListener('DOMContentLoaded', () => {
         startAuthGateAnimation();
