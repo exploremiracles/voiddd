@@ -637,63 +637,75 @@
   let pdfRendering = false;
   let pdfRenderTask = null;
 
-  function openReader(book) {
-    const overlay = $('libraryReaderOverlay');
-    const titleEl = $('libraryReaderTitle');
-    const pageEl = $('libraryReaderPage');
-    const pagesEl = $('libraryReaderPages');
-    const loadingEl = $('libraryReaderLoading');
-    const dlBtn = $('libraryReaderDownload');
-    const prevBtn = $('libraryReaderPrev');
-    const nextBtn = $('libraryReaderNext');
-    const navLabel = $('libraryReaderNavLabel');
+async function openReader(book) {
+  const overlay = $('libraryReaderOverlay');
+  const titleEl = $('libraryReaderTitle');
+  const pageEl = $('libraryReaderPage');
+  const pagesEl = $('libraryReaderPages');
+  const loadingEl = $('libraryReaderLoading');
+  const dlBtn = $('libraryReaderDownload');
+  const prevBtn = $('libraryReaderPrev');
+  const nextBtn = $('libraryReaderNext');
+  const navLabel = $('libraryReaderNavLabel');
 
-    if (!overlay || !book.pdfUrl) {
-      showToast('PDF not available yet', 'error');
-      return;
-    }
-
-    // Reset state
-    pdfDoc = null;
-    pdfCurrentPage = 1;
-    pdfTotalPages = 0;
-    pdfRendering = false;
-    if (pdfRenderTask) { try { pdfRenderTask.cancel(); } catch (_) {} pdfRenderTask = null; }
-
-    titleEl.textContent = book.title || 'Untitled';
-    pageEl.textContent = '';
-    pagesEl.innerHTML = '';
-    loadingEl.classList.remove('hidden');
-    loadingEl.innerHTML = '<div class="library-reader-spinner"></div><p>Loading PDF…</p>';
-    dlBtn.href = book.pdfUrl;
-    dlBtn.setAttribute('download', (book.title || 'book') + '.pdf');
-    prevBtn.disabled = true;
-    nextBtn.disabled = true;
-    navLabel.textContent = '— / —';
-
-    overlay.classList.add('active');
-    overlay.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
-
-    if (!window.pdfjsLib) {
-      loadingEl.innerHTML = '<p style="color:var(--text-secondary)">Reader unavailable. Please download instead.</p>';
-      return;
-    }
-
-    pdfjsLib.getDocument(book.pdfUrl).promise
-      .then((doc) => {
-        pdfDoc = doc;
-        pdfTotalPages = doc.numPages;
-        pageEl.textContent = `${pdfTotalPages} pages`;
-        loadingEl.classList.add('hidden');
-        renderPdfPage(1);
-      })
-      .catch((err) => {
-        console.warn('[Library] PDF load failed:', err);
-        loadingEl.classList.remove('hidden');
-        loadingEl.innerHTML = '<p style="color:var(--text-secondary)">Could not load PDF. Please download instead.</p>';
-      });
+  if (!overlay || !book.pdfUrl) {
+    showToast('PDF not available yet', 'error');
+    return;
   }
+
+  // Reset state
+  pdfDoc = null;
+  pdfCurrentPage = 1;
+  pdfTotalPages = 0;
+  pdfRendering = false;
+  if (pdfRenderTask) { try { pdfRenderTask.cancel(); } catch (_) {} pdfRenderTask = null; }
+
+  titleEl.textContent = book.title || 'Untitled';
+  pageEl.textContent = '';
+  pagesEl.innerHTML = '';
+  loadingEl.classList.remove('hidden');
+  loadingEl.innerHTML = '<div class="library-reader-spinner"></div><p>Loading PDF…</p>';
+  dlBtn.href = book.pdfUrl;
+  dlBtn.setAttribute('download', (book.title || 'book') + '.pdf');
+  prevBtn.disabled = true;
+  nextBtn.disabled = true;
+  navLabel.textContent = '— / —';
+
+  overlay.classList.add('active');
+  overlay.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+
+  if (!window.pdfjsLib) {
+    loadingEl.innerHTML = '<p style="color:var(--text-secondary)">Reader unavailable. Please download instead.</p>';
+    return;
+  }
+
+  try {
+    // Fetch bytes manually — bypass PDF.js's internal networking
+    const res = await fetch(book.pdfUrl);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const buf = await res.arrayBuffer();
+
+    // Verify it's actually a PDF
+    const head = new Uint8Array(buf).slice(0, 5);
+    if (String.fromCharCode(...head) !== '%PDF-') {
+      throw new Error('Not a valid PDF');
+    }
+
+    // Hand bytes to PDF.js
+    const loadingTask = pdfjsLib.getDocument({ data: buf, isEvalSupported: false });
+    const doc = await loadingTask.promise;
+    pdfDoc = doc;
+    pdfTotalPages = doc.numPages;
+    pageEl.textContent = `${pdfTotalPages} pages`;
+    loadingEl.classList.add('hidden');
+    renderPdfPage(1);
+  } catch (err) {
+    console.warn('[Library] PDF load failed:', err);
+    loadingEl.classList.remove('hidden');
+    loadingEl.innerHTML = '<p style="color:var(--text-secondary)">Could not load PDF. Please download instead.</p>';
+  }
+}
 
   function renderPdfPage(pageNum) {
     if (!pdfDoc || pdfRendering) return;
@@ -719,7 +731,11 @@
       canvas.height = viewport.height;
       pagesEl.appendChild(canvas);
 
-      pdfRenderTask = page.render({ canvasContext: ctx, viewport });
+      pdfRenderTask = page.render({
+  canvasContext: ctx,
+  viewport,
+  isEvalSupported: false
+});
 
       return pdfRenderTask.promise.then(() => {
         pdfCurrentPage = pageNum;
