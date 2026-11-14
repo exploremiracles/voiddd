@@ -463,8 +463,8 @@
 
     const trendingBadge = (isTrending && (book.featured || downloads > 0))
       ? `<div class="library-book-trending-badge">
-           <span class="material-icons">local_fire_department</span>
-           Trending
+           <span class="material-icons">star</span>
+           Featured
          </div>`
       : '';
 
