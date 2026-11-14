@@ -1,0 +1,909 @@
+/* ============================================
+   Campus Unfolded — Library
+   Bento-inspired book gallery
+   ============================================ */
+
+.library-page {
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: clamp(1rem, 2.5vw, 2rem);
+    padding-top: calc(clamp(1rem, 2.5vw, 2rem) + env(safe-area-inset-top, 0));
+    padding-bottom: calc(clamp(1.5rem, 3vw, 2.5rem) + env(safe-area-inset-bottom, 0));
+    max-width: 1280px;
+    margin: 0 auto;
+}
+
+/* ============ TOP BAR ============ */
+.library-top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: clamp(1.25rem, 3vw, 2rem);
+    flex-wrap: nowrap;
+}
+
+.library-home-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px 8px 12px;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 999px;
+    color: var(--text);
+    text-decoration: none;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
+    box-shadow: var(--shadow-sm);
+}
+
+.library-home-btn:hover {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border-color: var(--accent);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.library-home-btn .material-icons {
+    font-size: 18px;
+}
+
+.library-title {
+    font-family: var(--font-heading);
+    font-size: clamp(1.75rem, 4vw, 2.75rem);
+    font-weight: 900;
+    background: linear-gradient(135deg, var(--text), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.1;
+    margin: 0;
+    text-align: center;
+    flex: 1;
+    min-width: 0;
+}
+
+.library-top-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.library-icon-btn {
+    width: 42px;
+    height: 42px;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 50%;
+    cursor: pointer;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--shadow-sm);
+}
+
+.library-icon-btn:hover {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border-color: var(--accent);
+    transform: rotate(20deg);
+}
+
+.library-icon-btn .material-icons {
+    font-size: 20px;
+}
+
+/* ============ SECTIONS ============ */
+.library-section {
+    margin-bottom: clamp(2rem, 4vw, 3rem);
+}
+
+.library-section-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.library-section-title {
+    font-family: var(--font-heading);
+    font-size: clamp(1.1rem, 2vw, 1.4rem);
+    font-weight: 900;
+    color: var(--text);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    line-height: 1.2;
+}
+
+.library-section-title .material-icons {
+    font-size: 1.3em;
+    color: var(--accent);
+}
+
+.library-section-hint {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ============ CATEGORIES — horizontal bento cards ============ */
+.library-categories {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding: 4px 4px 12px;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    mask-image: linear-gradient(
+        to right,
+        transparent 0,
+        black 20px,
+        black calc(100% - 20px),
+        transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+        to right,
+        transparent 0,
+        black 20px,
+        black calc(100% - 20px),
+        transparent 100%
+    );
+}
+
+.library-categories::-webkit-scrollbar {
+    height: 4px;
+}
+
+.library-categories::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--border) 70%, transparent);
+    border-radius: 2px;
+}
+
+.library-category-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 160px;
+    min-width: 160px;
+    height: 180px;
+    padding: 1.1rem;
+    border-radius: 20px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+    scroll-snap-align: start;
+    transition:
+        transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+        box-shadow 0.3s ease,
+        border-color 0.3s ease;
+    isolation: isolate;
+    color: white;
+    font-family: inherit;
+    text-align: left;
+}
+
+.library-category-card::before {
+    /* Decorative circle pattern */
+    content: '';
+    position: absolute;
+    top: -30%;
+    right: -30%;
+    width: 140%;
+    height: 140%;
+    border-radius: 50%;
+    background: radial-gradient(
+        circle,
+        rgba(255, 255, 255, 0.25) 0%,
+        transparent 60%
+    );
+    pointer-events: none;
+    z-index: 0;
+}
+
+.library-category-card > * {
+    position: relative;
+    z-index: 1;
+}
+
+.library-category-card:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.15);
+}
+
+.library-category-card:active {
+    transform: translateY(-2px) scale(1);
+}
+
+.library-category-card:focus-visible {
+    outline: 3px solid var(--accent-contrast);
+    outline-offset: 3px;
+}
+
+.library-category-icon {
+    width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.22);
+    border-radius: 12px;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.library-category-icon .material-icons {
+    font-size: 24px;
+    color: white;
+}
+
+.library-category-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.library-category-name {
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    font-weight: 900;
+    color: white;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+}
+
+.library-category-count {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 500;
+    letter-spacing: 0.3px;
+}
+
+/* ============ TRENDING SECTION ============ */
+.library-trending-section {
+    position: relative;
+    margin-bottom: clamp(2rem, 4vw, 3rem);
+    padding: clamp(1.25rem, 3vw, 2rem);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--accent) 12%, var(--surface)) 0%,
+        color-mix(in srgb, var(--accent) 4%, var(--surface)) 100%
+    );
+    border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+}
+
+/* Animated grid background */
+.library-trending-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.library-trending-grid {
+    position: absolute;
+    inset: -100%;
+    background-image:
+        linear-gradient(
+            color-mix(in srgb, var(--accent) 12%, transparent) 1px,
+            transparent 1px
+        ),
+        linear-gradient(
+            90deg,
+            color-mix(in srgb, var(--accent) 12%, transparent) 1px,
+            transparent 1px
+        );
+    background-size: 40px 40px;
+    animation: libraryGridScroll 20s linear infinite;
+    mask-image: radial-gradient(
+        ellipse at center,
+        black 20%,
+        transparent 70%
+    );
+    -webkit-mask-image: radial-gradient(
+        ellipse at center,
+        black 20%,
+        transparent 70%
+    );
+    opacity: 0.7;
+}
+
+[data-theme="dark"] .library-trending-grid,
+[data-theme="midnight"] .library-trending-grid,
+[data-theme="forest"] .library-trending-grid,
+[data-theme="sunset"] .library-trending-grid {
+    background-image:
+        linear-gradient(
+            rgba(255, 255, 255, 0.06) 1px,
+            transparent 1px
+        ),
+        linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.06) 1px,
+            transparent 1px
+        );
+}
+
+@keyframes libraryGridScroll {
+    0%   { transform: translate(0, 0); }
+    100% { transform: translate(40px, 40px); }
+}
+
+.library-trending-content {
+    position: relative;
+    z-index: 1;
+}
+
+.library-trending-scroll {
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    padding: 4px 4px 12px;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    mask-image: linear-gradient(
+        to right,
+        transparent 0,
+        black 20px,
+        black calc(100% - 20px),
+        transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+        to right,
+        transparent 0,
+        black 20px,
+        black calc(100% - 20px),
+        transparent 100%
+    );
+}
+
+.library-trending-scroll::-webkit-scrollbar {
+    height: 4px;
+}
+
+.library-trending-scroll::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--accent) 40%, transparent);
+    border-radius: 2px;
+}
+
+/* ============ BOOK CARD ============ */
+.library-book-card {
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border-radius: 18px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition:
+        transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+        box-shadow 0.3s ease,
+        border-color 0.3s ease;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    isolation: isolate;
+}
+
+.library-book-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+    border-color: var(--accent);
+}
+
+/* Trending variant */
+.library-book-card.trending {
+    width: 220px;
+    min-width: 220px;
+    flex-shrink: 0;
+    scroll-snap-align: start;
+}
+
+/* Book cover — vertical curved */
+.library-book-cover {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--accent) 30%, var(--surface-muted)) 0%,
+        color-mix(in srgb, var(--accent) 8%, var(--surface-muted)) 100%
+    );
+    overflow: hidden;
+    border-radius: 18px 18px 0 0;
+}
+
+/* Curved spine effect */
+.library-book-cover::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 18px;
+    background: linear-gradient(
+        to right,
+        rgba(0, 0, 0, 0.25) 0%,
+        rgba(0, 0, 0, 0.08) 40%,
+        transparent 100%
+    );
+    z-index: 2;
+    pointer-events: none;
+}
+
+/* Slight fold at top-right */
+.library-book-cover::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 30px;
+    height: 30px;
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--accent) 40%, transparent) 0%,
+        transparent 50%
+    );
+    z-index: 2;
+    pointer-events: none;
+    opacity: 0.5;
+}
+
+.library-book-cover-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.library-book-card:hover .library-book-cover-img {
+    transform: scale(1.06);
+}
+
+/* Generated cover fallback (no image URL) */
+.library-book-cover-fallback {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 1rem;
+    text-align: center;
+    background: linear-gradient(
+        135deg,
+        var(--accent) 0%,
+        var(--accent-hover, var(--accent)) 100%
+    );
+    color: var(--accent-contrast);
+    position: relative;
+    overflow: hidden;
+}
+
+.library-book-cover-fallback::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+        repeating-linear-gradient(
+            45deg,
+            transparent 0px,
+            transparent 20px,
+            rgba(255, 255, 255, 0.05) 20px,
+            rgba(255, 255, 255, 0.05) 21px
+        );
+    pointer-events: none;
+}
+
+.library-book-cover-fallback .material-icons {
+    font-size: 3rem;
+    opacity: 0.8;
+    position: relative;
+    z-index: 1;
+}
+
+.library-book-cover-fallback-title {
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.2;
+    position: relative;
+    z-index: 1;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+}
+
+/* Trending badge */
+.library-book-trending-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: linear-gradient(135deg, #f97316, #ea580c);
+    color: white;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4);
+    z-index: 3;
+}
+
+.library-book-trending-badge .material-icons {
+    font-size: 12px;
+}
+
+/* Download count badge */
+.library-book-downloads-badge {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px 9px;
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: white;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    z-index: 3;
+    font-variant-numeric: tabular-nums;
+}
+
+.library-book-downloads-badge .material-icons {
+    font-size: 12px;
+}
+
+/* Book info */
+.library-book-info {
+    padding: 0.9rem 1rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    flex: 1;
+}
+
+.library-book-category {
+    display: inline-block;
+    width: fit-content;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    color: var(--accent);
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 2px;
+}
+
+.library-book-title {
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+    margin: 0;
+}
+
+.library-book-author {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin: 0;
+}
+
+.library-book-desc {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+    margin: 0.15rem 0 0;
+}
+
+.library-book-download-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 9px 16px;
+    margin-top: 0.6rem;
+    background: linear-gradient(
+        135deg,
+        var(--accent),
+        var(--accent-hover, var(--accent))
+    );
+    color: var(--accent-contrast);
+    border: none;
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
+    text-decoration: none;
+    width: 100%;
+}
+
+.library-book-download-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.library-book-download-btn:active {
+    transform: translateY(0);
+}
+
+.library-book-download-btn .material-icons {
+    font-size: 16px;
+}
+
+/* ============ BOOKS GRID ============ */
+.library-books-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: clamp(0.75rem, 2vw, 1.25rem);
+}
+
+/* Reveal animation */
+.library-book-card.reveal {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: libraryCardReveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes libraryCardReveal {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Sentinel */
+.library-sentinel {
+    height: 1px;
+    width: 100%;
+    margin-top: 1rem;
+}
+
+/* ============ EMPTY STATE ============ */
+.library-empty {
+    text-align: center;
+    padding: 4rem 1rem;
+    color: var(--text-secondary);
+}
+
+.library-empty .material-icons {
+    font-size: 4rem;
+    color: var(--accent);
+    opacity: 0.5;
+    margin-bottom: 1rem;
+}
+
+.library-empty h3 {
+    font-family: var(--font-heading);
+    font-size: 1.4rem;
+    margin: 0 0 0.5rem;
+    color: var(--text);
+}
+
+.library-empty p {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width: 768px) {
+    .library-page {
+        padding: 1rem;
+        padding-top: calc(1rem + env(safe-area-inset-top, 0));
+    }
+
+    .library-home-label {
+        display: none;
+    }
+
+    .library-home-btn {
+        padding: 10px;
+        width: 42px;
+        height: 42px;
+        justify-content: center;
+    }
+
+    .library-title {
+        font-size: 1.5rem;
+    }
+
+    .library-category-card {
+        width: 140px;
+        min-width: 140px;
+        height: 160px;
+        padding: 0.9rem;
+    }
+
+    .library-category-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+    }
+
+    .library-category-icon .material-icons {
+        font-size: 20px;
+    }
+
+    .library-category-name {
+        font-size: 0.95rem;
+    }
+
+    .library-category-count {
+        font-size: 0.68rem;
+    }
+
+    .library-book-card.trending {
+        width: 180px;
+        min-width: 180px;
+    }
+
+    .library-books-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .library-book-info {
+        padding: 0.75rem 0.8rem 0.85rem;
+    }
+
+    .library-book-title {
+        font-size: 0.9rem;
+    }
+
+    .library-book-author {
+        font-size: 0.72rem;
+    }
+
+    .library-book-desc {
+        font-size: 0.7rem;
+        -webkit-line-clamp: 1;
+    }
+
+    .library-book-download-btn {
+        padding: 8px 14px;
+        font-size: 0.75rem;
+    }
+
+    .library-trending-section {
+        padding: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .library-title {
+        font-size: 1.35rem;
+    }
+
+    .library-category-card {
+        width: 130px;
+        min-width: 130px;
+        height: 150px;
+    }
+
+    .library-books-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.6rem;
+    }
+
+    .library-book-card.trending {
+        width: 160px;
+        min-width: 160px;
+    }
+
+    .library-section-title {
+        font-size: 1.1rem;
+    }
+
+    .library-section-hint {
+        font-size: 0.7rem;
+    }
+}
+
+/* ============ REDUCED MOTION ============ */
+@media (prefers-reduced-motion: reduce) {
+    .library-trending-grid {
+        animation: none !important;
+    }
+
+    .library-category-card,
+    .library-book-card,
+    .library-book-cover-img,
+    .library-book-download-btn,
+    .library-icon-btn,
+    .library-home-btn {
+        transition: none !important;
+    }
+
+    .library-category-card:hover,
+    .library-book-card:hover,
+    .library-book-download-btn:hover,
+    .library-icon-btn:hover,
+    .library-home-btn:hover {
+        transform: none !important;
+    }
+
+    .library-book-card.reveal {
+        animation: none !important;
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* ============ PRINT ============ */
+@media print {
+    .library-top-bar,
+    .library-home-btn,
+    .library-icon-btn,
+    .library-book-download-btn,
+    .library-trending-bg {
+        display: none !important;
+    }
+
+    .library-page {
+        padding: 1rem;
+        max-width: 100%;
+    }
+
+    .library-book-card {
+        break-inside: avoid;
+        box-shadow: none !important;
+        border: 1px solid #ccc !important;
+    }
+
+    .library-trending-section {
+        background: white !important;
+    }
+}
