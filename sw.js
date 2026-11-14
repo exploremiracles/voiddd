@@ -4,7 +4,7 @@
  * Strategy:
  * - HTML (navigation): network-first with 3s timeout → cache fallback → offline page
  * - App shell (JS/CSS): stale-while-revalidate (fast load + background update)
- * - Images/fonts: cache-first
+ * - Images/fonts: cache-first (images unversioned for cross-deploy persistence)
  * - Firebase / Google / YouTube / admin: never cached, always network
  * - POST / non-GET: never cached
  */
@@ -13,13 +13,14 @@
 // CONFIG
 // ============================================
 
-// Bump these on every deploy. Or inject __BUILD__ at build time.
-const VERSION = 'v2.3.6';
+const VERSION = 'v2.3.7';
 const STATIC_CACHE = `cu-static-${VERSION}`;
 const RUNTIME_CACHE = `cu-runtime-${VERSION}`;
-const IMAGE_CACHE = `cu-images-${VERSION}`;
+const IMAGE_CACHE = 'cu-images';           // ← no version — persists across deploys
 
 const NETWORK_TIMEOUT_MS = 3000;
+const RUNTIME_MAX_ITEMS = 30;              // cap HTML runtime cache
+const ASSET_MAX_ITEMS = 80;                // cap JS/CSS runtime cache
 
 // Assets that MUST be available offline (only public, non-sensitive)
 const STATIC_ASSETS = [
@@ -28,6 +29,8 @@ const STATIC_ASSETS = [
     '/dashboard.html',
     '/scrapbook.html',
     '/library.html',
+    '/reader.html',
+    '/stats.html',
     '/manifest.json',
     '/icon-192.png',
     '/icon-512.png',
@@ -41,12 +44,12 @@ const STATIC_ASSETS = [
 function isFirebaseOrGoogle(url) {
   const host = new URL(url).hostname;
   return (
-    host.includes('firebase') ||        // *.firebaseapp.com, *.firebaseio.com, etc.
-    host.includes('googleapis.com') ||  // *.googleapis.com (auth, firestore, storage, appcheck, install)
-    host.includes('gstatic.com') ||     // firebase SDKs, fonts loader
-    host.includes('google.com') ||      // accounts.google.com, apis.google.com (Google Sign-In)
-    host.includes('youtube.com') ||     // iframe player
-    host.includes('ytimg.com')          // thumbnails
+    host.includes('firebase') ||
+    host.includes('googleapis.com') ||
+    host.includes('gstatic.com') ||
+    host.includes('google.com') ||
+    host.includes('youtube.com') ||
+    host.includes('ytimg.com')
   );
 }
 
@@ -74,6 +77,16 @@ function timeout(ms) {
   );
 }
 
+async function trimCache(cacheName, maxItems) {
+  try {
+    const cache = await caches.open(cacheName);
+    const keys = await cache.keys();
+    if (keys.length <= maxItems) return;
+    const toDelete = keys.slice(0, keys.length - maxItems);
+    await Promise.all(toDelete.map((k) => cache.delete(k)));
+  } catch (_) {}
+}
+
 async function cacheFirst(cacheName, request) {
   const cached = await caches.match(request, { cacheName });
   if (cached) return cached;
@@ -86,7 +99,6 @@ async function cacheFirst(cacheName, request) {
     }
     return response;
   } catch (err) {
-    // Image fallback — return the app icon or a 404
     if (isImageRequest(request)) {
       const fallback = await caches.match('/icon-192.png');
       if (fallback) return fallback;
@@ -101,12 +113,14 @@ async function staleWhileRevalidate(cacheName, request) {
 
   const networkPromise = fetch(request)
     .then((response) => {
-      if (response.ok) cache.put(request, response.clone());
+      if (response.ok) {
+        cache.put(request, response.clone());
+        trimCache(cacheName, ASSET_MAX_ITEMS);
+      }
       return response;
     })
     .catch(() => null);
 
-  // Return cached immediately if available; update in background
   if (cached) {
     networkPromise; // fire and forget
     return cached;
@@ -126,22 +140,28 @@ async function networkFirstNavigation(request) {
     if (response && response.ok) {
       const cache = await caches.open(RUNTIME_CACHE);
       cache.put(request, response.clone());
+      trimCache(RUNTIME_CACHE, RUNTIME_MAX_ITEMS);
       return response;
     }
     throw new Error('bad-response');
   } catch (_) {
-    // Fallback: exact cache, then app shell
+    // 1. Exact cache hit (includes query string)
     const cached = await caches.match(request);
     if (cached) return cached;
 
-    // Only serve index.html for `/` or hash-route style paths
+    // 2. Path-only cache hit (ignores query — fixes /reader.html?book=X offline)
     const url = new URL(request.url);
+    const pathOnly = url.origin + url.pathname;
+    const pathCache = await caches.match(pathOnly);
+    if (pathCache) return pathCache;
+
+    // 3. App shell for root
     if (url.pathname === '/' || url.pathname === '/index.html') {
       const root = await caches.match('/index.html');
       if (root) return root;
     }
 
-    // Anything else → offline page
+    // 4. Offline page
     return offlinePage();
   }
 }
@@ -205,7 +225,6 @@ self.addEventListener('install', (event) => {
     (async () => {
       const cache = await caches.open(STATIC_CACHE);
 
-      // allSettled: one 404 shouldn't block install
       const results = await Promise.allSettled(
         STATIC_ASSETS.map((url) =>
           cache.add(url).catch((err) => {
@@ -248,26 +267,21 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
 
-  // Only GET requests
   if (request.method !== 'GET') return;
 
-  // Never touch Firebase / Google / YouTube / admin
   if (isFirebaseOrGoogle(request.url)) return;
   if (isAdminPage(request.url)) return;
 
-  // HTML navigation → network-first
   if (isNavigationRequest(request)) {
     event.respondWith(networkFirstNavigation(request));
     return;
   }
 
-  // Images → cache-first
   if (isImageRequest(request)) {
     event.respondWith(cacheFirst(IMAGE_CACHE, request));
     return;
   }
 
-  // JS / CSS / fonts / worker → stale-while-revalidate (fast + auto-updates)
   if (isStyleOrScript(request) ||
       request.destination === 'font' ||
       request.destination === 'manifest') {
@@ -275,7 +289,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Everything else → network with cache fallback (no store)
   event.respondWith(
     fetch(request).catch(() =>
       new Response('', { status: 504, statusText: 'Offline' })
