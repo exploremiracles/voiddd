@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="default">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Reader — Campus Unfolded</title>
+    <meta name="theme-color" content="#0d1117">
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self';
+                   script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com https://cdnjs.cloudflare.com;
+                   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+                   font-src 'self' https://fonts.gstatic.com;
+                   img-src 'self' data: blob: https:;
+                   connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://cdnjs.cloudflare.com https:;
+                   worker-src 'self' blob: https://cdnjs.cloudflare.com;
+                   frame-src https://*.firebaseapp.com;
+                   object-src 'none';
+                   base-uri 'self';">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="reader.css">
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('enlighten_theme') || 'default';
+          document.documentElement.setAttribute('data-theme', t);
+        } catch (e) {}
+      })();
+    </script>
+</head>
+<body>
+    <noscript><div style="padding:2rem;text-align:center;font-family:sans-serif"><h2>JavaScript required</h2></div></noscript>
+
+    <!-- Auth Gate -->
+    <div class="page-transition active" id="authGate" aria-live="polite">
+        <div class="auth-gate-bg" aria-hidden="true">
+            <div class="auth-gate-blob auth-gate-blob-1"></div>
+            <div class="auth-gate-blob auth-gate-blob-2"></div>
+            <div class="auth-gate-blob auth-gate-blob-3"></div>
+            <div class="auth-gate-grid"></div>
+        </div>
+        <div class="auth-gate-content">
+            <div class="auth-gate-logo-stage">
+                <div class="auth-gate-orbit"><span class="auth-gate-orbit-dot"></span><span class="auth-gate-orbit-dot"></span><span class="auth-gate-orbit-dot"></span></div>
+                <div class="auth-gate-logo-core">
+                    <img src="ns.png" alt="" class="auth-gate-logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                    <span class="material-icons auth-gate-logo-fallback" style="display:none;">auto_stories</span>
+                </div>
+            </div>
+            <h1 class="auth-gate-brand"><span class="auth-gate-brand-word">Campus</span><span class="auth-gate-brand-word auth-gate-brand-word-accent">Unfolded</span></h1>
+            <div class="auth-gate-status"><span class="auth-gate-status-dot"></span><span class="auth-gate-status-text" id="authGateStatus">Opening reader</span></div>
+            <div class="auth-gate-progress"><div class="auth-gate-progress-bar" id="authGateProgressBar"></div></div>
+        </div>
+    </div>
+
+    <!-- Reader Shell -->
+    <div class="reader-shell" id="readerShell" hidden>
+        <header class="reader-toolbar" id="readerToolbar">
+            <div class="reader-toolbar-left">
+                <button class="reader-icon-btn" id="readerBackBtn" aria-label="Back to library" title="Back">
+                    <span class="material-icons">arrow_back</span>
+                </button>
+                <button class="reader-icon-btn" id="readerSidebarToggle" aria-label="Toggle sidebar" title="Sidebar (T)">
+                    <span class="material-icons">menu</span>
+                </button>
+                <span class="reader-book-title" id="readerBookTitle">Loading…</span>
+            </div>
+            <div class="reader-toolbar-center">
+                <button class="reader-icon-btn" id="readerPrevBtn" aria-label="Previous page" title="Previous (←)">
+                    <span class="material-icons">chevron_left</span>
+                </button>
+                <span class="reader-page-indicator" id="readerPageIndicator">1 / 1</span>
+                <button class="reader-icon-btn" id="readerNextBtn" aria-label="Next page" title="Next (→)">
+                    <span class="material-icons">chevron_right</span>
+                </button>
+                <input type="number" class="reader-page-input" id="readerPageInput" min="1" value="1" aria-label="Go to page">
+            </div>
+            <div class="reader-toolbar-right">
+                <button class="reader-icon-btn" id="readerBookmarkBtn" aria-label="Bookmark page" title="Bookmark (B)">
+                    <span class="material-icons">bookmark_border</span>
+                </button>
+                <button class="reader-icon-btn" id="readerNoteBtn" aria-label="Add note" title="Add note (N)">
+                    <span class="material-icons">edit_note</span>
+                </button>
+                <button class="reader-icon-btn" id="readerZoomOutBtn" aria-label="Zoom out" title="Zoom out (-)">
+                    <span class="material-icons">remove</span>
+                </button>
+                <span class="reader-zoom-level" id="readerZoomLevel">100%</span>
+                <button class="reader-icon-btn" id="readerZoomInBtn" aria-label="Zoom in" title="Zoom in (+)">
+                    <span class="material-icons">add</span>
+                </button>
+                <button class="reader-icon-btn" id="readerFullscreenBtn" aria-label="Fullscreen" title="Fullscreen (F)">
+                    <span class="material-icons">crop_free</span>
+                </button>
+                <button class="reader-icon-btn" id="readerSettingsBtn" aria-label="Settings" title="Settings">
+                    <span class="material-icons">settings</span>
+                </button>
+            </div>
+        </header>
+
+        <div class="reader-progress-track" aria-hidden="true">
+            <div class="reader-progress-fill" id="readerProgressFill"></div>
+        </div>
+
+        <div class="reader-body">
+            <aside class="reader-sidebar" id="readerSidebar" aria-label="Sidebar">
+                <div class="reader-sidebar-tabs" role="tablist">
+                    <button class="reader-sidebar-tab active" data-sidebar-tab="thumbs" role="tab" aria-selected="true">Pages</button>
+                    <button class="reader-sidebar-tab" data-sidebar-tab="bookmarks" role="tab" aria-selected="false">Bookmarks</button>
+                    <button class="reader-sidebar-tab" data-sidebar-tab="notes" role="tab" aria-selected="false">Notes</button>
+                </div>
+                <div class="reader-sidebar-body">
+                    <div class="reader-sidebar-panel active" data-sidebar-panel="thumbs" id="readerThumbsPanel">
+                        <div class="reader-thumbs" id="readerThumbs"></div>
+                    </div>
+                    <div class="reader-sidebar-panel" data-sidebar-panel="bookmarks" id="readerBookmarksPanel">
+                        <div class="reader-sidebar-empty" id="readerBookmarksEmpty">
+                            <span class="material-icons">bookmark_border</span>
+                            <p>No bookmarks yet</p>
+                            <small>Tap the bookmark icon while reading to save a page.</small>
+                        </div>
+                        <div class="reader-sidebar-list" id="readerBookmarksList"></div>
+                    </div>
+                    <div class="reader-sidebar-panel" data-sidebar-panel="notes" id="readerNotesPanel">
+                        <div class="reader-sidebar-empty" id="readerNotesEmpty">
+                            <span class="material-icons">edit_note</span>
+                            <p>No notes yet</p>
+                            <small>Tap the note icon to write a note on this page.</small>
+                        </div>
+                        <div class="reader-sidebar-list" id="readerNotesList"></div>
+                    </div>
+                </div>
+            </aside>
+
+            <main class="reader-main" id="readerMain" data-mode="single">
+                <!-- Single-page canvas (single mode) -->
+                <div class="reader-canvas-wrapper" id="readerCanvasWrapper">
+                    <canvas id="readerCanvas"></canvas>
+                </div>
+                <!-- Continuous scroll stack (continuous mode) -->
+                <div class="reader-scroll-stack" id="readerScrollStack" hidden></div>
+                <div class="reader-loading" id="readerLoading">
+                    <div class="reader-spinner"></div>
+                    <span>Loading PDF…</span>
+                </div>
+                <div class="reader-error" id="readerError" hidden>
+                    <span class="material-icons">error_outline</span>
+                    <h3>Could not load this book</h3>
+                    <p>The PDF may be unavailable or you may not have access.</p>
+                </div>
+            </main>
+        </div>
+
+        <div class="reader-settings-panel" id="readerSettingsPanel" hidden>
+            <div class="reader-settings-header">
+                <h3>Reader Settings</h3>
+                <button class="reader-icon-btn" id="readerSettingsClose">
+                    <span class="material-icons">close</span>
+                </button>
+            </div>
+            <div class="reader-settings-body">
+                <div class="reader-setting-group">
+                    <label class="reader-setting-label">Reading Mode</label>
+                    <div class="reader-mode-options" id="readerModeOptions">
+                        <button class="reader-mode-btn" data-mode="single">
+                            <span class="material-icons">crop_portrait</span>
+                            <span>Single page</span>
+                        </button>
+                        <button class="reader-mode-btn active" data-mode="continuous">
+                            <span class="material-icons">view_stream</span>
+                            <span>Continuous</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="reader-setting-group">
+                    <label class="reader-setting-label">Theme</label>
+                    <div class="reader-theme-options" id="readerThemeOptions">
+                        <button class="reader-theme-btn active" data-reader-theme="light">Light</button>
+                        <button class="reader-theme-btn" data-reader-theme="dark">Dark</button>
+                        <button class="reader-theme-btn" data-reader-theme="sepia">Sepia</button>
+                        <button class="reader-theme-btn" data-reader-theme="sage">Sage</button>
+                    </div>
+                </div>
+                <div class="reader-setting-group">
+                    <label class="reader-setting-label">Brightness</label>
+                    <input type="range" id="readerBrightness" min="40" max="120" value="100" class="reader-brightness-slider">
+                    <span class="reader-brightness-value" id="readerBrightnessValue">100%</span>
+                </div>
+                <div class="reader-setting-group">
+                    <label class="reader-setting-label">Zoom Mode</label>
+                    <div class="reader-zoom-options" id="readerZoomOptions">
+                        <button class="reader-zoom-btn active" data-zoom-mode="auto">Auto</button>
+                        <button class="reader-zoom-btn" data-zoom-mode="width">Fit Width</button>
+                        <button class="reader-zoom-btn" data-zoom-mode="page">Fit Page</button>
+                    </div>
+                </div>
+                <div class="reader-setting-group">
+                    <label class="reader-setting-label">Customize Toolbar</label>
+                    <div class="reader-toolbar-toggles" id="readerToolbarToggles">
+                        <label class="reader-toggle-row"><input type="checkbox" data-toggle-btn="readerBookmarkBtn" checked> Bookmark</label>
+                        <label class="reader-toggle-row"><input type="checkbox" data-toggle-btn="readerNoteBtn" checked> Notes</label>
+                        <label class="reader-toggle-row"><input type="checkbox" data-toggle-btn="readerZoomInBtn" checked> Zoom controls</label>
+                        <label class="reader-toggle-row"><input type="checkbox" data-toggle-btn="readerFullscreenBtn" checked> Fullscreen</label>
+                        <label class="reader-toggle-row"><input type="checkbox" data-toggle-btn="readerSidebarToggle" checked> Sidebar toggle</label>
+                        <label class="reader-toggle-row"><input type="checkbox" data-toggle-btn="readerPageInput" checked> Page jump input</label>
+                    </div>
+                </div>
+                <div class="reader-setting-group">
+                    <label class="reader-setting-label">Reading Stats</label>
+                    <div class="reader-stats-grid">
+                        <div class="reader-stat">
+                            <div class="reader-stat-value" id="readerStatTime">0m</div>
+                            <div class="reader-stat-label">Time this session</div>
+                        </div>
+                        <div class="reader-stat">
+                            <div class="reader-stat-value" id="readerStatPages">0</div>
+                            <div class="reader-stat-label">Pages this session</div>
+                        </div>
+                        <div class="reader-stat">
+                            <div class="reader-stat-value" id="readerStatTotalTime">0m</div>
+                            <div class="reader-stat-label">Total time on book</div>
+                        </div>
+                        <div class="reader-stat">
+                            <div class="reader-stat-value" id="readerStatProgress">0%</div>
+                            <div class="reader-stat-label">Book progress</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="reader-setting-group">
+                    <a href="stats.html" class="reader-text-btn reader-stats-link" style="text-align:center;text-decoration:none;">
+                        <span class="material-icons" style="font-size:16px;vertical-align:middle;margin-right:4px;">insights</span>
+                        View all reading stats
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="reader-modal-overlay" id="readerNoteModal" hidden>
+            <div class="reader-modal">
+                <div class="reader-modal-header">
+                    <h3 id="readerNoteModalTitle">Note on page 1</h3>
+                    <button class="reader-icon-btn" id="readerNoteModalClose">
+                        <span class="material-icons">close</span>
+                    </button>
+                </div>
+                <div class="reader-modal-body">
+                    <textarea id="readerNoteText" class="reader-note-textarea"
+                              placeholder="Write your note…" maxlength="1500"></textarea>
+                    <div class="reader-note-meta">
+                        <span id="readerNoteCharCount">0 / 1500</span>
+                        <button class="reader-text-btn reader-text-btn-danger" id="readerNoteDeleteBtn" hidden>Delete</button>
+                    </div>
+                </div>
+                <div class="reader-modal-footer">
+                    <button class="reader-text-btn" id="readerNoteCancelBtn">Cancel</button>
+                    <button class="reader-text-btn reader-text-btn-primary" id="readerNoteSaveBtn">Save Note</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="reader-resume-toast" id="readerResumeToast" hidden>
+            <span class="material-icons">history</span>
+            <span id="readerResumeText">Resuming from page 1</span>
+            <button class="reader-text-btn" id="readerResumeGoBtn">Go</button>
+            <button class="reader-text-btn" id="readerResumeStartBtn">Start over</button>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="reader.js" defer></script>
+</body>
+</html>
