@@ -9,7 +9,8 @@
  * 4. Render categories (horizontal bento)
  * 5. Render trending (featured or top-downloaded)
  * 6. Render all books (paginated + infinite scroll)
- * 7. Handle download clicks (increment downloads counter)
+ * 7. Card click → in-app PDF reader modal
+ * 8. Download button → download + increment counter
  */
 
 (function () {
@@ -59,6 +60,14 @@
   const $ = (id) => document.getElementById(id);
 
   // ============================================
+  // PDF.JS INIT
+  // ============================================
+  if (window.pdfjsLib) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+
+  // ============================================
   // UTIL
   // ============================================
   function escapeHtml(text) {
@@ -100,10 +109,10 @@
     if (!statusEl && !progressBar) return;
 
     const STAGES = [
-      { text: 'Opening the library',   delay: 0,    progress: 20 },
-      { text: 'Loading categories',    delay: 500,  progress: 45 },
-      { text: 'Finding trending books',delay: 1000, progress: 70 },
-      { text: 'Almost ready',          delay: 1500, progress: 90 }
+      { text: 'Opening the library',    delay: 0,    progress: 20 },
+      { text: 'Loading categories',     delay: 500,  progress: 45 },
+      { text: 'Finding trending books', delay: 1000, progress: 70 },
+      { text: 'Almost ready',           delay: 1500, progress: 90 }
     ];
 
     STAGES.forEach(({ text, delay, progress }) => {
@@ -148,7 +157,6 @@
     const btn = $('libraryThemeBtn');
     if (!btn) return;
 
-    // Sync icon with current theme
     const syncIcon = () => {
       const t = document.documentElement.getAttribute('data-theme') || 'default';
       const icon = btn.querySelector('.material-icons');
@@ -237,7 +245,6 @@
         };
       });
 
-      // Auto-assign colors if not set
       allCategories.forEach((cat, i) => {
         if (!cat.color) {
           cat.color = CONFIG.CATEGORY_COLORS[i % CONFIG.CATEGORY_COLORS.length];
@@ -272,7 +279,6 @@
         };
       });
 
-      // Compute trending: featured first, then by downloads desc
       const featured = allBooks.filter((b) => b.featured);
       const nonFeatured = allBooks
         .filter((b) => !b.featured)
@@ -299,7 +305,6 @@
       return;
     }
 
-    // Count books per category
     const counts = {};
     allBooks.forEach((b) => {
       if (b.category) counts[b.category] = (counts[b.category] || 0) + 1;
@@ -326,7 +331,6 @@
 
     container.innerHTML = html;
 
-    // Wire clicks
     container.querySelectorAll('.library-category-card').forEach((btn) => {
       btn.addEventListener('click', () => {
         const cat = btn.dataset.category;
@@ -335,7 +339,6 @@
     });
   }
 
-  // Darken/lighten hex color
   function shadeColor(hex, percent) {
     const num = parseInt(hex.replace('#', ''), 16);
     const r = Math.max(0, Math.min(255, (num >> 16) + Math.round(255 * percent / 100)));
@@ -397,13 +400,11 @@
 
     if (emptyState) emptyState.style.display = 'none';
 
-    // Reset and render first batch
     displayedCount = Math.min(CONFIG.PAGE_SIZE, books.length);
     const batch = books.slice(0, displayedCount);
 
     container.innerHTML = batch.map((book, i) => {
       const card = renderBookCard(book, false);
-      // Add stagger delay
       const delay = Math.min(i, 10) * 40;
       return card.replace('class="library-book-card"', `class="library-book-card reveal" style="animation-delay:${delay}ms;"`);
     }).join('');
@@ -501,6 +502,7 @@
           <a href="${pdfUrl || '#'}"
              target="_blank"
              rel="noopener noreferrer"
+             download
              class="library-book-download-btn"
              data-download-book-id="${bookId}"
              ${!pdfUrl ? 'aria-disabled="true"' : ''}>
@@ -514,7 +516,8 @@
 
   function wireBookCardButtons(container) {
     if (!container) return;
-    // Download button click → increment counter
+
+    // Download button click → increment counter (link handles actual download)
     container.querySelectorAll('[data-download-book-id]').forEach((btn) => {
       if (btn.dataset.wired === 'true') return;
       btn.dataset.wired = 'true';
@@ -527,17 +530,15 @@
           showToast('PDF not available yet', 'error');
           return;
         }
-        // Increment download count (fire and forget — doesn't block opening)
         incrementDownloadCount(bookId);
       });
     });
 
-    // Card click → open PDF
+    // Card click → open in-app reader
     container.querySelectorAll('.library-book-card').forEach((card) => {
       if (card.dataset.wired === 'true') return;
       card.dataset.wired = 'true';
       card.addEventListener('click', (e) => {
-        // Ignore if clicking the download button
         if (e.target.closest('[data-download-book-id]')) return;
         const bookId = card.dataset.bookId;
         const book = allBooks.find((b) => b.id === bookId);
@@ -546,8 +547,7 @@
           showToast('PDF not available yet', 'error');
           return;
         }
-        incrementDownloadCount(bookId);
-        window.open(book.pdfUrl, '_blank', 'noopener,noreferrer');
+        openReader(book);
       });
 
       card.addEventListener('keydown', (e) => {
@@ -561,23 +561,19 @@
 
   async function incrementDownloadCount(bookId) {
     try {
-      // Atomic increment — rules allow ONLY this field to change by any auth user
       await db.collection(CONFIG.COLLECTIONS.BOOKS).doc(bookId).update({
         downloads: firebase.firestore.FieldValue.increment(1)
       });
 
-      // Update local state so UI reflects immediately
       const book = allBooks.find((b) => b.id === bookId);
       if (book) book.downloads = (book.downloads || 0) + 1;
 
-      // Update the visible counter badge
       const card = document.querySelector(`[data-book-id="${bookId}"]`);
       if (card) {
         const badge = card.querySelector('.library-book-downloads-badge span:last-child');
         if (badge && book) badge.textContent = book.downloads;
       }
     } catch (err) {
-      // Silent failure — don't block the actual download
       console.warn('[Library] Download count update failed:', err.code);
     }
   }
@@ -587,19 +583,16 @@
   // ============================================
   function selectCategory(categoryName) {
     if (selectedCategory === categoryName) {
-      // Deselect
       selectedCategory = null;
     } else {
       selectedCategory = categoryName;
     }
 
-    // Update active states
     document.querySelectorAll('.library-category-card').forEach((card) => {
       const isActive = card.dataset.category === selectedCategory;
       card.classList.toggle('library-category-card-active', isActive);
     });
 
-    // Update title
     const booksTitle = $('libraryBooksTitle');
     if (booksTitle) {
       booksTitle.textContent = selectedCategory
@@ -607,7 +600,6 @@
         : 'All Books';
     }
 
-    // Scroll to books section
     const booksSection = $('libraryBooks');
     booksSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
@@ -637,11 +629,158 @@
   }
 
   // ============================================
+  // PDF READER
+  // ============================================
+  let pdfDoc = null;
+  let pdfCurrentPage = 1;
+  let pdfTotalPages = 0;
+  let pdfRendering = false;
+  let pdfRenderTask = null;
+
+  function openReader(book) {
+    const overlay = $('libraryReaderOverlay');
+    const titleEl = $('libraryReaderTitle');
+    const pageEl = $('libraryReaderPage');
+    const pagesEl = $('libraryReaderPages');
+    const loadingEl = $('libraryReaderLoading');
+    const dlBtn = $('libraryReaderDownload');
+    const prevBtn = $('libraryReaderPrev');
+    const nextBtn = $('libraryReaderNext');
+    const navLabel = $('libraryReaderNavLabel');
+
+    if (!overlay || !book.pdfUrl) {
+      showToast('PDF not available yet', 'error');
+      return;
+    }
+
+    // Reset state
+    pdfDoc = null;
+    pdfCurrentPage = 1;
+    pdfTotalPages = 0;
+    pdfRendering = false;
+    if (pdfRenderTask) { try { pdfRenderTask.cancel(); } catch (_) {} pdfRenderTask = null; }
+
+    titleEl.textContent = book.title || 'Untitled';
+    pageEl.textContent = '';
+    pagesEl.innerHTML = '';
+    loadingEl.classList.remove('hidden');
+    loadingEl.innerHTML = '<div class="library-reader-spinner"></div><p>Loading PDF…</p>';
+    dlBtn.href = book.pdfUrl;
+    dlBtn.setAttribute('download', (book.title || 'book') + '.pdf');
+    prevBtn.disabled = true;
+    nextBtn.disabled = true;
+    navLabel.textContent = '— / —';
+
+    overlay.classList.add('active');
+    overlay.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+
+    if (!window.pdfjsLib) {
+      loadingEl.innerHTML = '<p style="color:var(--text-secondary)">Reader unavailable. Please download instead.</p>';
+      return;
+    }
+
+    pdfjsLib.getDocument(book.pdfUrl).promise
+      .then((doc) => {
+        pdfDoc = doc;
+        pdfTotalPages = doc.numPages;
+        pageEl.textContent = `${pdfTotalPages} pages`;
+        loadingEl.classList.add('hidden');
+        renderPdfPage(1);
+      })
+      .catch((err) => {
+        console.warn('[Library] PDF load failed:', err);
+        loadingEl.classList.remove('hidden');
+        loadingEl.innerHTML = '<p style="color:var(--text-secondary)">Could not load PDF. Please download instead.</p>';
+      });
+  }
+
+  function renderPdfPage(pageNum) {
+    if (!pdfDoc || pdfRendering) return;
+    pdfRendering = true;
+
+    const pagesEl = $('libraryReaderPages');
+    const prevBtn = $('libraryReaderPrev');
+    const nextBtn = $('libraryReaderNext');
+    const navLabel = $('libraryReaderNavLabel');
+    const pageEl = $('libraryReaderPage');
+    const bodyEl = $('libraryReaderBody');
+
+    pdfDoc.getPage(pageNum).then((page) => {
+      const availWidth = Math.min((bodyEl.clientWidth || 800) - 32, 900);
+      const baseViewport = page.getViewport({ scale: 1 });
+      const scale = availWidth / baseViewport.width;
+      const viewport = page.getViewport({ scale });
+
+      pagesEl.innerHTML = '';
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      pagesEl.appendChild(canvas);
+
+      pdfRenderTask = page.render({ canvasContext: ctx, viewport });
+
+      return pdfRenderTask.promise.then(() => {
+        pdfCurrentPage = pageNum;
+        prevBtn.disabled = pageNum <= 1;
+        nextBtn.disabled = pageNum >= pdfTotalPages;
+        navLabel.textContent = `${pageNum} / ${pdfTotalPages}`;
+        pageEl.textContent = `${pdfTotalPages} pages`;
+        pdfRendering = false;
+        pdfRenderTask = null;
+        bodyEl.scrollTop = 0;
+      });
+    }).catch((err) => {
+      if (err && err.name === 'RenderingCancelledException') return;
+      console.warn('[Library] Page render failed:', err);
+      pdfRendering = false;
+    });
+  }
+
+  function closeReader() {
+    const overlay = $('libraryReaderOverlay');
+    if (!overlay) return;
+    overlay.classList.remove('active');
+    overlay.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    if (pdfRenderTask) { try { pdfRenderTask.cancel(); } catch (_) {} pdfRenderTask = null; }
+    if (pdfDoc) { try { pdfDoc.destroy(); } catch (_) {} pdfDoc = null; }
+    setTimeout(() => {
+      const pagesEl = $('libraryReaderPages');
+      if (pagesEl) pagesEl.innerHTML = '';
+    }, 300);
+  }
+
+  function setupReaderControls() {
+    $('libraryReaderClose')?.addEventListener('click', closeReader);
+    $('libraryReaderOverlay')?.addEventListener('click', (e) => {
+      if (e.target.id === 'libraryReaderOverlay') closeReader();
+    });
+
+    $('libraryReaderPrev')?.addEventListener('click', () => {
+      if (pdfCurrentPage > 1) renderPdfPage(pdfCurrentPage - 1);
+    });
+    $('libraryReaderNext')?.addEventListener('click', () => {
+      if (pdfCurrentPage < pdfTotalPages) renderPdfPage(pdfCurrentPage + 1);
+    });
+
+    document.addEventListener('keydown', (e) => {
+      const overlay = $('libraryReaderOverlay');
+      if (!overlay || !overlay.classList.contains('active')) return;
+      if (e.key === 'Escape') closeReader();
+      if (e.key === 'ArrowLeft' && pdfCurrentPage > 1) renderPdfPage(pdfCurrentPage - 1);
+      if (e.key === 'ArrowRight' && pdfCurrentPage < pdfTotalPages) renderPdfPage(pdfCurrentPage + 1);
+    });
+  }
+
+  // ============================================
   // BOOT
   // ============================================
   document.addEventListener('DOMContentLoaded', () => {
     startAuthGateAnimation();
     setupThemeToggle();
+    setupReaderControls();
 
     if (typeof firebase !== 'undefined' && firebase.auth) {
       bootstrap();
