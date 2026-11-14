@@ -10,11 +10,12 @@
 
     <meta http-equiv="Content-Security-Policy"
           content="default-src 'self';
-                   script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com;
+                   script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com https://cdnjs.cloudflare.com;
                    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
                    font-src 'self' https://fonts.gstatic.com;
                    img-src 'self' data: blob: https:;
-                   connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com;
+                   connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://cdnjs.cloudflare.com;
+                   worker-src 'self' blob: https://cdnjs.cloudflare.com;
                    frame-src https://*.firebaseapp.com;
                    object-src 'none';
                    base-uri 'self';">
@@ -51,7 +52,7 @@
         </div>
     </noscript>
 
-    <!-- AUTH GATE — Cinematic (same as dashboard/scrapbook) -->
+    <!-- AUTH GATE — Cinematic -->
     <div class="page-transition active" id="authGate" aria-live="polite">
         <div class="auth-gate-bg" aria-hidden="true">
             <div class="auth-gate-blob auth-gate-blob-1"></div>
@@ -73,8 +74,8 @@
                 </div>
             </div>
             <h1 class="auth-gate-brand">
-                <span class="auth-gate-brand-word">VOID</span>
-                <span class="auth-gate-brand-word auth-gate-brand-word-accent">Kashmir</span>
+                <span class="auth-gate-brand-word">Campus</span>
+                <span class="auth-gate-brand-word auth-gate-brand-word-accent">Unfolded</span>
             </h1>
             <div class="auth-gate-status">
                 <span class="auth-gate-status-dot"></span>
@@ -103,7 +104,7 @@
             </div>
         </header>
 
-        <!-- Categories — horizontal scroll -->
+        <!-- Categories -->
         <section class="library-section" aria-labelledby="libraryCategoriesTitle">
             <div class="library-section-header">
                 <h2 class="library-section-title" id="libraryCategoriesTitle">Explore</h2>
@@ -112,7 +113,7 @@
             <div class="library-categories" id="libraryCategories" role="tablist"></div>
         </section>
 
-        <!-- Trending — with animated grid background -->
+        <!-- Trending -->
         <section class="library-trending-section" aria-labelledby="libraryTrendingTitle">
             <div class="library-trending-bg" aria-hidden="true">
                 <div class="library-trending-grid"></div>
