@@ -1,15 +1,6 @@
 /**
  * Campus Unfolded — Library
  * Books and research papers page.
- *
- * Flow:
- * 1. Auth gate (cinematic transition)
- * 2. Verify whitelist
- * 3. Fetch categories + books in parallel
- * 4. Render categories (horizontal bento)
- * 5. Render trending (featured or top-downloaded)
- * 6. Render all books (paginated + infinite scroll)
- * 7. Handle download clicks (increment downloads counter)
  */
 
 (function () {
@@ -28,16 +19,8 @@
     TRENDING_LIMIT: 8,
     AUTH_GATE_MIN_MS: 2200,
     CATEGORY_COLORS: [
-      '#5a745f', // sage
-      '#c96b8d', // blush
-      '#7c9c6b', // olive
-      '#6b8fc9', // sky
-      '#c98a5b', // terracotta
-      '#8a6bc9', // lavender
-      '#c9b56b', // gold
-      '#5b98a3', // teal
-      '#c96b6b', // rose
-      '#8a5b98'  // plum
+      '#5a745f', '#c96b8d', '#7c9c6b', '#6b8fc9', '#c98a5b',
+      '#8a6bc9', '#c9b56b', '#5b98a3', '#c96b6b', '#8a5b98'
     ]
   });
 
@@ -94,16 +77,15 @@
   // ============================================
   function startAuthGateAnimation() {
     authGateStartedAt = Date.now();
-
     const statusEl = $('authGateStatus');
     const progressBar = $('authGateProgressBar');
     if (!statusEl && !progressBar) return;
 
     const STAGES = [
-      { text: 'Opening the library',   delay: 0,    progress: 20 },
-      { text: 'Loading categories',    delay: 500,  progress: 45 },
-      { text: 'Finding trending books',delay: 1000, progress: 70 },
-      { text: 'Almost ready',          delay: 1500, progress: 90 }
+      { text: 'Opening the library',    delay: 0,    progress: 20 },
+      { text: 'Loading categories',     delay: 500,  progress: 45 },
+      { text: 'Finding trending books', delay: 1000, progress: 70 },
+      { text: 'Almost ready',           delay: 1500, progress: 90 }
     ];
 
     STAGES.forEach(({ text, delay, progress }) => {
@@ -118,9 +100,7 @@
     const gate = $('authGate');
     $('libraryRoot')?.removeAttribute('hidden');
     document.body.style.overflow = 'auto';
-
     if (!gate) return;
-
     const elapsed = Date.now() - authGateStartedAt;
     const remaining = Math.max(0, CONFIG.AUTH_GATE_MIN_MS - elapsed);
 
@@ -133,8 +113,7 @@
       setTimeout(() => {
         gate.classList.add('exiting');
         setTimeout(() => {
-          gate.classList.remove('active');
-          gate.classList.remove('exiting');
+          gate.classList.remove('active', 'exiting');
           gate.style.display = 'none';
         }, 500);
       }, 250);
@@ -147,15 +126,12 @@
   function setupThemeToggle() {
     const btn = $('libraryThemeBtn');
     if (!btn) return;
-
-    // Sync icon with current theme
     const syncIcon = () => {
       const t = document.documentElement.getAttribute('data-theme') || 'default';
       const icon = btn.querySelector('.material-icons');
       if (icon) icon.textContent = t === 'default' ? 'dark_mode' : 'light_mode';
     };
     syncIcon();
-
     btn.addEventListener('click', () => {
       const current = document.documentElement.getAttribute('data-theme') || 'default';
       const next = current === 'dark' || current === 'midnight' ? 'default' : 'dark';
@@ -174,11 +150,9 @@
         window.location.replace('index.html');
         return;
       }
-
       currentUser = user;
       currentUserId = user.uid;
 
-      // Verify whitelist
       try {
         const email = (user.email || '').toLowerCase();
         const doc = await db.collection(CONFIG.COLLECTIONS.WHITELIST).doc(email).get();
@@ -193,12 +167,8 @@
         return;
       }
 
-      // Load everything
       try {
-        await Promise.all([
-          loadCategories(),
-          loadBooks()
-        ]);
+        await Promise.all([loadCategories(), loadBooks()]);
         renderCategories();
         renderTrending();
         renderBooks();
@@ -221,10 +191,7 @@
   // ============================================
   async function loadCategories() {
     try {
-      const snap = await db.collection(CONFIG.COLLECTIONS.CATEGORIES)
-        .orderBy('order', 'asc')
-        .get();
-
+      const snap = await db.collection(CONFIG.COLLECTIONS.CATEGORIES).orderBy('order', 'asc').get();
       allCategories = snap.docs.map((d) => {
         const data = d.data();
         return {
@@ -236,12 +203,8 @@
           order: data.order || 0
         };
       });
-
-      // Auto-assign colors if not set
       allCategories.forEach((cat, i) => {
-        if (!cat.color) {
-          cat.color = CONFIG.CATEGORY_COLORS[i % CONFIG.CATEGORY_COLORS.length];
-        }
+        if (!cat.color) cat.color = CONFIG.CATEGORY_COLORS[i % CONFIG.CATEGORY_COLORS.length];
       });
     } catch (err) {
       console.warn('[Library] Categories load failed:', err.code);
@@ -251,10 +214,7 @@
 
   async function loadBooks() {
     try {
-      const snap = await db.collection(CONFIG.COLLECTIONS.BOOKS)
-        .orderBy('uploadedAt', 'desc')
-        .get();
-
+      const snap = await db.collection(CONFIG.COLLECTIONS.BOOKS).orderBy('uploadedAt', 'desc').get();
       allBooks = snap.docs.map((d) => {
         const data = d.data();
         return {
@@ -272,12 +232,8 @@
         };
       });
 
-      // Compute trending: featured first, then by downloads desc
       const featured = allBooks.filter((b) => b.featured);
-      const nonFeatured = allBooks
-        .filter((b) => !b.featured)
-        .sort((a, b) => b.downloads - a.downloads);
-
+      const nonFeatured = allBooks.filter((b) => !b.featured).sort((a, b) => b.downloads - a.downloads);
       trendingBooks = [...featured, ...nonFeatured].slice(0, CONFIG.TRENDING_LIMIT);
     } catch (err) {
       console.warn('[Library] Books load failed:', err.code);
@@ -292,14 +248,12 @@
   function renderCategories() {
     const container = $('libraryCategories');
     if (!container) return;
-
     if (!allCategories.length) {
       container.innerHTML = '';
       container.style.display = 'none';
       return;
     }
 
-    // Count books per category
     const counts = {};
     allBooks.forEach((b) => {
       if (b.category) counts[b.category] = (counts[b.category] || 0) + 1;
@@ -326,22 +280,26 @@
 
     container.innerHTML = html;
 
-    // Wire clicks
     container.querySelectorAll('.library-category-card').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const cat = btn.dataset.category;
-        selectCategory(cat);
-      });
+      btn.addEventListener('click', () => selectCategory(btn.dataset.category));
     });
   }
 
-  // Darken/lighten hex color
   function shadeColor(hex, percent) {
-    const num = parseInt(hex.replace('#', ''), 16);
-    const r = Math.max(0, Math.min(255, (num >> 16) + Math.round(255 * percent / 100)));
-    const g = Math.max(0, Math.min(255, ((num >> 8) & 0x00FF) + Math.round(255 * percent / 100)));
-    const b = Math.max(0, Math.min(255, (num & 0x0000FF) + Math.round(255 * percent / 100)));
-    return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+    try {
+      const clean = String(hex).replace('#', '');
+      const full = clean.length === 3
+        ? clean.split('').map((c) => c + c).join('')
+        : clean;
+      const num = parseInt(full, 16);
+      if (isNaN(num)) return hex;
+      const r = Math.max(0, Math.min(255, (num >> 16) + Math.round(255 * percent / 100)));
+      const g = Math.max(0, Math.min(255, ((num >> 8) & 0x00FF) + Math.round(255 * percent / 100)));
+      const b = Math.max(0, Math.min(255, (num & 0x0000FF) + Math.round(255 * percent / 100)));
+      return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+    } catch (_) {
+      return hex;
+    }
   }
 
   // ============================================
@@ -362,10 +320,7 @@
       return;
     }
 
-    container.innerHTML = trendingBooks
-      .map((book) => renderBookCard(book, true))
-      .join('');
-
+    container.innerHTML = trendingBooks.map((book) => renderBookCard(book, true)).join('');
     wireBookCardButtons(container);
   }
 
@@ -379,14 +334,10 @@
     if (!container) return;
 
     let books = allBooks;
-    if (selectedCategory) {
-      books = books.filter((b) => b.category === selectedCategory);
-    }
+    if (selectedCategory) books = books.filter((b) => b.category === selectedCategory);
 
     if (countEl) {
-      countEl.textContent = books.length
-        ? `${books.length} ${books.length === 1 ? 'book' : 'books'}`
-        : '';
+      countEl.textContent = books.length ? `${books.length} ${books.length === 1 ? 'book' : 'books'}` : '';
     }
 
     if (!books.length) {
@@ -397,13 +348,11 @@
 
     if (emptyState) emptyState.style.display = 'none';
 
-    // Reset and render first batch
     displayedCount = Math.min(CONFIG.PAGE_SIZE, books.length);
     const batch = books.slice(0, displayedCount);
 
     container.innerHTML = batch.map((book, i) => {
       const card = renderBookCard(book, false);
-      // Add stagger delay
       const delay = Math.min(i, 10) * 40;
       return card.replace('class="library-book-card"', `class="library-book-card reveal" style="animation-delay:${delay}ms;"`);
     }).join('');
@@ -419,14 +368,9 @@
     if (!container) { isLoadingMore = false; return; }
 
     let books = allBooks;
-    if (selectedCategory) {
-      books = books.filter((b) => b.category === selectedCategory);
-    }
+    if (selectedCategory) books = books.filter((b) => b.category === selectedCategory);
 
-    if (displayedCount >= books.length) {
-      isLoadingMore = false;
-      return;
-    }
+    if (displayedCount >= books.length) { isLoadingMore = false; return; }
 
     const start = displayedCount;
     const end = Math.min(start + CONFIG.PAGE_SIZE, books.length);
@@ -439,9 +383,7 @@
       return card.replace('class="library-book-card"', `class="library-book-card reveal" style="animation-delay:${delay}ms;"`);
     }).join('');
 
-    while (tempDiv.firstChild) {
-      container.appendChild(tempDiv.firstChild);
-    }
+    while (tempDiv.firstChild) container.appendChild(tempDiv.firstChild);
 
     wireBookCardButtons(container);
     displayedCount = end;
@@ -498,15 +440,23 @@
           <h3 class="library-book-title">${title}</h3>
           <p class="library-book-author">by ${author}</p>
           ${description ? `<p class="library-book-desc">${description}</p>` : ''}
-          <a href="${pdfUrl || '#'}"
-             target="_blank"
-             rel="noopener noreferrer"
-             class="library-book-download-btn"
-             data-download-book-id="${bookId}"
-             ${!pdfUrl ? 'aria-disabled="true"' : ''}>
-            <span class="material-icons">download</span>
-            <span>Download PDF</span>
-          </a>
+          <div class="library-book-actions">
+            <a href="${pdfUrl || '#'}"
+               target="_blank"
+               rel="noopener noreferrer"
+               class="library-book-download-btn"
+               data-download-book-id="${bookId}"
+               ${!pdfUrl ? 'aria-disabled="true"' : ''}>
+              <span class="material-icons">download</span>
+              <span>Download</span>
+            </a>
+            <button class="library-book-read-btn"
+                    data-read-book-id="${bookId}"
+                    ${!pdfUrl ? 'disabled' : ''}>
+              <span class="material-icons">auto_stories</span>
+              <span>Read</span>
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -514,7 +464,7 @@
 
   function wireBookCardButtons(container) {
     if (!container) return;
-    // Download button click → increment counter
+
     container.querySelectorAll('[data-download-book-id]').forEach((btn) => {
       if (btn.dataset.wired === 'true') return;
       btn.dataset.wired = 'true';
@@ -527,25 +477,28 @@
           showToast('PDF not available yet', 'error');
           return;
         }
-        // Increment download count (fire and forget — doesn't block opening)
         incrementDownloadCount(bookId);
       });
     });
 
-    // Card click → open PDF
+    container.querySelectorAll('[data-read-book-id]').forEach((btn) => {
+      if (btn.dataset.wired === 'true') return;
+      btn.dataset.wired = 'true';
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        window.location.href = `reader.html?book=${encodeURIComponent(btn.dataset.readBookId)}`;
+      });
+    });
+
     container.querySelectorAll('.library-book-card').forEach((card) => {
       if (card.dataset.wired === 'true') return;
       card.dataset.wired = 'true';
       card.addEventListener('click', (e) => {
-        // Ignore if clicking the download button
-        if (e.target.closest('[data-download-book-id]')) return;
+        if (e.target.closest('[data-download-book-id]') || e.target.closest('[data-read-book-id]')) return;
         const bookId = card.dataset.bookId;
         const book = allBooks.find((b) => b.id === bookId);
         if (!book) return;
-        if (!book.pdfUrl) {
-          showToast('PDF not available yet', 'error');
-          return;
-        }
+        if (!book.pdfUrl) { showToast('PDF not available yet', 'error'); return; }
         incrementDownloadCount(bookId);
         window.open(book.pdfUrl, '_blank', 'noopener,noreferrer');
       });
@@ -561,23 +514,17 @@
 
   async function incrementDownloadCount(bookId) {
     try {
-      // Atomic increment — rules allow ONLY this field to change by any auth user
       await db.collection(CONFIG.COLLECTIONS.BOOKS).doc(bookId).update({
         downloads: firebase.firestore.FieldValue.increment(1)
       });
-
-      // Update local state so UI reflects immediately
       const book = allBooks.find((b) => b.id === bookId);
       if (book) book.downloads = (book.downloads || 0) + 1;
-
-      // Update the visible counter badge
       const card = document.querySelector(`[data-book-id="${bookId}"]`);
       if (card) {
         const badge = card.querySelector('.library-book-downloads-badge span:last-child');
         if (badge && book) badge.textContent = book.downloads;
       }
     } catch (err) {
-      // Silent failure — don't block the actual download
       console.warn('[Library] Download count update failed:', err.code);
     }
   }
@@ -586,28 +533,20 @@
   // CATEGORY SELECT
   // ============================================
   function selectCategory(categoryName) {
-    if (selectedCategory === categoryName) {
-      // Deselect
-      selectedCategory = null;
-    } else {
-      selectedCategory = categoryName;
-    }
+    if (selectedCategory === categoryName) selectedCategory = null;
+    else selectedCategory = categoryName;
 
-    // Update active states
     document.querySelectorAll('.library-category-card').forEach((card) => {
       const isActive = card.dataset.category === selectedCategory;
       card.classList.toggle('library-category-card-active', isActive);
+      card.setAttribute('aria-selected', isActive ? 'true' : 'false');
     });
 
-    // Update title
     const booksTitle = $('libraryBooksTitle');
     if (booksTitle) {
-      booksTitle.textContent = selectedCategory
-        ? `${selectedCategory} Books`
-        : 'All Books';
+      booksTitle.textContent = selectedCategory ? `${selectedCategory} Books` : 'All Books';
     }
 
-    // Scroll to books section
     const booksSection = $('libraryBooks');
     booksSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
@@ -620,18 +559,12 @@
   function setupInfiniteScroll() {
     const sentinel = $('librarySentinel');
     if (!sentinel) return;
-
     if ('IntersectionObserver' in window) {
       sentinelObserver = new IntersectionObserver((entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting && initialLoadComplete) {
-            appendBooksBatch();
-          }
+          if (entry.isIntersecting && initialLoadComplete) appendBooksBatch();
         });
-      }, {
-        rootMargin: '400px 0px 400px 0px',
-        threshold: 0
-      });
+      }, { rootMargin: '400px 0px 400px 0px', threshold: 0 });
       sentinelObserver.observe(sentinel);
     }
   }
@@ -642,7 +575,6 @@
   document.addEventListener('DOMContentLoaded', () => {
     startAuthGateAnimation();
     setupThemeToggle();
-
     if (typeof firebase !== 'undefined' && firebase.auth) {
       bootstrap();
     } else {
